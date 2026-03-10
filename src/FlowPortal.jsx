@@ -1798,124 +1798,260 @@ const TraineeSkills = ({ user }) => {
 
         return (
         <>
-          {/* Overall progress — compact */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, padding: "16px 20px", background: T.white, border: "1px solid " + T.lightLine }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: "50%",
-              background: "conic-gradient(" + T.gold + " " + (pct * 3.6) + "deg, " + T.creamDark + " 0deg)",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: T.white, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, color: T.gold }}>
-                {pct}%
+          {/* Overall progress */}
+          <Card style={{ padding: "16px 20px", marginBottom: 24 }}>
+            <div className="skills-progress-row" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%",
+                background: `conic-gradient(${T.gold} ${pct * 3.6}deg, ${T.creamDark} 0deg)`,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: T.white, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, color: T.gold }}>
+                  {pct}%
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: "14px", fontWeight: 500 }}>Overall Progress</p>
+                <p style={{ fontSize: "12px", color: T.textMuted }}>{done} of {total} mastered</p>
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                {cats.map((c) => {
+                  const cd = c.skills.filter((s) => isSkillComplete(me, s.id, masterProgram)).length;
+                  return (
+                    <div key={c.id} style={{ textAlign: "center" }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color || T.gold, margin: "0 auto 4px" }} />
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: cd === c.skills.length ? T.success : (c.color || T.gold) }}>{cd}/{c.skills.length}</p>
+                      <p style={{ fontSize: "9px", color: T.textMuted, maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: "14px", fontWeight: 500 }}>Overall Progress</p>
-              <p style={{ fontSize: "12px", color: T.textMuted }}>{done} of {total} mastered</p>
-            </div>
-            <div style={{ display: "flex", gap: 12 }}>
-              {cats.map((c) => {
-                const cd = c.skills.filter((s) => isSkillComplete(me, s.id, masterProgram)).length;
-                return (
-                  <div key={c.id} style={{ textAlign: "center" }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color || T.gold, margin: "0 auto 4px" }} />
-                    <p style={{ fontSize: "14px", fontWeight: 600, color: cd === c.skills.length ? T.success : (c.color || T.gold) }}>{cd}/{c.skills.length}</p>
-                    <p style={{ fontSize: "9px", color: T.textMuted, maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          </Card>
 
-          {/* Hero: Currently Working On */}
+          {/* Currently Working On */}
           {focusSkills.length > 0 && (
             <div style={{ marginBottom: 28 }}>
               <p style={{ fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.25em", textTransform: "uppercase", color: T.gold, marginBottom: 12 }}>{adminFocus ? "Assigned Focus" : "Currently Working On"}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {focusSkills.map((sk) => (
-                  <Card key={sk.id} style={{ padding: 0, overflow: "hidden", borderLeft: "4px solid " + (sk.catColor || T.gold) }}>
-                    <div style={{ padding: "16px 20px", background: (sk.catColor || T.gold) + "12", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontFamily: T.fontD, fontSize: "20px", fontWeight: 600 }}>{sk.name}</span>
-                          <Badge color={sk.catColor || T.gold}>{sk.catName}</Badge>
+              <div className="skill-focus-grid" style={{ display: "grid", gridTemplateColumns: focusSkills.length > 1 ? "1fr 1fr" : "1fr", gap: 12 }}>
+                {focusSkills.map((sk) => {
+                  const skPct = getSkillPct(me, sk.id, masterProgram);
+                  const sp = getSkillProgress(me, sk.id);
+                  const cc = sk.catColor || T.gold;
+                  const logs = (me.timingLogs || {})[sk.id] || [];
+                  const totalMin = logs.reduce((a, l) => a + (l.minutes || 0), 0);
+                  const techLabel = TECHNIQUE_STAGES[sp.technique];
+                  const timeLabel = TIMING_STAGES[sp.timing];
+                  return (
+                    <Card key={sk.id} style={{ padding: 0, overflow: "hidden", borderLeft: `4px solid ${cc}` }}>
+                      <div style={{ padding: "16px 18px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                          <div>
+                            <p style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 2 }}>{sk.name}</p>
+                            <p style={{ fontSize: "11px", color: cc }}>{sk.catName}</p>
+                          </div>
+                          <span style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 700, color: cc }}>{skPct}%</span>
                         </div>
-                        {sk.targetMin && (
-                          <p style={{ fontSize: "11px", color: T.textMuted }}>Target: {sk.targetMin}min · Max: {sk.maxMin}min</p>
-                        )}
+                        <ProgressBar value={skPct} height={6} color={cc} />
+
+                        {/* Stage indicators */}
+                        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                          <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.cream }}>
+                            <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted, marginBottom: 4 }}>Technique</p>
+                            <p style={{ fontSize: "13px", fontWeight: 700, color: TECHNIQUE_COLORS[sp.technique] }}>{techLabel}</p>
+                            <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
+                              {TECHNIQUE_STAGES.map((_, si) => (
+                                <div key={si} style={{ flex: 1, height: 3, borderRadius: 2, background: si <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.cream }}>
+                            <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted, marginBottom: 4 }}>Timing</p>
+                            <p style={{ fontSize: "13px", fontWeight: 700, color: TIMING_COLORS[sp.timing] }}>{timeLabel}</p>
+                            <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
+                              {TIMING_STAGES.map((_, si) => (
+                                <div key={si} style={{ flex: 1, height: 3, borderRadius: 2, background: si <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick stats + action */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                          <span style={{ fontSize: "11px", color: T.textMuted }}>{logs.length} sessions · {totalMin} min</span>
+                          <button onClick={() => openAddLog(sk)} style={{
+                            display: "flex", alignItems: "center", gap: 4,
+                            padding: "6px 14px", fontSize: "12px", fontWeight: 600,
+                            background: cc, color: T.white, border: "none",
+                            borderRadius: T.radiusSm, cursor: "pointer",
+                          }}>
+                            <Icon name="plus" size={12} color={T.white} /> Log Time
+                          </button>
+                        </div>
                       </div>
-                      <span style={{ fontFamily: T.fontD, fontSize: "28px", fontWeight: 600, color: sk.catColor || T.gold }}>{getSkillPct(me, sk.id, masterProgram)}%</span>
-                    </div>
-                    <div style={{ padding: "16px 20px" }}>
-                      <SkillCard
-                        skill={sk}
-                        trainee={me}
-                        masterProgram={masterProgram}
-                        onAddLog={openAddLog}
-                        onDeleteLog={deleteLog}
-                        onReply={replyToLog}
-                        onPlayVideo={(v) => setPlayingVideo(v)}
-                        role="resident"
-                        timingLogs={(me.timingLogs || {})[sk.id] || []}
-                      />
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* All Categories — accordion */}
+          {/* All Categories */}
           <p style={{ fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.25em", textTransform: "uppercase", color: T.textMuted, marginBottom: 12 }}>All Categories</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {cats.map((cat) => {
               const catDone = cat.skills.filter((s) => isSkillComplete(me, s.id, masterProgram)).length;
               const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(me, s.id, masterProgram), 0) / cat.skills.length);
+              const cc = cat.color || T.gold;
               return (
-                <Card key={cat.id} style={{ overflow: "hidden", borderLeft: "4px solid " + (cat.color || T.gold) }}>
+                <Card key={cat.id} style={{ overflow: "hidden", borderLeft: `4px solid ${cc}` }}>
                   <details>
                     <summary style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", cursor: "pointer", listStyle: "none" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <h3 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600 }}>{cat.name}</h3>
-                          <Badge color={catDone === cat.skills.length ? T.success : (cat.color || T.gold)}>{catDone}/{cat.skills.length}</Badge>
+                          <Badge color={catDone === cat.skills.length ? T.success : cc}>{catDone}/{cat.skills.length}</Badge>
                         </div>
-                        <ProgressBar value={catPct} height={4} color={cat.color || T.gold} />
-                        {/* Category intro videos — always visible */}
-                        {(cat.videos || []).length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
-                            {cat.videos.map((v) => (
-                              <button key={v.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPlayingVideo(v); }} style={{
-                                display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 4,
-                                background: "#8B6AAE10", fontSize: "11px", color: "#8B6AAE", fontWeight: 500,
-                                border: "none", cursor: "pointer",
-                              }}>
-                                <Icon name="play" size={12} color="#8B6AAE" />
-                                {v.title}
-                                <span style={{ color: T.textMuted, fontSize: "10px" }}>{v.duration}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                        <ProgressBar value={catPct} height={4} color={cc} />
                       </div>
                       <span className="arrow-down" style={{ fontSize: "11px", color: T.textMuted, transition: "transform .2s" }}>▲</span>
                     </summary>
-                    <div style={{ padding: "0 20px 20px" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {cat.skills.map((sk) => (
-                          <SkillCard
-                            key={sk.id}
-                            skill={sk}
-                            trainee={me}
-                            masterProgram={masterProgram}
-                            onAddLog={openAddLog}
-                            onDeleteLog={deleteLog}
-                            onReply={replyToLog}
-                            onPlayVideo={(v) => setPlayingVideo(v)}
-                            role="resident"
-                            timingLogs={(me.timingLogs || {})[sk.id] || []}
-                          />
-                        ))}
+                    <div style={{ padding: "0 16px 16px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {cat.skills.map((sk) => {
+                          const sp = getSkillProgress(me, sk.id);
+                          const skPct = getSkillPct(me, sk.id, masterProgram);
+                          const isService = sk.type === "service";
+                          const complete = isService ? sp.technique >= 3 && sp.timing >= 3 : sp.done;
+                          const logs = (me.timingLogs || {})[sk.id] || [];
+                          const hasComments = logs.some((l) => (l.comments || []).length > 0);
+                          return (
+                            <details key={sk.id}>
+                              <summary style={{
+                                display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                                background: complete ? `${T.success}08` : T.cream,
+                                border: `1px solid ${complete ? T.success + "25" : T.lightLine}`,
+                                borderRadius: T.radiusSm, cursor: "pointer", listStyle: "none",
+                              }}>
+                                {/* Status dot */}
+                                <div style={{
+                                  width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+                                  background: complete ? T.success : skPct > 0 ? cc : T.lightLine,
+                                }} />
+                                {/* Name + type */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <p style={{ fontSize: "14px", fontWeight: 600 }}>{sk.name}</p>
+                                  {isService && !complete && (
+                                    <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 2 }}>
+                                      {TECHNIQUE_STAGES[sp.technique]} · {TIMING_STAGES[sp.timing]}
+                                    </p>
+                                  )}
+                                  {complete && <p style={{ fontSize: "11px", color: T.success, fontWeight: 500, marginTop: 2 }}>Complete</p>}
+                                  {!isService && !complete && <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 2 }}>Knowledge</p>}
+                                </div>
+                                {/* Right side */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                  {hasComments && <Icon name="message" size={12} color={T.gold} />}
+                                  {logs.length > 0 && <span style={{ fontSize: "10px", color: T.textMuted }}>{logs.length} logs</span>}
+                                  {!complete && skPct > 0 && <span style={{ fontSize: "13px", fontWeight: 700, color: cc }}>{skPct}%</span>}
+                                </div>
+                              </summary>
+                              {/* Expanded detail */}
+                              <div style={{ padding: "12px 14px", borderLeft: `3px solid ${cc}`, marginLeft: 5, marginTop: 4 }}>
+                                {isService && (
+                                  <>
+                                    {/* Stage progress */}
+                                    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                                      <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                          <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", color: T.textMuted }}>Technique</span>
+                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TECHNIQUE_COLORS[sp.technique] }}>{TECHNIQUE_STAGES[sp.technique]}</span>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 3 }}>
+                                          {TECHNIQUE_STAGES.map((_, si) => (
+                                            <div key={si} style={{ flex: 1, height: 4, borderRadius: 2, background: si <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                          <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", color: T.textMuted }}>Timing</span>
+                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TIMING_COLORS[sp.timing] }}>{TIMING_STAGES[sp.timing]}</span>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 3 }}>
+                                          {TIMING_STAGES.map((_, si) => (
+                                            <div key={si} style={{ flex: 1, height: 4, borderRadius: 2, background: si <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {/* Target times */}
+                                    {sk.targetMin && (
+                                      <p style={{ fontSize: "11px", color: T.textMuted, marginBottom: 10 }}>
+                                        Goal: <strong>{sk.targetMin}min</strong> · Max: <strong>{sk.maxMin}min</strong>
+                                      </p>
+                                    )}
+                                    {/* Videos */}
+                                    {sk.videos && sk.videos.length > 0 && (
+                                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                                        {sk.videos.map((v) => (
+                                          <button key={v.id} onClick={() => setPlayingVideo(v)} style={{
+                                            display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
+                                            borderRadius: T.radiusSm, background: "#8B6AAE10", fontSize: "12px", color: "#8B6AAE",
+                                            fontWeight: 500, border: "none", cursor: "pointer",
+                                          }}>
+                                            <Icon name="play" size={12} color="#8B6AAE" /> {v.title}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {/* Practice logs */}
+                                    {logs.length > 0 && (
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                                        <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted }}>Practice Log ({logs.length})</p>
+                                        {[...logs].reverse().slice(0, 3).map((log, li) => {
+                                          const idx = logs.length - 1 - li;
+                                          const comments = log.comments || [];
+                                          return (
+                                            <div key={idx} style={{ padding: "8px 10px", background: T.white, borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}` }}>
+                                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: log.note || comments.length > 0 ? 6 : 0 }}>
+                                                <span style={{ fontSize: "13px", fontWeight: 600 }}>{log.minutes}min</span>
+                                                <Badge color={log.type === "model" ? T.success : "#8B6AAE"}>{log.type}</Badge>
+                                                <span style={{ fontSize: "11px", color: T.textMuted, marginLeft: "auto" }}>{log.date}</span>
+                                              </div>
+                                              {log.note && <p style={{ fontSize: "12px", color: T.textMuted }}>{log.note}</p>}
+                                              {comments.length > 0 && (
+                                                <div style={{ marginTop: 4, padding: "6px 8px", background: T.cream, borderRadius: T.radiusSm }}>
+                                                  {comments.slice(-2).map((c, ci) => (
+                                                    <p key={ci} style={{ fontSize: "11px", marginBottom: 2 }}>
+                                                      <span style={{ fontWeight: 600, color: c.from === "educator" ? T.educator : T.textMuted }}>{c.name}: </span>
+                                                      {c.text}
+                                                    </p>
+                                                  ))}
+                                                  {comments.length > 2 && <p style={{ fontSize: "9px", color: T.textMuted }}>+{comments.length - 2} more</p>}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                        {logs.length > 3 && <p style={{ fontSize: "10px", color: T.textMuted, textAlign: "center" }}>+{logs.length - 3} older entries</p>}
+                                      </div>
+                                    )}
+                                    {/* Log button */}
+                                    <button onClick={() => openAddLog(sk)} style={{
+                                      width: "100%", padding: "10px 0", fontSize: "13px", fontWeight: 600,
+                                      background: cc, color: T.white, border: "none",
+                                      borderRadius: T.radiusSm, cursor: "pointer",
+                                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                    }}>
+                                      <Icon name="plus" size={14} color={T.white} /> Log Practice
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </details>
+                          );
+                        })}
                       </div>
                     </div>
                   </details>
