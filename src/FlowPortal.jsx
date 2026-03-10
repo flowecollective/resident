@@ -761,6 +761,7 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
       ]
     : [
         { id: "dash", label: "Dashboard", icon: "dashboard" },
+        { id: "onboarding", label: "Onboarding", icon: "clipboard" },
         { id: "sched", label: "Schedule", icon: "calendar" },
         { id: "skills", label: "My Skills", icon: "check" },
         { id: "tuition", label: "My Tuition", icon: "dollar" },
@@ -981,6 +982,259 @@ const ReplyInput = ({ skillId, logIdx, me, setResidents, showToast }) => {
       <button onClick={submit} disabled={!text.trim()} style={{ background: T.charcoal, border: "none", borderRadius: "50%", width: 30, height: 30, cursor: text.trim() ? "pointer" : "not-allowed", opacity: text.trim() ? 1 : 0.4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <Icon name="send" size={13} color={T.cream} />
       </button>
+    </div>
+  );
+};
+
+// ════════════════════════════════════════════
+//  TRAINEE: ONBOARDING
+// ════════════════════════════════════════════
+const GUSTO_FIELDS = [
+  { key: "legalName", label: "Legal Full Name", type: "text", placeholder: "First Last" },
+  { key: "ssn", label: "SSN", type: "password", placeholder: "XXX-XX-XXXX" },
+  { key: "dob", label: "Date of Birth", type: "date", placeholder: "" },
+  { key: "address", label: "Home Address", type: "text", placeholder: "Street, City, State ZIP" },
+  { key: "phone", label: "Phone Number", type: "tel", placeholder: "(555) 555-0000" },
+  { key: "emergencyName", label: "Emergency Contact Name", type: "text", placeholder: "Full Name" },
+  { key: "emergencyPhone", label: "Emergency Contact Phone", type: "tel", placeholder: "(555) 555-0000" },
+  { key: "bankRouting", label: "Bank Routing Number", type: "password", placeholder: "9 digits" },
+  { key: "bankAccount", label: "Bank Account Number", type: "password", placeholder: "Account number" },
+];
+
+const TraineeOnboarding = ({ user }) => {
+  const { residents, setResidents, docs, setDocs, showToast } = useData();
+  const me = residents.find((r) => r.id === user.id) || residents[0];
+  const ob = me.onboarding || { agreement: { signed: false }, enrollment: { completed: false }, gusto: { completed: false, fields: {} } };
+
+  const [gustoOpen, setGustoOpen] = useState(false);
+  const [gustoFields, setGustoFields] = useState(ob.gusto?.fields || {});
+
+  const steps = [
+    { id: "agreement", label: "Sign Residency Agreement", icon: "shield", done: ob.agreement?.signed },
+    { id: "enrollment", label: "Enroll & Pay Tuition", icon: "dollar", done: ob.enrollment?.completed },
+    { id: "gusto", label: "Complete Payroll Setup", icon: "clipboard", done: ob.gusto?.completed },
+  ];
+
+  const completedCount = steps.filter((s) => s.done).length;
+  const allDone = completedCount === steps.length;
+
+  const handleAgreement = () => {
+    window.open("https://www.jordanwangco.com/fc-residency-agreement", "_blank");
+  };
+
+  const markAgreementSigned = () => {
+    const now = new Date().toISOString().split("T")[0];
+    setResidents((prev) =>
+      prev.map((r) =>
+        r.id === me.id
+          ? { ...r, onboarding: { ...r.onboarding, agreement: { signed: true, date: now, url: "" } } }
+          : r
+      )
+    );
+    // Add to documents
+    setDocs((prev) => [
+      ...prev,
+      {
+        id: uid(),
+        name: "Residency Agreement — Signed",
+        category: "Agreements",
+        size: "PDF",
+        date: now,
+        url: "https://www.jordanwangco.com/fc-residency-agreement",
+      },
+    ]);
+    showToast("Agreement marked as signed!");
+  };
+
+  const handleEnroll = () => {
+    window.open("https://jordanwangco.com/enroll", "_blank");
+  };
+
+  const markEnrolled = () => {
+    const now = new Date().toISOString().split("T")[0];
+    setResidents((prev) =>
+      prev.map((r) =>
+        r.id === me.id
+          ? { ...r, onboarding: { ...r.onboarding, enrollment: { completed: true, date: now, plan: r.tuition?.plan || "monthly" } } }
+          : r
+      )
+    );
+    showToast("Enrollment confirmed!");
+  };
+
+  const saveGusto = () => {
+    const required = ["legalName", "dob", "address", "phone", "emergencyName", "emergencyPhone"];
+    const missing = required.filter((k) => !gustoFields[k]);
+    if (missing.length > 0) {
+      showToast("Please fill out all required fields");
+      return;
+    }
+    const now = new Date().toISOString().split("T")[0];
+    setResidents((prev) =>
+      prev.map((r) =>
+        r.id === me.id
+          ? { ...r, onboarding: { ...r.onboarding, gusto: { completed: true, date: now, fields: gustoFields } } }
+          : r
+      )
+    );
+    setGustoOpen(false);
+    showToast("Payroll information saved!");
+  };
+
+  return (
+    <div className="fade-up">
+      <SectionTitle sub={allDone ? "All steps completed — you're all set!" : `${completedCount} of ${steps.length} steps completed`}>
+        Onboarding
+      </SectionTitle>
+
+      {/* Progress bar */}
+      <Card style={{ padding: 24, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <p style={{ fontSize: "13px", fontWeight: 500 }}>
+            {allDone ? "Onboarding Complete" : "Complete these steps to get started"}
+          </p>
+          <Badge color={allDone ? T.success : T.gold} bg={allDone ? T.successBg : T.goldMuted}>
+            {completedCount}/{steps.length}
+          </Badge>
+        </div>
+        <ProgressBar value={Math.round((completedCount / steps.length) * 100)} height={8} color={allDone ? T.success : T.gold} />
+      </Card>
+
+      {/* Step 1: Agreement */}
+      <Card style={{ padding: 0, marginBottom: 16, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 24px" }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%",
+            background: ob.agreement?.signed ? T.successBg : T.goldMuted,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            {ob.agreement?.signed
+              ? <Icon name="check" size={20} color={T.success} />
+              : <Icon name="shield" size={20} color={T.gold} />
+            }
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "14px", fontWeight: 600 }}>Sign Residency Agreement</p>
+            <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
+              {ob.agreement?.signed
+                ? `Signed on ${ob.agreement.date}`
+                : "Review and sign the Flowe Collective residency agreement"
+              }
+            </p>
+          </div>
+          {ob.agreement?.signed ? (
+            <button onClick={handleAgreement} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.textMuted }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="eye" size={14} color={T.textMuted} /> View</span>
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleAgreement} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.charcoal }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="link" size={14} color={T.charcoal} /> Review</span>
+              </button>
+              <button onClick={markAgreementSigned} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
+                Mark Signed
+              </button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Step 2: Enrollment */}
+      <Card style={{ padding: 0, marginBottom: 16, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 24px" }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%",
+            background: ob.enrollment?.completed ? T.successBg : T.goldMuted,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            {ob.enrollment?.completed
+              ? <Icon name="check" size={20} color={T.success} />
+              : <Icon name="dollar" size={20} color={T.gold} />
+            }
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "14px", fontWeight: 600 }}>Enroll & Pay Tuition</p>
+            <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
+              {ob.enrollment?.completed
+                ? `Enrolled on ${ob.enrollment.date} · ${ob.enrollment.plan === "full" ? "Paid in Full" : "Monthly Plan"}`
+                : "Choose your tuition plan and complete payment to secure your spot"
+              }
+            </p>
+          </div>
+          {ob.enrollment?.completed ? (
+            <Badge color={T.success} bg={T.successBg}>Enrolled</Badge>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleEnroll} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.charcoal }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="link" size={14} color={T.charcoal} /> Enroll</span>
+              </button>
+              <button onClick={markEnrolled} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
+                Confirm
+              </button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Step 3: Gusto / Payroll */}
+      <Card style={{ padding: 0, marginBottom: 16, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 24px" }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%",
+            background: ob.gusto?.completed ? T.successBg : T.goldMuted,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            {ob.gusto?.completed
+              ? <Icon name="check" size={20} color={T.success} />
+              : <Icon name="clipboard" size={20} color={T.gold} />
+            }
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "14px", fontWeight: 600 }}>Complete Payroll Setup</p>
+            <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
+              {ob.gusto?.completed
+                ? `Completed on ${ob.gusto.date}`
+                : "Fill out your tax, banking, and emergency contact information"
+              }
+            </p>
+          </div>
+          {ob.gusto?.completed ? (
+            <button onClick={() => { setGustoFields(ob.gusto.fields || {}); setGustoOpen(true); }} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.textMuted }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="edit" size={14} color={T.textMuted} /> Edit</span>
+            </button>
+          ) : (
+            <button onClick={() => setGustoOpen(true)} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
+              Fill Out
+            </button>
+          )}
+        </div>
+      </Card>
+
+      {/* Gusto Form Modal */}
+      <Modal open={gustoOpen} onClose={() => setGustoOpen(false)} title="Payroll & Tax Information" width={520}>
+        <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 20 }}>
+          This information is used for payroll processing through Gusto. All data is encrypted and stored securely.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {GUSTO_FIELDS.map((f) => (
+            <FormField key={f.key} label={f.label}>
+              <input
+                type={f.type}
+                value={gustoFields[f.key] || ""}
+                onChange={(e) => setGustoFields({ ...gustoFields, [f.key]: e.target.value })}
+                placeholder={f.placeholder}
+                style={iSt}
+              />
+            </FormField>
+          ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+          <button onClick={() => setGustoOpen(false)} style={{ padding: "10px 20px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "13px", cursor: "pointer" }}>
+            Cancel
+          </button>
+          <Btn onClick={saveGusto}>Save Information</Btn>
+        </div>
+      </Modal>
     </div>
   );
 };
@@ -6141,6 +6395,7 @@ const App = () => {
   } else {
     const map = {
       dash: <TraineeDash user={user} />,
+      onboarding: <TraineeOnboarding user={user} />,
       sched: <TraineeSchedule user={user} />,
       skills: <TraineeSkills user={user} />,
       tuition: <TraineeTuition user={user} />,

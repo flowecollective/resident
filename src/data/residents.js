@@ -6,6 +6,11 @@ export const INIT_RESIDENTS = [
     name: "Cheyenne Rollins",
     cohort: "Spring 2026",
     email: "cheyenne@flowecollective.com",
+    onboarding: {
+      agreement: { signed: true, date: "2026-01-05", url: "" },
+      enrollment: { completed: true, date: "2026-01-10", plan: "monthly" },
+      gusto: { completed: true, date: "2026-01-08", fields: { legalName: "Cheyenne Rollins", ssn: "***-**-1234", dob: "1998-06-15", address: "412 Magnolia St, Austin TX 78701", phone: "(512) 555-0147", emergencyName: "Daniel Rollins", emergencyPhone: "(512) 555-0199", bankRouting: "***4821", bankAccount: "***7890" } },
+    },
     skillIds: [...ALL_SKILL_IDS],
     progress: { sk1: {technique:3,timing:3}, sk2: {technique:3,timing:2}, sk8: {done:true}, sk9: {technique:3,timing:2}, sk15: {technique:2,timing:0}, sk19: {done:true}, sk27: {done:true} },
     tuition: { plan: "monthly", total: 4950, payments: [
@@ -43,6 +48,11 @@ export const INIT_RESIDENTS = [
     name: "Aisha Williams",
     cohort: "Spring 2026",
     email: "aisha@flowecollective.com",
+    onboarding: {
+      agreement: { signed: true, date: "2026-01-03", url: "" },
+      enrollment: { completed: true, date: "2026-01-10", plan: "full" },
+      gusto: { completed: true, date: "2026-01-06", fields: { legalName: "Aisha Williams", ssn: "***-**-5678", dob: "1999-03-22", address: "1800 S Congress Ave, Austin TX 78704", phone: "(512) 555-0283", emergencyName: "Fatima Williams", emergencyPhone: "(512) 555-0291", bankRouting: "***3301", bankAccount: "***4456" } },
+    },
     skillIds: ["sk8", "sk9", "sk10", "sk11", "sk12", "sk13", "sk14", "sk19", "sk20"],
     progress: { sk8: {done:true}, sk9: {technique:2,timing:1}, sk14: {done:true} },
     tuition: { plan: "full", total: 4500, payments: [
@@ -70,6 +80,11 @@ export const INIT_RESIDENTS = [
     name: "Jasmine Reyes",
     cohort: "Spring 2026",
     email: "jasmine@flowecollective.com",
+    onboarding: {
+      agreement: { signed: true, date: "2026-01-12", url: "" },
+      enrollment: { completed: true, date: "2026-01-15", plan: "monthly" },
+      gusto: { completed: false, date: null, fields: {} },
+    },
     skillIds: ["sk1", "sk2", "sk3", "sk4", "sk5", "sk6", "sk7", "sk15", "sk16", "sk17", "sk19"],
     progress: { sk1: {technique:3,timing:3}, sk2: {technique:3,timing:2}, sk3: {technique:1,timing:0} },
     tuition: { plan: "monthly", total: 4950, payments: [
@@ -105,6 +120,11 @@ export const INIT_RESIDENTS = [
     name: "Zara Mitchell",
     cohort: "Spring 2026",
     email: "zara@flowecollective.com",
+    onboarding: {
+      agreement: { signed: true, date: "2026-01-08", url: "" },
+      enrollment: { completed: true, date: "2026-01-15", plan: "monthly" },
+      gusto: { completed: true, date: "2026-01-10", fields: { legalName: "Zara Mitchell", ssn: "***-**-9012", dob: "1997-11-03", address: "2200 E 6th St, Austin TX 78702", phone: "(512) 555-0344", emergencyName: "Keisha Mitchell", emergencyPhone: "(512) 555-0355", bankRouting: "***7712", bankAccount: "***2233" } },
+    },
     skillIds: ["sk1", "sk2", "sk9", "sk15", "sk19", "sk23", "sk27", "sk28"],
     progress: { sk1: {technique:3,timing:3}, sk2: {technique:3,timing:3}, sk9: {technique:3,timing:3}, sk15: {technique:3,timing:3}, sk19: {done:true}, sk23: {done:true}, sk27: {done:true}, sk28: {done:true} },
     tuition: { plan: "monthly", total: 4950, payments: [
