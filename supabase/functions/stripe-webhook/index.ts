@@ -44,8 +44,21 @@ serve(async (req) => {
     }
 
     const amount = (session.amount_total || 0) / 100;
+    const discount = ((session as any).total_details?.amount_discount || 0) / 100;
     const plan = session.mode === "subscription" ? "monthly" : "full";
-    const total = plan === "full" ? 4500 : 4950;
+    const fullPrice = plan === "full" ? 4500 : 4950;
+
+    // If discounted, adjust tuition total to what they actually owe
+    // For subscriptions, discount applies per payment so adjust total proportionally
+    let total = fullPrice;
+    if (discount > 0) {
+      if (plan === "full") {
+        total = amount; // They owe exactly what Stripe charged
+      } else {
+        // Monthly: discount per installment × 3 payments
+        total = amount * 3;
+      }
+    }
 
     // Upsert tuition record
     await supabase.from("tuition").upsert(
@@ -53,14 +66,24 @@ serve(async (req) => {
       { onConflict: "user_id" }
     );
 
-    // Insert payment record
-    await supabase.from("payments").insert({
-      user_id: userId,
-      amount,
-      date: new Date().toISOString().split("T")[0],
-      note: plan === "full" ? "Paid in full" : "Month 1",
-      stripe_payment_id: session.payment_intent as string || session.subscription as string,
-    });
+    // Insert payment record (only if amount > 0)
+    if (amount > 0) {
+      await supabase.from("payments").insert({
+        user_id: userId,
+        amount,
+        date: new Date().toISOString().split("T")[0],
+        note: discount > 0
+          ? `${plan === "full" ? "Paid in full" : "Month 1"} (promo: -$${discount.toLocaleString()})`
+          : (plan === "full" ? "Paid in full" : "Month 1"),
+        stripe_payment_id: session.payment_intent as string || session.subscription as string,
+      });
+    } else {
+      // 100% discount — mark as fully paid with $0 tuition
+      await supabase.from("tuition").upsert(
+        { user_id: userId, plan, total: 0 },
+        { onConflict: "user_id" }
+      );
+    }
 
     // Mark enrollment completed on profile
     await supabase.from("profiles").update({
