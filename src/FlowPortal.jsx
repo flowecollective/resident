@@ -5064,22 +5064,39 @@ const TraineeProfile = ({ traineeId, onNav }) => {
   };
 
   // Progress management
-  const setStage = (sid, dimension, value) => {
+  const setStage = async (sid, dimension, value) => {
+    // Optimistic local update
     setResidents((p) => p.map((x) => {
       if (x.id !== traineeId) return x;
       const current = x.progress?.[sid] || { technique: 0, timing: 0 };
       return { ...x, progress: { ...x.progress, [sid]: { ...current, [dimension]: value } } };
     }));
     showToast(dimension === "technique" ? TECHNIQUE_STAGES[value] : TIMING_STAGES[value]);
+    // Persist to Supabase
+    const r2 = residents.find((x) => x.id === traineeId);
+    const current = r2?.progress?.[sid] || { technique: 0, timing: 0 };
+    const updated = { ...current, [dimension]: value };
+    await supabase.from("resident_skills").upsert({
+      user_id: traineeId, skill_id: sid,
+      technique: updated.technique || 0, timing: updated.timing || 0, done: false,
+    }, { onConflict: "user_id,skill_id" });
   };
-  const toggleKnowledge = (sid) => {
+  const toggleKnowledge = async (sid) => {
+    const r2 = residents.find((x) => x.id === traineeId);
+    const current = r2?.progress?.[sid];
+    const isDone = current && (current === true || current.done === true);
+    const newDone = !isDone;
+    // Optimistic local update
     setResidents((p) => p.map((x) => {
       if (x.id !== traineeId) return x;
-      const current = x.progress?.[sid];
-      const isDone = current && (current === true || current.done === true);
-      return { ...x, progress: { ...x.progress, [sid]: { done: !isDone } } };
+      return { ...x, progress: { ...x.progress, [sid]: { done: newDone } } };
     }));
     showToast("Updated");
+    // Persist to Supabase
+    await supabase.from("resident_skills").upsert({
+      user_id: traineeId, skill_id: sid,
+      technique: 0, timing: 0, done: newDone,
+    }, { onConflict: "user_id,skill_id" });
   };
   const openEditLog = (skillId, logIdx, log) => {
     setEditLogSkillId(skillId); setEditLogIdx(logIdx);
@@ -5209,9 +5226,11 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                         <span style={{ fontSize: "13px", fontWeight: 500 }}>{fsSk.name}</span>
                         <span style={{ fontSize: "10px", color: T.textMuted }}>{fsCat.name}</span>
                       </div>
-                      <button onClick={() => {
-                        setResidents((p) => p.map((x) => x.id !== traineeId ? x : { ...x, focusSkills: (x.focusSkills || []).filter((id) => id !== fsId) }));
+                      <button onClick={async () => {
+                        const newFocus = (r.focusSkills || []).filter((id) => id !== fsId);
+                        setResidents((p) => p.map((x) => x.id !== traineeId ? x : { ...x, focusSkills: newFocus }));
                         showToast("Focus removed");
+                        await supabase.from("profiles").update({ focus_skills: newFocus }).eq("id", traineeId);
                       }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
                         <Icon name="x" size={14} color={T.danger} />
                       </button>
@@ -5282,15 +5301,19 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                         const manLogs = skLogs.filter((l) => l.type === "mannequin");
                         const mdlAvg = mdlLogs.length ? Math.round(mdlLogs.reduce((a, l) => a + l.minutes, 0) / mdlLogs.length) : null;
                         const manAvg = manLogs.length ? Math.round(manLogs.reduce((a, l) => a + l.minutes, 0) / manLogs.length) : null;
-                        const toggleFocus = () => {
-                          setResidents((prev) => prev.map((x) => {
-                            if (x.id !== traineeId) return x;
-                            const fs = x.focusSkills || [];
-                            if (fs.includes(sk.id)) return { ...x, focusSkills: fs.filter((id) => id !== sk.id) };
-                            if (fs.length >= 3) return x;
-                            return { ...x, focusSkills: [...fs, sk.id] };
-                          }));
+                        const toggleFocus = async () => {
+                          const fs = r.focusSkills || [];
+                          let newFocus;
+                          if (fs.includes(sk.id)) {
+                            newFocus = fs.filter((id) => id !== sk.id);
+                          } else if (fs.length >= 3) {
+                            return;
+                          } else {
+                            newFocus = [...fs, sk.id];
+                          }
+                          setResidents((prev) => prev.map((x) => x.id !== traineeId ? x : { ...x, focusSkills: newFocus }));
                           showToast(isFocus ? "Focus removed" : "Pinned as focus");
+                          await supabase.from("profiles").update({ focus_skills: newFocus }).eq("id", traineeId);
                         };
                         return (
                           <div key={sk.id} style={{
@@ -5562,49 +5585,61 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
   const { total, done, pct } = getProgress(r, masterProgram);
   const assignedCats = getTraineeCats(r, masterProgram);
 
-  const toggleSkill = (sid) => {
-    setResidents((p) =>
-      p.map((x) => {
-        if (x.id !== traineeId) return x;
-        const sids = new Set(x.skillIds || []);
-        sids.has(sid) ? sids.delete(sid) : sids.add(sid);
-        return { ...x, skillIds: [...sids] };
-      })
-    );
+  const toggleSkill = async (sid) => {
+    const sids = new Set(r.skillIds || []);
+    const removing = sids.has(sid);
+    if (removing) { sids.delete(sid); } else { sids.add(sid); }
+    const newIds = [...sids];
+    // Optimistic update
+    setResidents((p) => p.map((x) => x.id !== traineeId ? x : { ...x, skillIds: newIds }));
+    // Persist to Supabase
+    if (removing) {
+      await supabase.from("resident_skills").delete().eq("user_id", traineeId).eq("skill_id", sid);
+    } else {
+      await supabase.from("resident_skills").insert({
+        user_id: traineeId, skill_id: sid, sort_order: newIds.length - 1,
+      });
+    }
   };
 
-  const applyPreset = (pr) => {
-    setResidents((p) =>
-      p.map((x) => {
-        if (x.id !== traineeId) return x;
-        const sids = new Set([...(x.skillIds || []), ...pr.skillIds]);
-        return { ...x, skillIds: [...sids] };
-      })
-    );
+  const applyPreset = async (pr) => {
+    const existingIds = new Set(r.skillIds || []);
+    const newIds = pr.skillIds.filter((sid) => !existingIds.has(sid));
+    const allIds = [...existingIds, ...newIds];
+    // Optimistic update
+    setResidents((p) => p.map((x) => x.id !== traineeId ? x : { ...x, skillIds: allIds }));
     showToast(`Applied "${pr.name}"`);
     setPresetModal(false);
+    // Persist new assignments to Supabase
+    if (newIds.length > 0) {
+      const rows = newIds.map((sid, i) => ({
+        user_id: traineeId, skill_id: sid, sort_order: existingIds.size + i,
+      }));
+      await supabase.from("resident_skills").insert(rows);
+    }
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     setResidents((p) => p.map((x) => (x.id === traineeId ? { ...x, skillIds: [], progress: {} } : x)));
     showToast("Track cleared");
+    await supabase.from("resident_skills").delete().eq("user_id", traineeId);
   };
 
   // Reorder: drag skill within the assigned track
-  const handleReorderDrop = (targetId) => {
+  const handleReorderDrop = async (targetId) => {
     if (!reorderDragId || reorderDragId === targetId) { setReorderDragId(null); setReorderOverId(null); return; }
-    setResidents((p) => p.map((x) => {
-      if (x.id !== traineeId) return x;
-      const ids = [...(x.skillIds || [])];
-      const fromIdx = ids.indexOf(reorderDragId);
-      const toIdx = ids.indexOf(targetId);
-      if (fromIdx === -1 || toIdx === -1) return x;
-      ids.splice(fromIdx, 1);
-      ids.splice(toIdx, 0, reorderDragId);
-      return { ...x, skillIds: ids };
-    }));
+    const ids = [...(r.skillIds || [])];
+    const fromIdx = ids.indexOf(reorderDragId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) { setReorderDragId(null); setReorderOverId(null); return; }
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, reorderDragId);
+    setResidents((p) => p.map((x) => x.id !== traineeId ? x : { ...x, skillIds: ids }));
     setReorderDragId(null);
     setReorderOverId(null);
+    // Update sort_order in Supabase
+    const updates = ids.map((sid, i) => supabase.from("resident_skills").update({ sort_order: i }).eq("user_id", traineeId).eq("skill_id", sid));
+    await Promise.all(updates);
   };
 
   return (
@@ -6753,7 +6788,7 @@ const App = () => {
   const [page, setPage] = useState("dash");
   const [masterProgram, setMasterProgram] = useState([]);
   const [presets, setPresets] = useState(INIT_PRESETS);
-  const [residents, setResidents] = useState(INIT_RESIDENTS);
+  const [residents, setResidents] = useState([]);
   const [schedule, setSchedule] = useState(INIT_SCHEDULE);
   const [docs, setDocs] = useState([]);
   const [messages, setMessages] = useState(INIT_MESSAGES);
@@ -6814,6 +6849,48 @@ const App = () => {
           })),
         }));
         setMasterProgram(program);
+      }
+
+      // Load residents (profiles + skill assignments)
+      if (profile.role === "admin") {
+        const [{ data: resProfiles }, { data: rSkills }] = await Promise.all([
+          supabase.from("profiles").select("*").eq("role", "resident"),
+          supabase.from("resident_skills").select("*"),
+        ]);
+        const resList = (resProfiles || []).map((p) => {
+          const mySkills = (rSkills || []).filter((rs) => rs.user_id === p.id);
+          const skillIds = mySkills.sort((a, b) => a.sort_order - b.sort_order).map((rs) => rs.skill_id);
+          const progress = {};
+          mySkills.forEach((rs) => {
+            if (rs.done) {
+              progress[rs.skill_id] = { done: true };
+            } else if (rs.technique > 0 || rs.timing > 0) {
+              progress[rs.skill_id] = { technique: rs.technique, timing: rs.timing };
+            }
+          });
+          return {
+            id: p.id, name: p.name, email: p.email, cohort: p.cohort || "Spring 2026",
+            photo: p.photo, skillIds, progress, focusSkills: p.focus_skills || [], timingLogs: {},
+          };
+        });
+        setResidents(resList);
+      } else {
+        // Resident: load own skills
+        const { data: rSkills } = await supabase.from("resident_skills").select("*").eq("user_id", profile.id);
+        const mySkills = rSkills || [];
+        const skillIds = mySkills.sort((a, b) => a.sort_order - b.sort_order).map((rs) => rs.skill_id);
+        const progress = {};
+        mySkills.forEach((rs) => {
+          if (rs.done) {
+            progress[rs.skill_id] = { done: true };
+          } else if (rs.technique > 0 || rs.timing > 0) {
+            progress[rs.skill_id] = { technique: rs.technique, timing: rs.timing };
+          }
+        });
+        setResidents([{
+          id: profile.id, name: profile.name, email: profile.email, cohort: profile.cohort || "Spring 2026",
+          photo: profile.photo, skillIds, progress, focusSkills: profile.focus_skills || [], timingLogs: {},
+        }]);
       }
     } else {
       // Profile not created yet (trigger may not have fired) — use auth metadata
