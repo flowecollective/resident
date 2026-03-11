@@ -6889,10 +6889,16 @@ const fetchGcalEvents = async (token) => {
 // ════════════════════════════════════════════
 const fetchIcalEvents = async (icalUrl) => {
   try {
-    const proxy = `https://corsproxy.io/?${encodeURIComponent(icalUrl)}`;
-    const res = await fetch(proxy);
-    if (!res.ok) return null;
-    const text = await res.text();
+    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ical-proxy`;
+    const res = await fetch(fnUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ url: icalUrl }),
+    });
+    if (!res.ok) { console.log("iCal proxy error:", res.status); return null; }
+    const json = await res.json();
+    const text = json.data;
+    if (!text) return null;
     const events = [];
     const blocks = text.split("BEGIN:VEVENT");
     const now = new Date();
