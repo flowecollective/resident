@@ -542,56 +542,21 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
     setSubmitting(true);
 
     try {
-      /* ── Countersign mode: generate PDF, overwrite original in bucket ── */
+      /* ── Countersign mode: just mark profile, keep original PDF ── */
       if (isCountersign) {
-        const el = wrapRef.current;
-        el.classList.add("pdf-mode");
-
-        // Extract original file name from the existing URL to overwrite it
-        const existingUrl = residentProfile?.agreement_url || "";
-        const existingPath = existingUrl.split("/agreements/").pop() || "";
-        const sanitized = residentName.trim().replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").toLowerCase();
-        const fileName = existingPath || `${sanitized}-countersigned-${Date.now()}.pdf`;
-
-        const opt = {
-          margin: [0.3, 0.3, 0.3, 0.3],
-          filename: fileName,
-          image: { type: "jpeg", quality: 0.92 },
-          html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
-          jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-        };
-
-        // eslint-disable-next-line no-undef
-        const pdfBlob = await html2pdf().set(opt).from(el).outputPdf("blob");
-        el.classList.remove("pdf-mode");
-
-        const { error: uploadErr } = await supabase.storage
-          .from("agreements")
-          .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
-
-        if (uploadErr) {
-          console.error("Countersign upload error:", uploadErr);
-          throw uploadErr;
-        }
-
-        const { data: urlData } = supabase.storage.from("agreements").getPublicUrl(fileName);
-        const publicUrl = urlData?.publicUrl || existingUrl;
-
         const now = new Date().toISOString().split("T")[0];
         const { error: profErr } = await supabase
           .from("profiles")
           .update({
             agreement_countersigned: true,
             agreement_countersigned_date: now,
-            agreement_url: publicUrl,
           })
           .eq("id", residentId);
         if (profErr) {
           console.error("Profile update error:", profErr);
           throw profErr;
         }
-
-        setSuccess({ url: publicUrl, fileName });
+        setSuccess({ url: residentProfile?.agreement_url || "", fileName: "" });
         return;
       }
 
