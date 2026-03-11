@@ -171,7 +171,7 @@ export const Icon = ({ name, size = 20, color = "currentColor" }) => {
     ),
   };
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, pointerEvents: "none" }}>
       {icons[name] || null}
     </svg>
   );
