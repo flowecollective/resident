@@ -6226,9 +6226,9 @@ const AdminTuition = ({ onNav }) => {
 
   const openPay = (r) => { setTargetId(r.id); setPayAmount(""); setPayNote(""); setPayDate(new Date().toISOString().split("T")[0]); setPayModal(true); };
   const recordPayment = async () => {
-    if (!payAmount || !targetId) return;
+    if (!payAmount || !targetId) { showToast("Please enter an amount"); return; }
     const amt = parseFloat(payAmount);
-    if (isNaN(amt) || amt <= 0) return;
+    if (isNaN(amt) || amt <= 0) { showToast("Amount must be greater than 0"); return; }
     const date = payDate || new Date().toISOString().split("T")[0];
 
     // Ensure tuition record exists
