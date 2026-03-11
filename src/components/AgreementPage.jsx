@@ -119,7 +119,7 @@ const AGREEMENT_CSS = `
   margin-bottom: 36px;
 }
 .agreement-page h2 {
-  font-family: ${T.font};
+  font-family: 'Outfit', sans-serif !important;
   font-size: 11px;
   font-weight: 700;
   margin: 0 0 16px;
