@@ -2776,6 +2776,7 @@ const MsgPage = ({ user }) => {
 // ════════════════════════════════════════════
 const AdminDash = ({ onNav }) => {
   const { schedule, setSchedule, residents, setResidents, masterProgram, messages, showToast, notifications, setNotifications } = useData();
+  const [pendingAgreements, setPendingAgreements] = useState([]);
   const [noteModal, setNoteModal] = useState(false);
   const [noteTarget, setNoteTarget] = useState(null); // { residentId, skillId? }
   const [noteText, setNoteText] = useState("");
@@ -2784,6 +2785,20 @@ const AdminDash = ({ onNav }) => {
   const [advanceTech, setAdvanceTech] = useState(false);
   const [advanceTiming, setAdvanceTiming] = useState(false);
   const [expandedTrainee, setExpandedTrainee] = useState(null);
+
+  // Fetch agreements pending countersign from Supabase
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, name, email, agreement_signed, agreement_date, agreement_countersigned")
+        .eq("role", "resident")
+        .eq("agreement_signed", true)
+        .or("agreement_countersigned.is.null,agreement_countersigned.eq.false");
+      setPendingAgreements(data || []);
+    };
+    load();
+  }, []);
 
   const today = "2026-03-05";
   const todayEvents = schedule.filter((e) => e.date === today).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
@@ -3052,6 +3067,35 @@ const AdminDash = ({ onNav }) => {
           </Card>
         );
       })()}
+
+      {/* Pending Agreement Countersigns */}
+      {pendingAgreements.length > 0 && (
+        <Card style={{ padding: 22, marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="clipboard" size={18} color={T.warn} /> Pending Countersigns
+            </h3>
+            <Badge color={T.warn}>{pendingAgreements.length}</Badge>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {pendingAgreements.map((r) => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: T.radiusSm, background: T.cream, border: `1px solid ${T.creamDark}` }}>
+                <Avatar name={r.name} size={28} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.name}</p>
+                  <p style={{ fontSize: "11px", color: T.textMuted }}>Signed {r.agreement_date || "recently"}</p>
+                </div>
+                <button
+                  onClick={() => onNav("a-countersign:" + r.id)}
+                  style={{ background: T.gold, color: T.white, border: "none", borderRadius: T.radiusSm, padding: "7px 16px", cursor: "pointer", fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <Icon name="shield" size={12} color={T.white} /> Countersign
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Main grid: Focus + Schedule side by side */}
       <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start" }}>
@@ -6537,7 +6581,9 @@ const App = () => {
   const enrichedUser = user;
 
   let content;
-  if (page.startsWith("a-trainees:")) {
+  if (page.startsWith("a-countersign:")) {
+    content = <AgreementPage user={user} onNav={setPage} mode="countersign" residentId={page.split(":")[1]} />;
+  } else if (page.startsWith("a-trainees:")) {
     content = <TraineeProfile traineeId={page.split(":")[1]} onNav={setPage} />;
   } else {
     const map = {

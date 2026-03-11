@@ -104,11 +104,13 @@ const AGREEMENT_CSS = `
 }
 .agreement-page h1 {
   font-family: ${T.fontD};
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 600;
   text-align: center;
   margin-bottom: 4px;
   color: ${T.charcoal};
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
 }
 .agreement-page .ag-subtitle {
   text-align: center;
@@ -118,12 +120,16 @@ const AGREEMENT_CSS = `
 }
 .agreement-page h2 {
   font-family: ${T.fontD};
-  font-size: 22px;
+  font-size: 12px;
   font-weight: 600;
-  margin: 36px 0 12px;
-  padding-bottom: 6px;
-  border-bottom: 1.5px solid ${T.goldLight};
-  color: ${T.charcoal};
+  margin: 0 0 16px;
+  padding: 8px 16px;
+  border-bottom: none;
+  border-radius: 4px;
+  background: ${T.charcoal};
+  color: ${T.cream};
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
 }
 .agreement-page h3 {
   font-family: ${T.fontD};
@@ -332,8 +338,8 @@ const AGREEMENT_CSS = `
   .agreement-page .ag-dates {
     grid-template-columns: 1fr;
   }
-  .agreement-page h1 { font-size: 26px; }
-  .agreement-page h2 { font-size: 19px; }
+  .agreement-page h1 { font-size: 22px; }
+  .agreement-page h2 { font-size: 11px; }
 }
 
 @media print {
@@ -357,7 +363,11 @@ const AGREEMENT_CSS = `
 `;
 
 /* ─── component ─── */
-export const AgreementPage = ({ user, onNav }) => {
+// mode: "sign" (resident signs) or "countersign" (admin countersigns)
+// residentId: when countersigning, the resident's profile ID
+export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
+  const isCountersign = mode === "countersign";
+
   /* refs */
   const wrapRef = useRef(null);
   const residentSigRef = useRef(null);
@@ -368,19 +378,19 @@ export const AgreementPage = ({ user, onNav }) => {
   const exhibitPad = useRef(null);
 
   /* form state */
-  const [residentName, setResidentName] = useState(user?.name || "");
+  const [residentName, setResidentName] = useState(isCountersign ? "" : (user?.name || ""));
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentOption, setPaymentOption] = useState("");
   const [photoConsent, setPhotoConsent] = useState("");
-  const [residentPrintedName, setResidentPrintedName] = useState(user?.name || "");
+  const [residentPrintedName, setResidentPrintedName] = useState(isCountersign ? "" : (user?.name || ""));
   const [residentDate, setResidentDate] = useState("");
-  const [exhibitPrintedName, setExhibitPrintedName] = useState(user?.name || "");
+  const [exhibitPrintedName, setExhibitPrintedName] = useState(isCountersign ? "" : (user?.name || ""));
   const [exhibitDate, setExhibitDate] = useState("");
   const [companyDate, setCompanyDate] = useState("");
 
   /* company lock */
-  const [companyUnlocked, setCompanyUnlocked] = useState(false);
+  const [companyUnlocked, setCompanyUnlocked] = useState(isCountersign);
   const [companyPass, setCompanyPass] = useState("");
   const [passError, setPassError] = useState(false);
 
@@ -389,6 +399,24 @@ export const AgreementPage = ({ user, onNav }) => {
   const [toast, setToast] = useState({ visible: false, msg: "" });
   const [success, setSuccess] = useState(null); // { url, fileName }
   const [errors, setErrors] = useState([]);
+  const [residentProfile, setResidentProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(isCountersign);
+
+  /* load resident profile in countersign mode */
+  useEffect(() => {
+    if (!isCountersign || !residentId) return;
+    const load = async () => {
+      const { data } = await supabase.from("profiles").select("*").eq("id", residentId).single();
+      if (data) {
+        setResidentProfile(data);
+        setResidentName(data.name || "");
+        setResidentPrintedName(data.name || "");
+        setExhibitPrintedName(data.name || "");
+      }
+      setLoadingProfile(false);
+    };
+    load();
+  }, [isCountersign, residentId]);
 
   /* load html2pdf CDN */
   useEffect(() => {
@@ -458,20 +486,26 @@ export const AgreementPage = ({ user, onNav }) => {
   /* ─── validation ─── */
   const validate = () => {
     const errs = [];
-    if (!residentName.trim()) errs.push("Resident name is required.");
-    if (!startDate) errs.push("Start date is required.");
-    if (!paymentOption) errs.push("Please select a payment option.");
-    if (!photoConsent) errs.push("Please select a photo consent option.");
-    if (!residentPrintedName.trim()) errs.push("Resident printed name (signatures section) is required.");
-    if (!residentDate) errs.push("Resident signature date is required.");
-    if (!residentPad.current?.state.hasSig) errs.push("Resident signature is required.");
-    if (!exhibitPrintedName.trim()) errs.push("Exhibit A printed name is required.");
-    if (!exhibitDate) errs.push("Exhibit A date is required.");
-    if (!exhibitPad.current?.state.hasSig) errs.push("Exhibit A signature is required.");
-    if (!companyUnlocked) errs.push("Company signature section must be unlocked.");
-    else {
+    if (isCountersign) {
+      // Only validate company signature in countersign mode
       if (!companyPad.current?.state.hasSig) errs.push("Company signature is required.");
       if (!companyDate) errs.push("Company signature date is required.");
+    } else {
+      if (!residentName.trim()) errs.push("Resident name is required.");
+      if (!startDate) errs.push("Start date is required.");
+      if (!paymentOption) errs.push("Please select a payment option.");
+      if (!photoConsent) errs.push("Please select a photo consent option.");
+      if (!residentPrintedName.trim()) errs.push("Resident printed name (signatures section) is required.");
+      if (!residentDate) errs.push("Resident signature date is required.");
+      if (!residentPad.current?.state.hasSig) errs.push("Resident signature is required.");
+      if (!exhibitPrintedName.trim()) errs.push("Exhibit A printed name is required.");
+      if (!exhibitDate) errs.push("Exhibit A date is required.");
+      if (!exhibitPad.current?.state.hasSig) errs.push("Exhibit A signature is required.");
+      if (!companyUnlocked) errs.push("Company signature section must be unlocked.");
+      else {
+        if (!companyPad.current?.state.hasSig) errs.push("Company signature is required.");
+        if (!companyDate) errs.push("Company signature date is required.");
+      }
     }
     return errs;
   };
@@ -554,22 +588,35 @@ export const AgreementPage = ({ user, onNav }) => {
       const { data: urlData } = supabase.storage.from("agreements").getPublicUrl(fileName);
       const publicUrl = urlData?.publicUrl || "";
 
-      /* update profile */
-      await supabase
-        .from("profiles")
-        .update({
-          agreement_signed: true,
-          agreement_date: new Date().toISOString().split("T")[0],
-          agreement_url: publicUrl,
-        })
-        .eq("id", user.id);
+      /* update profile + insert document */
+      const targetId = isCountersign ? residentId : user.id;
+      const now = new Date().toISOString().split("T")[0];
 
-      /* insert document */
+      if (isCountersign) {
+        await supabase
+          .from("profiles")
+          .update({
+            agreement_countersigned: true,
+            agreement_countersigned_date: now,
+            agreement_url: publicUrl,
+          })
+          .eq("id", targetId);
+      } else {
+        await supabase
+          .from("profiles")
+          .update({
+            agreement_signed: true,
+            agreement_date: now,
+            agreement_url: publicUrl,
+          })
+          .eq("id", targetId);
+      }
+
       await supabase.from("documents").insert({
-        name: "Residency Agreement \u2014 Signed",
+        name: isCountersign ? "Residency Agreement \u2014 Countersigned" : "Residency Agreement \u2014 Signed",
         category: "Agreements",
         size: "PDF",
-        date: new Date().toISOString().split("T")[0],
+        date: now,
         url: publicUrl,
         storage_path: "agreements/" + fileName,
         uploaded_by: user.id,
@@ -692,8 +739,11 @@ export const AgreementPage = ({ user, onNav }) => {
             >
               <Icon name="check" size={28} color={T.gold} />
             </div>
-            <h2>Agreement Submitted</h2>
-            <p>Your signed residency agreement has been submitted and saved to your documents.</p>
+            <h2>{isCountersign ? "Agreement Countersigned" : "Agreement Submitted"}</h2>
+            <p>{isCountersign
+              ? `The agreement for ${residentName} has been countersigned and saved.`
+              : "Your signed residency agreement has been submitted and saved to your documents."
+            }</p>
             <div className="ag-success-actions">
               <Btn
                 variant="primary"
@@ -707,17 +757,41 @@ export const AgreementPage = ({ user, onNav }) => {
               >
                 Download PDF
               </Btn>
-              <Btn variant="outline" onClick={() => { setSuccess(null); if (onNav) onNav("onboarding"); }}>
-                Back to Onboarding
+              <Btn variant="outline" onClick={() => { setSuccess(null); if (onNav) onNav(isCountersign ? "a-dash" : "onboarding"); }}>
+                {isCountersign ? "Back to Dashboard" : "Back to Onboarding"}
               </Btn>
             </div>
           </div>
         </div>
       )}
 
+      {/* loading state for countersign */}
+      {loadingProfile && (
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <p style={{ color: T.textMuted, fontSize: 13 }}>Loading agreement...</p>
+        </div>
+      )}
+
       {/* main agreement */}
+      {!loadingProfile && (
       <div className="agreement-page" ref={wrapRef}>
-        <h1>Flowe Collective</h1>
+        {/* back button for countersign */}
+        {isCountersign && (
+          <div style={{ marginBottom: 16 }}>
+            <button onClick={() => onNav && onNav("a-dash")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: T.textMuted, fontSize: 13 }}>
+              <Icon name="back" size={16} color={T.textMuted} /> Back to Dashboard
+            </button>
+            <div style={{ background: T.goldMuted, borderRadius: T.radiusSm, padding: "12px 16px", marginTop: 12 }}>
+              <p style={{ fontSize: 13, fontWeight: 500, color: T.charcoal }}>
+                Countersigning agreement for <strong>{residentName}</strong>
+              </p>
+              <p style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
+                Review the agreement and add your company signature below. All resident fields are read-only.
+              </p>
+            </div>
+          </div>
+        )}
+        <h1>FLOWE COLLECTIVE</h1>
         <p className="ag-subtitle">Stylist Residency Program Agreement</p>
 
         {/* errors */}
@@ -1286,13 +1360,14 @@ export const AgreementPage = ({ user, onNav }) => {
         {/* ── Actions ── */}
         <div className="ag-actions">
           <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Agreement"}
+            {submitting ? (isCountersign ? "Countersigning..." : "Submitting...") : (isCountersign ? "Countersign Agreement" : "Submit Agreement")}
           </Btn>
           <Btn variant="outline" onClick={handlePrint}>
             Print
           </Btn>
         </div>
       </div>
+      )}
     </>
   );
 };
