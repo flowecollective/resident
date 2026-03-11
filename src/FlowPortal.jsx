@@ -6232,16 +6232,17 @@ const AdminTuition = ({ onNav }) => {
     const date = payDate || new Date().toISOString().split("T")[0];
 
     // Ensure tuition record exists
-    await supabase.from("tuition").upsert(
+    const { error: tErr } = await supabase.from("tuition").upsert(
       { user_id: targetId, plan: target?.tuition?.plan || "monthly", total: target?.total || 4950 },
       { onConflict: "user_id" }
     );
+    if (tErr) { console.error("Tuition upsert error:", tErr); showToast("Error: " + tErr.message); return; }
 
     const { error } = await supabase.from("payments").insert({
       user_id: targetId, amount: amt, date,
       note: payNote || "Payment",
     });
-    if (error) { console.error(error); return; }
+    if (error) { console.error("Payment insert error:", error); showToast("Error: " + error.message); return; }
 
     // Auto-mark enrollment complete if not already
     if (!target?.enrollment_completed) {
