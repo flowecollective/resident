@@ -804,7 +804,7 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
       ]
     : [
         { id: "dash", label: "Dashboard", icon: "dashboard" },
-        { id: "onboarding", label: "Onboarding", icon: "clipboard", dot: !onboardingDone },
+        ...(!onboardingDone ? [{ id: "onboarding", label: "Onboarding", icon: "clipboard", dot: true }] : []),
         { id: "sched", label: "Schedule", icon: "calendar" },
         { id: "skills", label: "My Skills", icon: "check" },
         { id: "tuition", label: "My Tuition", icon: "dollar" },
