@@ -3,11 +3,8 @@ import { T } from "../../theme";
 import { Icon } from "./Icon";
 
 export const Modal = ({ open, onClose, title, children, width = 500 }) => {
-  const [scrollY, setScrollY] = useState(0);
-
   useEffect(() => {
     if (open) {
-      setScrollY(window.scrollY || window.pageYOffset || 0);
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -19,11 +16,11 @@ export const Modal = ({ open, onClose, title, children, width = 500 }) => {
   return (
     <div
       style={{
-        position: "absolute",
-        top: scrollY,
+        position: "fixed",
+        top: 0,
         left: 0,
-        width: "100%",
-        height: "100vh",
+        right: 0,
+        bottom: 0,
         zIndex: 1000,
         display: "flex",
         alignItems: "center",
