@@ -3687,31 +3687,48 @@ const AdminSchedule = () => {
               <Icon name="plus" size={14} color={T.gold} /> Add to this day
             </Btn>
           </div>
-          {selectedEvents.length === 0 ? (
-            <p style={{ color: T.textMuted, fontSize: "13px" }}>No events on this day.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {selectedEvents.map((ev) => (
-                <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: T.radiusSm, background: T.cream }}>
-                  <div style={{ width: 4, height: 40, borderRadius: 2, background: getEvColor(ev, masterProgram) }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <p style={{ fontSize: "14px", fontWeight: 500 }}>{ev.title}</p>
-                      {ev.skillId && <span style={{ fontSize: "8px", fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: T.goldMuted, color: T.gold }}>SKILL</span>}
+          {(() => { const gcalOnDay = cal.selectedDate ? gcalEvents.filter((e) => e.date === cal.selectedDate) : []; return (<>
+            {selectedEvents.length === 0 && gcalOnDay.length === 0 && (
+              <p style={{ color: T.textMuted, fontSize: "13px" }}>No events on this day.</p>
+            )}
+            {selectedEvents.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {selectedEvents.map((ev) => (
+                  <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: T.radiusSm, background: T.cream }}>
+                    <div style={{ width: 4, height: 40, borderRadius: 2, background: getEvColor(ev, masterProgram) }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <p style={{ fontSize: "14px", fontWeight: 500 }}>{ev.title}</p>
+                        {ev.skillId && <span style={{ fontSize: "8px", fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: T.goldMuted, color: T.gold }}>SKILL</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                        <p style={{ fontSize: "12px", color: T.textMuted }}>{ev.time}</p>
+                        <span style={{ fontSize: "10px", color: T.textMuted }}>·</span>
+                        <p style={{ fontSize: "11px", color: ev.assignTo === "all" ? T.textMuted : T.gold, fontWeight: ev.assignTo === "all" ? 400 : 500 }}>{getAssignLabel(ev)}</p>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-                      <p style={{ fontSize: "12px", color: T.textMuted }}>{ev.time}</p>
-                      <span style={{ fontSize: "10px", color: T.textMuted }}>·</span>
-                      <p style={{ fontSize: "11px", color: ev.assignTo === "all" ? T.textMuted : T.gold, fontWeight: ev.assignTo === "all" ? 400 : 500 }}>{getAssignLabel(ev)}</p>
+                    <Badge color={getEvColor(ev, masterProgram)}>{ev.type}</Badge>
+                    <button onClick={() => openEdit(ev)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="edit" size={16} color={T.textMuted} /></button>
+                    <button onClick={() => rem(ev.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {gcalOnDay.length > 0 && (
+              <div style={{ marginTop: selectedEvents.length > 0 ? 12 : 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                <p style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: "#4285f4" }}>Salon Calendar</p>
+                {gcalOnDay.map((ev, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: T.radiusSm, background: "#4285f408", border: "1px solid #4285f420" }}>
+                    <div style={{ width: 4, height: 32, borderRadius: 2, background: "#4285f4" }} />
+                    <div>
+                      <p style={{ fontSize: "13px", fontWeight: 500 }}>{ev.title}</p>
+                      <p style={{ fontSize: "11px", color: T.textMuted }}>{ev.time}</p>
                     </div>
                   </div>
-                  <Badge color={getEvColor(ev, masterProgram)}>{ev.type}</Badge>
-                  <button onClick={() => openEdit(ev)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="edit" size={16} color={T.textMuted} /></button>
-                  <button onClick={() => rem(ev.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </>); })()}
         </Card>
       )}
 
@@ -6854,8 +6871,9 @@ const fetchGcalEvents = async (token) => {
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${min}&timeMax=${max}&singleEvents=true&orderBy=startTime&maxResults=250`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  if (!res.ok) { localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); return null; }
+  if (!res.ok) { console.log("GCal fetch failed:", res.status); localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); return null; }
   const data = await res.json();
+  console.log("GCal events fetched:", data.items?.length || 0);
   return (data.items || []).map((ev) => {
     const start = ev.start?.dateTime || ev.start?.date || "";
     const end = ev.end?.dateTime || ev.end?.date || "";
@@ -6905,20 +6923,22 @@ const fetchIcalEvents = async (icalUrl) => {
   } catch { return null; }
 };
 
-const parseGcalCallback = () => {
+// Parse Google OAuth callback IMMEDIATELY (before Supabase can consume the hash)
+const _gcalCallbackToken = (() => {
   const hash = window.location.hash;
-  if (!hash.includes("access_token")) return null;
+  if (!hash.includes("access_token") || hash.includes("type=recovery") || hash.includes("type=signup")) return null;
   const params = new URLSearchParams(hash.slice(1));
   const token = params.get("access_token");
+  // Only treat as gcal callback if there's a token_type (Google sends this, Supabase doesn't in hash)
+  if (!token || !params.get("token_type")) return null;
   const expiresIn = parseInt(params.get("expires_in") || "3600", 10);
+  localStorage.setItem("gcal_token", token);
+  localStorage.setItem("gcal_expiry", String(Date.now() + expiresIn * 1000));
+  localStorage.setItem("cal_source", "google");
   // Clean the hash from URL
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  if (token) {
-    localStorage.setItem("gcal_token", token);
-    localStorage.setItem("gcal_expiry", String(Date.now() + expiresIn * 1000));
-  }
   return token;
-};
+})();
 
 // ════════════════════════════════════════════
 //  APP SHELL
@@ -7091,8 +7111,7 @@ const App = () => {
       if (events) { localStorage.setItem("cal_source", "google"); setGcalConnected(true); setGcalEvents(events); }
       else { setGcalConnected(false); setGcalEvents([]); }
     };
-    const callbackToken = parseGcalCallback();
-    if (callbackToken) { loadGcal(callbackToken); return; }
+    if (_gcalCallbackToken) { loadGcal(_gcalCallbackToken); return; }
     const source = localStorage.getItem("cal_source");
     if (source === "ical") {
       const url = localStorage.getItem("ical_url");
