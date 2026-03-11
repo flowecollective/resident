@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { T, iSt } from "../../theme";
-import { useData } from "../../context";
-import { uid } from "../../utils";
+import { supabase } from "../../lib/supabase";
 import { Card, Badge, Avatar, ProgressBar, Btn, Modal, FormField, Icon, SectionTitle } from "../../components/ui";
-import { getTuitionInfo, STATUS_STYLES } from "../../components/tuition/tuitionHelpers";
+import { STATUS_STYLES } from "../../components/tuition/tuitionHelpers";
 
 export const AdminTuition = ({ onNav }) => {
-  const { residents, setResidents, showToast } = useData();
+  const [residents, setResidents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Payment modal
   const [payModal, setPayModal] = useState(false);
@@ -21,12 +21,55 @@ export const AdminTuition = ({ onNav }) => {
   const [planType, setPlanType] = useState("monthly");
   const [planTotal, setPlanTotal] = useState("");
 
+  const loadData = async () => {
+    // Fetch all resident profiles
+    const { data: profiles } = await supabase.from("profiles").select("id, name, email, photo").eq("role", "resident");
+    if (!profiles) { setLoading(false); return; }
+
+    // Fetch all tuition records and payments
+    const [{ data: tuitionData }, { data: paymentsData }] = await Promise.all([
+      supabase.from("tuition").select("*"),
+      supabase.from("payments").select("*").order("date", { ascending: true }),
+    ]);
+
+    const tuitionMap = {};
+    (tuitionData || []).forEach((t) => { tuitionMap[t.user_id] = t; });
+
+    const paymentsMap = {};
+    (paymentsData || []).forEach((p) => {
+      if (!paymentsMap[p.user_id]) paymentsMap[p.user_id] = [];
+      paymentsMap[p.user_id].push(p);
+    });
+
+    const enriched = profiles.map((p) => {
+      const t = tuitionMap[p.id] || { plan: "monthly", total: 4950 };
+      const pays = paymentsMap[p.id] || [];
+      const paid = pays.reduce((a, pay) => a + Number(pay.amount), 0);
+      const total = Number(t.total);
+      const remaining = Math.max(0, total - paid);
+      const paidPct = total ? Math.round((paid / total) * 100) : 0;
+      const status = remaining <= 0 ? "paid" : paid > 0 ? "partial" : "unpaid";
+      return { ...p, tuition: t, payments: pays, paid, total, remaining, paidPct, status };
+    });
+
+    setResidents(enriched);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  if (loading) return (
+    <div className="fade-up">
+      <SectionTitle sub="Loading...">Tuition & Payments</SectionTitle>
+      <Card style={{ padding: 40, textAlign: "center" }}><p style={{ color: T.textMuted, fontSize: "13px" }}>Loading tuition data...</p></Card>
+    </div>
+  );
+
   // Revenue calculations
-  const allTuition = residents.map((r) => getTuitionInfo(r));
-  const totalRevenue = allTuition.reduce((a, t) => a + t.paid, 0);
-  const totalOutstanding = allTuition.reduce((a, t) => a + t.remaining, 0);
-  const totalExpected = allTuition.reduce((a, t) => a + t.total, 0);
-  const paidInFull = allTuition.filter((t) => t.status === "paid").length;
+  const totalRevenue = residents.reduce((a, r) => a + r.paid, 0);
+  const totalOutstanding = residents.reduce((a, r) => a + r.remaining, 0);
+  const totalExpected = residents.reduce((a, r) => a + r.total, 0);
+  const paidInFull = residents.filter((r) => r.status === "paid").length;
 
   const openRecordPayment = (traineeId) => {
     setPayTraineeId(traineeId);
@@ -36,50 +79,45 @@ export const AdminTuition = ({ onNav }) => {
     setPayModal(true);
   };
 
-  const savePayment = () => {
+  const savePayment = async () => {
     if (!payTraineeId || !payAmount) return;
     const amount = parseFloat(payAmount);
     if (isNaN(amount) || amount <= 0) return;
-    setResidents(residents.map((r) => {
-      if (r.id !== payTraineeId) return r;
-      const tuition = r.tuition || { plan: "monthly", total: 4950, payments: [] };
-      return {
-        ...r,
-        tuition: {
-          ...tuition,
-          payments: [
-            ...tuition.payments,
-            { id: uid(), amount, date: payDate || new Date().toISOString().split("T")[0], note: payNote.trim() || "Payment" },
-          ],
-        },
-      };
-    }));
+
+    const { error } = await supabase.from("payments").insert({
+      user_id: payTraineeId,
+      amount,
+      date: payDate || new Date().toISOString().split("T")[0],
+      note: payNote.trim() || "Payment",
+    });
+
+    if (error) { console.error("Payment insert error:", error); return; }
     setPayModal(false);
-    showToast("Payment recorded");
+    await loadData();
   };
 
   const openChangePlan = (traineeId) => {
     const r = residents.find((r) => r.id === traineeId);
-    const t = r?.tuition || { plan: "monthly", total: 4950 };
     setPlanTraineeId(traineeId);
-    setPlanType(t.plan);
-    setPlanTotal(t.total?.toString() || "4950");
+    setPlanType(r?.tuition?.plan || "monthly");
+    setPlanTotal(r?.total?.toString() || "4950");
     setPlanModal(true);
   };
 
-  const savePlan = () => {
+  const savePlan = async () => {
     if (!planTraineeId) return;
     const total = parseFloat(planTotal) || 4950;
-    setResidents(residents.map((r) => {
-      if (r.id !== planTraineeId) return r;
-      const tuition = r.tuition || { plan: "monthly", total: 4950, payments: [] };
-      return {
-        ...r,
-        tuition: { ...tuition, plan: planType, total },
-      };
-    }));
+
+    // Upsert tuition record
+    const { error } = await supabase.from("tuition").upsert({
+      user_id: planTraineeId,
+      plan: planType,
+      total,
+    }, { onConflict: "user_id" });
+
+    if (error) { console.error("Plan update error:", error); return; }
     setPlanModal(false);
-    showToast("Plan updated");
+    await loadData();
   };
 
   return (
@@ -109,7 +147,7 @@ export const AdminTuition = ({ onNav }) => {
             ${totalOutstanding.toLocaleString()}
           </p>
           <p style={{ fontSize: "11px", color: T.textMuted }}>
-            across {allTuition.filter((t) => t.remaining > 0).length} trainee{allTuition.filter((t) => t.remaining > 0).length !== 1 ? "s" : ""}
+            across {residents.filter((r) => r.remaining > 0).length} trainee{residents.filter((r) => r.remaining > 0).length !== 1 ? "s" : ""}
           </p>
         </Card>
         <Card style={{ padding: 20, textAlign: "center" }}>
@@ -130,83 +168,85 @@ export const AdminTuition = ({ onNav }) => {
         <div style={{ padding: "16px 20px", borderBottom: "1px solid " + T.lightLine }}>
           <h4 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600 }}>Trainee Accounts</h4>
         </div>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {residents.map((r) => {
-            const info = getTuitionInfo(r);
-            const st = STATUS_STYLES[info.status];
-            return (
-              <div
-                key={r.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  padding: "16px 20px",
-                  borderBottom: "1px solid " + T.lightLine,
-                }}
-              >
-                <Avatar name={r.name} size={36} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span
-                      style={{ fontSize: "14px", fontWeight: 500, cursor: "pointer", color: T.charcoal }}
-                      onClick={() => onNav && onNav("trainee", r.id)}
+        {residents.length === 0 ? (
+          <div style={{ padding: 32, textAlign: "center" }}>
+            <p style={{ color: T.textMuted, fontSize: "13px" }}>No residents enrolled yet.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {residents.map((r) => {
+              const st = STATUS_STYLES[r.status];
+              return (
+                <div
+                  key={r.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "16px 20px",
+                    borderBottom: "1px solid " + T.lightLine,
+                  }}
+                >
+                  <Avatar name={r.name} size={36} photo={r.photo} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: "14px", fontWeight: 500, color: T.charcoal }}>
+                        {r.name}
+                      </span>
+                      <Badge color={st.color} bg={st.bg}>{st.label}</Badge>
+                      <Badge color={T.textMuted}>{r.tuition?.plan || "monthly"}</Badge>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <ProgressBar value={r.paidPct} color={r.status === "paid" ? T.success : T.gold} />
+                      </div>
+                      <span style={{ fontSize: "12px", color: T.textMuted, whiteSpace: "nowrap" }}>
+                        ${r.paid.toLocaleString()} / ${r.total.toLocaleString()}
+                      </span>
+                    </div>
+                    {/* Payment history */}
+                    {r.payments.length > 0 && (
+                      <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {r.payments.map((p) => (
+                          <span
+                            key={p.id}
+                            style={{
+                              fontSize: "10px",
+                              padding: "3px 8px",
+                              background: T.cream,
+                              borderRadius: T.radiusSm,
+                              color: T.textMuted,
+                            }}
+                          >
+                            ${Number(p.amount).toLocaleString()} &middot; {p.date} {p.note ? `— ${p.note}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn
+                      variant="gold"
+                      onClick={() => openRecordPayment(r.id)}
+                      style={{ fontSize: "11px", padding: "7px 12px" }}
                     >
-                      {r.name}
-                    </span>
-                    <Badge color={st.color} bg={st.bg}>{st.label}</Badge>
-                    <Badge color={T.textMuted}>{info.plan}</Badge>
+                      <Icon name="dollar" size={13} color={T.gold} />
+                      Record
+                    </Btn>
+                    <Btn
+                      variant="outline"
+                      onClick={() => openChangePlan(r.id)}
+                      style={{ fontSize: "11px", padding: "7px 12px" }}
+                    >
+                      <Icon name="edit" size={13} color={T.textMuted} />
+                      Plan
+                    </Btn>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <ProgressBar value={info.paidPct} color={info.status === "paid" ? T.success : T.gold} />
-                    </div>
-                    <span style={{ fontSize: "12px", color: T.textMuted, whiteSpace: "nowrap" }}>
-                      ${info.paid.toLocaleString()} / ${info.total.toLocaleString()}
-                    </span>
-                  </div>
-                  {/* Payment history */}
-                  {info.payments.length > 0 && (
-                    <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {info.payments.map((p) => (
-                        <span
-                          key={p.id}
-                          style={{
-                            fontSize: "10px",
-                            padding: "3px 8px",
-                            background: T.cream,
-                            borderRadius: T.radiusSm,
-                            color: T.textMuted,
-                          }}
-                        >
-                          ${p.amount.toLocaleString()} &middot; {p.date} {p.note ? `— ${p.note}` : ""}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <Btn
-                    variant="gold"
-                    onClick={() => openRecordPayment(r.id)}
-                    style={{ fontSize: "11px", padding: "7px 12px" }}
-                  >
-                    <Icon name="dollar" size={13} color={T.gold} />
-                    Record
-                  </Btn>
-                  <Btn
-                    variant="outline"
-                    onClick={() => openChangePlan(r.id)}
-                    style={{ fontSize: "11px", padding: "7px 12px" }}
-                  >
-                    <Icon name="edit" size={13} color={T.textMuted} />
-                    Plan
-                  </Btn>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Record Payment Modal */}
@@ -252,7 +292,7 @@ export const AdminTuition = ({ onNav }) => {
         </p>
         <FormField label="Payment Plan">
           <div style={{ display: "flex", gap: 8 }}>
-            {["monthly", "full", "custom"].map((p) => (
+            {["monthly", "full"].map((p) => (
               <button
                 key={p}
                 onClick={() => setPlanType(p)}
@@ -268,7 +308,7 @@ export const AdminTuition = ({ onNav }) => {
                   textTransform: "capitalize",
                 }}
               >
-                {p}
+                {p === "full" ? "Paid in Full" : "Monthly"}
               </button>
             ))}
           </div>
