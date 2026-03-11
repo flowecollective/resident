@@ -1428,7 +1428,8 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         </div>
 
         {/* ── EXHIBIT A ── */}
-        <div className="ag-card exhibit-a">
+        <div className="exhibit-a" />
+        <div className="ag-card">
           <h2>Exhibit A &mdash; Residency Program Structure</h2>
           <p>
             The following schedule represents a general example of the training structure used in the Flowe Collective Stylist Residency Program. The Program runs for twelve (12) weeks and meets four (4) days per week.
