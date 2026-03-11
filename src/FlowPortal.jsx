@@ -6446,18 +6446,12 @@ const SettingsPage = () => {
   };
 
   const handleConnect = () => {
-    setLoading(true);
-    // In production: OAuth flow → Google Calendar API → fetch events
-    // Demo: simulate loading real events
-    setTimeout(() => {
-      setGcalConnected(true);
-      setGcalEvents(DEMO_GCAL_EVENTS);
-      setLoading(false);
-      showToast("Google Calendar connected!");
-    }, 1200);
+    startGcalOAuth();
   };
 
   const handleDisconnect = () => {
+    localStorage.removeItem("gcal_token");
+    localStorage.removeItem("gcal_expiry");
     setGcalConnected(false);
     setGcalEvents([]);
     showToast("Google Calendar disconnected");
@@ -6800,6 +6794,53 @@ const FloatingTimer = ({ user, onNav }) => {
 };
 
 // ════════════════════════════════════════════
+//  GOOGLE CALENDAR HELPERS
+// ════════════════════════════════════════════
+const GCAL_CLIENT_ID = "469032916510-oj46e6opk4emi6n15vvedg8ghiahlsnb.apps.googleusercontent.com";
+const GCAL_SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+
+const startGcalOAuth = () => {
+  const redirect = window.location.origin + window.location.pathname;
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GCAL_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent(GCAL_SCOPES)}&prompt=select_account`;
+  window.location.href = url;
+};
+
+const fetchGcalEvents = async (token) => {
+  const now = new Date();
+  const min = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const max = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString();
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${min}&timeMax=${max}&singleEvents=true&orderBy=startTime&maxResults=250`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) { localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); return null; }
+  const data = await res.json();
+  return (data.items || []).map((ev) => {
+    const start = ev.start?.dateTime || ev.start?.date || "";
+    const end = ev.end?.dateTime || ev.end?.date || "";
+    const date = start.slice(0, 10);
+    const fmt = (iso) => { if (!iso.includes("T")) return ""; const d = new Date(iso); return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+    const time = fmt(start) && fmt(end) ? `${fmt(start)} – ${fmt(end)}` : "All day";
+    return { title: ev.summary || "(No title)", time, date };
+  });
+};
+
+const parseGcalCallback = () => {
+  const hash = window.location.hash;
+  if (!hash.includes("access_token")) return null;
+  const params = new URLSearchParams(hash.slice(1));
+  const token = params.get("access_token");
+  const expiresIn = parseInt(params.get("expires_in") || "3600", 10);
+  // Clean the hash from URL
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  if (token) {
+    localStorage.setItem("gcal_token", token);
+    localStorage.setItem("gcal_expiry", String(Date.now() + expiresIn * 1000));
+  }
+  return token;
+};
+
+// ════════════════════════════════════════════
 //  APP SHELL
 // ════════════════════════════════════════════
 const App = () => {
@@ -6812,7 +6853,7 @@ const App = () => {
   const [schedule, setSchedule] = useState(INIT_SCHEDULE);
   const [docs, setDocs] = useState([]);
   const [messages, setMessages] = useState(INIT_MESSAGES);
-  const [gcalConnected, setGcalConnected] = useState(false);
+  const [gcalConnected, setGcalConnected] = useState(!!localStorage.getItem("gcal_token"));
   const [gcalEvents, setGcalEvents] = useState([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState({ message: "", visible: false });
@@ -6961,6 +7002,21 @@ const App = () => {
       loadProfile(session?.user || null);
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Handle Google Calendar OAuth callback + restore existing token
+  useEffect(() => {
+    const loadGcal = async (token) => {
+      const events = await fetchGcalEvents(token);
+      if (events) { setGcalConnected(true); setGcalEvents(events); }
+      else { setGcalConnected(false); setGcalEvents([]); }
+    };
+    const callbackToken = parseGcalCallback();
+    if (callbackToken) { loadGcal(callbackToken); return; }
+    const saved = localStorage.getItem("gcal_token");
+    const expiry = parseInt(localStorage.getItem("gcal_expiry") || "0", 10);
+    if (saved && Date.now() < expiry) loadGcal(saved);
+    else if (saved) { localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); setGcalConnected(false); }
   }, []);
 
   const logout = async () => {
