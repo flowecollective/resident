@@ -4,6 +4,7 @@ import { GlobalStyle } from "./GlobalStyle";
 import { Icon } from "./components/Icon";
 import { Card, Badge, ProgressBar, Avatar, SectionTitle, FormField, Btn, Modal, Toast } from "./components/ui";
 import { supabase } from "./lib/supabase";
+import { AgreementPage } from "./components/AgreementPage";
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -1033,7 +1034,7 @@ const GUSTO_FIELDS = [
   { key: "bankAccount", label: "Bank Account Number", type: "password", placeholder: "Account number" },
 ];
 
-const TraineeOnboarding = ({ user }) => {
+const TraineeOnboarding = ({ user, onNav }) => {
   const { showToast, setUser } = useData();
   const [ob, setOb] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1080,22 +1081,7 @@ const TraineeOnboarding = ({ user }) => {
   const allDone = completedCount === steps.length;
 
   const handleAgreement = () => {
-    window.open(`https://www.jordanwangco.com/fc-residency-agreement?uid=${user.id}&email=${encodeURIComponent(user.email)}`, "_blank");
-  };
-
-  const markAgreementSigned = async () => {
-    const now = new Date().toISOString().split("T")[0];
-    await updateOb({ agreement_signed: true, agreement_date: now });
-    // Add to documents table
-    await supabase.from("documents").insert({
-      name: "Residency Agreement — Signed",
-      category: "Agreements",
-      size: "PDF",
-      date: now,
-      url: "https://www.jordanwangco.com/fc-residency-agreement",
-      uploaded_by: user.id,
-    });
-    showToast("Agreement marked as signed!");
+    if (onNav) onNav("agreement");
   };
 
   const handleEnroll = () => {
@@ -1162,20 +1148,18 @@ const TraineeOnboarding = ({ user }) => {
               }
             </p>
           </div>
-          {ob.agreement_signed ? (
-            <button onClick={handleAgreement} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.textMuted }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="eye" size={14} color={T.textMuted} /> View</span>
-            </button>
-          ) : (
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={handleAgreement} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.charcoal }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="link" size={14} color={T.charcoal} /> Review</span>
-              </button>
-              <button onClick={markAgreementSigned} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
-                Mark Signed
-              </button>
-            </div>
-          )}
+          <button onClick={handleAgreement} style={{
+            padding: "8px 16px", borderRadius: T.radiusSm,
+            border: ob.agreement_signed ? `1px solid ${T.lightLine}` : "none",
+            background: ob.agreement_signed ? T.white : T.charcoal,
+            fontSize: "12px", fontWeight: 500, cursor: "pointer",
+            color: ob.agreement_signed ? T.textMuted : T.cream,
+          }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name={ob.agreement_signed ? "eye" : "edit"} size={14} color={ob.agreement_signed ? T.textMuted : T.cream} />
+              {ob.agreement_signed ? "View" : "Review & Sign"}
+            </span>
+          </button>
         </div>
       </Card>
 
@@ -6558,7 +6542,8 @@ const App = () => {
   } else {
     const map = {
       dash: <TraineeDash user={user} />,
-      onboarding: <TraineeOnboarding user={user} />,
+      onboarding: <TraineeOnboarding user={user} onNav={setPage} />,
+      agreement: <AgreementPage user={user} onNav={setPage} />,
       sched: <TraineeSchedule user={user} />,
       skills: <TraineeSkills user={user} />,
       tuition: <TraineeTuition user={user} />,
