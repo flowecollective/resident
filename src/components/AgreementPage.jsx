@@ -427,25 +427,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
     }
   }, []);
 
-  /* init sig pads */
-  useEffect(() => {
-    if (residentSigRef.current && !residentPad.current) {
-      residentPad.current = initCanvas(residentSigRef.current);
-    }
-    if (exhibitSigRef.current && !exhibitPad.current) {
-      exhibitPad.current = initCanvas(exhibitSigRef.current);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (companyUnlocked && companySigRef.current && !companyPad.current) {
-      setTimeout(() => {
-        if (companySigRef.current) {
-          companyPad.current = initCanvas(companySigRef.current);
-        }
-      }, 50);
-    }
-  }, [companyUnlocked]);
+  /* company pad was previously init'd via useEffect; now handled by callback ref in SigPad */
 
   /* cleanup */
   useEffect(() => {
@@ -666,31 +648,40 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
   };
 
   /* ─── render helpers ─── */
-  const SigPad = ({ canvasRef, padRef, label }) => (
-    <div className="sig-block" style={{ marginTop: 12 }}>
-      <span className="ag-label">{label}</span>
-      <div className="sig-canvas-wrap">
-        <canvas ref={canvasRef} />
-        <div className="sig-line" />
-        <span className="sig-x">&times;</span>
+  const SigPad = ({ canvasRef, padRef, label }) => {
+    const attachRef = useCallback((el) => {
+      canvasRef.current = el;
+      if (el && !padRef.current) {
+        padRef.current = initCanvas(el);
+      }
+    }, [canvasRef, padRef]);
+
+    return (
+      <div className="sig-block" style={{ marginTop: 12 }}>
+        <span className="ag-label">{label}</span>
+        <div className="sig-canvas-wrap">
+          <canvas ref={attachRef} />
+          <div className="sig-line" />
+          <span className="sig-x">&times;</span>
+        </div>
+        <button
+          className="clear-sig-btn"
+          onClick={() => padRef.current?.clear()}
+          style={{
+            marginTop: 6,
+            background: "none",
+            border: "none",
+            color: T.textMuted,
+            fontSize: 12,
+            cursor: "pointer",
+            textDecoration: "underline",
+          }}
+        >
+          Clear signature
+        </button>
       </div>
-      <button
-        className="clear-sig-btn"
-        onClick={() => padRef.current?.clear()}
-        style={{
-          marginTop: 6,
-          background: "none",
-          border: "none",
-          color: T.textMuted,
-          fontSize: 12,
-          cursor: "pointer",
-          textDecoration: "underline",
-        }}
-      >
-        Clear signature
-      </button>
-    </div>
-  );
+    );
+  };
 
   /* ─────────────────────── JSX ─────────────────────── */
   return (
