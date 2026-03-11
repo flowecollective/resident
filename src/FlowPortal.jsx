@@ -987,10 +987,10 @@ const InlineReply = ({ onSend }) => {
 };
 
 // ── Reply Input (shared between trainee + admin views) ──
-const ReplyInput = ({ skillId, logIdx, me, setResidents, showToast }) => {
+const ReplyInput = ({ skillId, logIdx, logId, me, setResidents, showToast }) => {
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
-  const submit = () => {
+  const submit = async () => {
     if (!text.trim()) return;
     setResidents((p) => p.map((r) => {
       if (r.id !== me.id) return r;
@@ -1006,6 +1006,11 @@ const ReplyInput = ({ skillId, logIdx, me, setResidents, showToast }) => {
     setText("");
     setOpen(false);
     showToast("Reply sent");
+    if (logId) {
+      await supabase.from("log_comments").insert({
+        log_id: logId, from_role: "resident", author_name: me.name?.split(" ")[0] || "", text: text.trim(),
+      });
+    }
   };
   if (!open) {
     return (
@@ -1464,7 +1469,7 @@ const TraineeDash = ({ user }) => {
                             </div>
                           </div>
                         ))}
-                        <ReplyInput skillId={fb.skillId} logIdx={fb.idx} me={me} setResidents={setResidents} showToast={showToast} />
+                        <ReplyInput skillId={fb.skillId} logIdx={fb.idx} logId={fb.log.id} me={me} setResidents={setResidents} showToast={showToast} />
                       </div>
                     );
                   })}
@@ -1973,19 +1978,29 @@ const TraineeSkills = ({ user }) => {
   const [logNote, setLogNote] = useState("");
   const [playingVideo, setPlayingVideo] = useState(null);
 
-  const replyToLog = (skillId, logIdx, text) => {
+  const replyToLog = async (skillId, logIdx, text) => {
+    const entries = (me.timingLogs || {})[skillId] || [];
+    const logEntry = entries[logIdx];
+    if (!logEntry) return;
+    const newComment = { from: "resident", text, ts: new Date().toISOString(), name: me.name?.split(" ")[0] };
+    // Optimistic update
     setResidents((p) => p.map((r) => {
       if (r.id !== me.id) return r;
       const logs = { ...(r.timingLogs || {}) };
-      const entries = [...(logs[skillId] || [])];
-      if (entries[logIdx]) {
-        const prev = entries[logIdx].comments || [];
-        entries[logIdx] = { ...entries[logIdx], comments: [...prev, { from: "resident", text, ts: new Date().toISOString(), name: me.name?.split(" ")[0] }] };
+      const ents = [...(logs[skillId] || [])];
+      if (ents[logIdx]) {
+        ents[logIdx] = { ...ents[logIdx], comments: [...(ents[logIdx].comments || []), newComment] };
       }
-      logs[skillId] = entries;
+      logs[skillId] = ents;
       return { ...r, timingLogs: logs };
     }));
     showToast("Reply sent");
+    // Persist to Supabase
+    if (logEntry.id) {
+      await supabase.from("log_comments").insert({
+        log_id: logEntry.id, from_role: "resident", author_name: me.name?.split(" ")[0] || "", text,
+      });
+    }
   };
 
   const openAddLog = (skill) => {
@@ -1996,33 +2011,34 @@ const TraineeSkills = ({ user }) => {
     setLogModal(true);
   };
 
-  const saveLog = () => {
+  const saveLog = async () => {
     if (!logMinutes || !logSkill) return;
     const mins = parseInt(logMinutes);
     if (isNaN(mins) || mins <= 0) return;
-    const newLogIdx = ((me.timingLogs || {})[logSkill.id] || []).length;
+    const dateStr = new Date().toISOString().split("T")[0];
+    // Insert to Supabase first to get the ID
+    const { data: inserted, error } = await supabase.from("timing_logs").insert({
+      user_id: me.id, skill_id: logSkill.id, minutes: mins, type: logType, date: dateStr, note: logNote.trim(),
+    }).select().single();
+    if (error) { console.error(error); showToast("Error saving log"); return; }
+    // Update local state with the real ID
     setResidents((p) => p.map((r) => {
       if (r.id !== me.id) return r;
       const logs = { ...(r.timingLogs || {}) };
       const existing = logs[logSkill.id] || [];
       logs[logSkill.id] = [...existing, {
-        minutes: mins,
-        type: logType,
-        date: new Date().toISOString().split("T")[0],
-        note: logNote.trim(),
-        comments: [],
+        id: inserted.id, minutes: mins, type: logType, date: dateStr, note: logNote.trim(), comments: [],
       }];
       return { ...r, timingLogs: logs };
     }));
-    setNotifications((p) => [...p, {
-      id: `n_${uid()}`, type: "practice", residentId: me.id, skillId: logSkill.id,
-      logIdx: newLogIdx, read: false, reviewed: false, ts: new Date().toISOString(),
-    }]);
     showToast("Practice logged — " + logMinutes + " min");
     setLogModal(false);
   };
 
-  const deleteLog = (skillId, logIdx) => {
+  const deleteLog = async (skillId, logIdx) => {
+    const entries = (me.timingLogs || {})[skillId] || [];
+    const logEntry = entries[logIdx];
+    // Optimistic update
     setResidents((p) => p.map((r) => {
       if (r.id !== me.id) return r;
       const logs = { ...(r.timingLogs || {}) };
@@ -2032,6 +2048,10 @@ const TraineeSkills = ({ user }) => {
       return { ...r, timingLogs: logs };
     }));
     showToast("Entry deleted");
+    // Delete from Supabase
+    if (logEntry?.id) {
+      await supabase.from("timing_logs").delete().eq("id", logEntry.id);
+    }
   };
 
   return (
@@ -2852,15 +2872,23 @@ const AdminDash = ({ onNav }) => {
     setNoteModal(true);
   };
 
-  const saveNote = () => {
+  const saveNote = async () => {
     if (!noteText.trim() || !noteTarget) return;
-    // Add as a timing log critique / general note
     if (noteTarget.skillId) {
+      // Insert timing log as a note entry, then add comment
+      const { data: inserted, error } = await supabase.from("timing_logs").insert({
+        user_id: noteTarget.residentId, skill_id: noteTarget.skillId, minutes: 0, type: "mannequin", date: today, note: "",
+      }).select().single();
+      if (error) { console.error(error); showToast("Error saving note"); return; }
+      await supabase.from("log_comments").insert({
+        log_id: inserted.id, from_role: "educator", author_name: "Admin", text: noteText.trim(),
+      });
+      // Update local state
       setResidents((p) => p.map((x) => {
         if (x.id !== noteTarget.residentId) return x;
         const logs = { ...(x.timingLogs || {}) };
         const existing = [...(logs[noteTarget.skillId] || [])];
-        existing.push({ minutes: 0, type: "mannequin", date: today, note: "", comments: [{ from: "educator", text: noteText.trim(), ts: new Date().toISOString(), name: "Admin" }] });
+        existing.push({ id: inserted.id, minutes: 0, type: "mannequin", date: today, note: "", comments: [{ from: "educator", text: noteText.trim(), ts: new Date().toISOString(), name: "Admin" }] });
         logs[noteTarget.skillId] = existing;
         return { ...x, timingLogs: logs };
       }));
@@ -2883,34 +2911,49 @@ const AdminDash = ({ onNav }) => {
     setNotifications((prev) => prev.map((n) => n.id === notif.id ? { ...n, read: true } : n));
   };
 
-  const submitReview = () => {
+  const submitReview = async () => {
     if (!reviewModal) return;
     const { residentId, skillId, logIdx } = reviewModal;
-    // Add comment to the log entry
+    const r2 = residents.find((x) => x.id === residentId);
+    const entries = (r2?.timingLogs || {})[skillId] || [];
+    const logEntry = entries[logIdx];
+    // Optimistic local update
     setResidents((prev) => prev.map((r) => {
       if (r.id !== residentId) return r;
       const logs = { ...(r.timingLogs || {}) };
-      const entries = [...(logs[skillId] || [])];
-      if (entries[logIdx] !== undefined) {
-        const prevComments = entries[logIdx].comments || [];
+      const ents = [...(logs[skillId] || [])];
+      if (ents[logIdx] !== undefined) {
+        const prevComments = ents[logIdx].comments || [];
         const newComment = reviewText.trim() ? { from: "educator", text: reviewText.trim(), ts: new Date().toISOString(), name: "Admin" } : null;
-        entries[logIdx] = { ...entries[logIdx], comments: newComment ? [...prevComments, newComment] : prevComments };
+        ents[logIdx] = { ...ents[logIdx], comments: newComment ? [...prevComments, newComment] : prevComments };
       }
-      logs[skillId] = entries;
-
-      // Optionally advance stages
+      logs[skillId] = ents;
       let prog = { ...(r.progress || {}) };
       const cur = prog[skillId] || { technique: 0, timing: 0 };
       if (advanceTech && cur.technique < 3) cur.technique++;
       if (advanceTiming && cur.timing < 3) cur.timing++;
       prog[skillId] = cur;
-
       return { ...r, timingLogs: logs, progress: prog };
     }));
-    // Mark notification as reviewed
     setNotifications((prev) => prev.map((n) => n.id === reviewModal.id ? { ...n, reviewed: true } : n));
     showToast("Review submitted");
     setReviewModal(null);
+    // Persist to Supabase
+    if (logEntry?.id && reviewText.trim()) {
+      await supabase.from("log_comments").insert({
+        log_id: logEntry.id, from_role: "educator", author_name: "Admin", text: reviewText.trim(),
+      });
+    }
+    // Advance stages in Supabase
+    if (advanceTech || advanceTiming) {
+      const r3 = residents.find((x) => x.id === residentId);
+      const cur = r3?.progress?.[skillId] || { technique: 0, timing: 0 };
+      const newTech = advanceTech && cur.technique < 3 ? cur.technique + 1 : cur.technique;
+      const newTiming = advanceTiming && cur.timing < 3 ? cur.timing + 1 : cur.timing;
+      await supabase.from("resident_skills").upsert({
+        user_id: residentId, skill_id: skillId, technique: newTech, timing: newTiming,
+      }, { onConflict: "user_id,skill_id" });
+    }
   };
 
   return (
@@ -5103,10 +5146,14 @@ const TraineeProfile = ({ traineeId, onNav }) => {
     setEditLogMinutes(String(log.minutes)); setEditLogType(log.type); setEditLogNote(log.note || ""); setEditLogCritique("");
     setEditLogModal(true);
   };
-  const saveEditLog = () => {
+  const saveEditLog = async () => {
     if (!editLogMinutes || editLogSkillId === null || editLogIdx === null) return;
     const mins = parseInt(editLogMinutes);
     if (isNaN(mins) || mins <= 0) return;
+    const r2 = residents.find((x) => x.id === traineeId);
+    const entries = (r2?.timingLogs || {})[editLogSkillId] || [];
+    const logEntry = entries[editLogIdx];
+    // Optimistic update
     setResidents((p) => p.map((x) => {
       if (x.id !== traineeId) return x;
       const logs = { ...(x.timingLogs || {}) };
@@ -5124,6 +5171,15 @@ const TraineeProfile = ({ traineeId, onNav }) => {
     }));
     showToast("Entry updated");
     setEditLogModal(false);
+    // Persist to Supabase
+    if (logEntry?.id) {
+      await supabase.from("timing_logs").update({ minutes: mins, type: editLogType, note: editLogNote.trim() }).eq("id", logEntry.id);
+      if (editLogCritique.trim()) {
+        await supabase.from("log_comments").insert({
+          log_id: logEntry.id, from_role: "educator", author_name: "Admin", text: editLogCritique.trim(),
+        });
+      }
+    }
   };
 
   const tabs = [
@@ -6604,28 +6660,26 @@ const FloatingTimer = ({ user, onNav }) => {
   const handleStop = () => { setRunning(false); if (seconds > 0) setShowSave(true); };
   const handleReset = () => { setRunning(false); setSeconds(0); setShowSave(false); setLinkedSkill(null); setLogNote(""); };
 
-  const handleSaveLog = () => {
+  const handleSaveLog = async () => {
     if (!linkedSkill || seconds === 0) return;
     const mins = Math.round(seconds / 60);
     if (mins === 0) { showToast("Timer too short to log"); return; }
-    const newLogIdx = ((me.timingLogs || {})[linkedSkill.id] || []).length;
+    const dateStr = new Date().toISOString().split("T")[0];
+    // Insert to Supabase first
+    const { data: inserted, error } = await supabase.from("timing_logs").insert({
+      user_id: me.id, skill_id: linkedSkill.id, minutes: mins, type: logType, date: dateStr, note: logNote.trim(),
+    }).select().single();
+    if (error) { console.error(error); showToast("Error saving log"); return; }
+    // Update local state
     setResidents((p) => p.map((r) => {
       if (r.id !== me.id) return r;
       const logs = { ...(r.timingLogs || {}) };
       const existing = logs[linkedSkill.id] || [];
       logs[linkedSkill.id] = [...existing, {
-        minutes: mins,
-        type: logType,
-        date: new Date().toISOString().split("T")[0],
-        note: logNote.trim(),
-        comments: [],
+        id: inserted.id, minutes: mins, type: logType, date: dateStr, note: logNote.trim(), comments: [],
       }];
       return { ...r, timingLogs: logs };
     }));
-    setNotifications((p) => [...p, {
-      id: `n_${uid()}`, type: "practice", residentId: me.id, skillId: linkedSkill.id,
-      logIdx: newLogIdx, read: false, reviewed: false, ts: new Date().toISOString(),
-    }]);
     showToast("Logged " + mins + "min to " + linkedSkill.name);
     handleReset();
     setExpanded(false);
@@ -6851,11 +6905,25 @@ const App = () => {
         setMasterProgram(program);
       }
 
-      // Load residents (profiles + skill assignments)
+      // Load residents (profiles + skill assignments + timing logs)
+      const buildTimingLogs = (logs, comments) => {
+        const tl = {};
+        (logs || []).forEach((l) => {
+          if (!tl[l.skill_id]) tl[l.skill_id] = [];
+          const myComments = (comments || []).filter((c) => c.log_id === l.id)
+            .sort((a, b) => a.created_at.localeCompare(b.created_at))
+            .map((c) => ({ id: c.id, from: c.from_role, text: c.text, ts: c.created_at, name: c.author_name }));
+          tl[l.skill_id].push({ id: l.id, minutes: l.minutes, type: l.type, date: l.date, note: l.note || "", comments: myComments });
+        });
+        return tl;
+      };
+
       if (profile.role === "admin") {
-        const [{ data: resProfiles }, { data: rSkills }] = await Promise.all([
+        const [{ data: resProfiles }, { data: rSkills }, { data: tLogs }, { data: tComments }] = await Promise.all([
           supabase.from("profiles").select("*").eq("role", "resident"),
           supabase.from("resident_skills").select("*"),
+          supabase.from("timing_logs").select("*").order("created_at"),
+          supabase.from("log_comments").select("*").order("created_at"),
         ]);
         const resList = (resProfiles || []).map((p) => {
           const mySkills = (rSkills || []).filter((rs) => rs.user_id === p.id);
@@ -6868,15 +6936,23 @@ const App = () => {
               progress[rs.skill_id] = { technique: rs.technique, timing: rs.timing };
             }
           });
+          const myLogs = (tLogs || []).filter((l) => l.user_id === p.id);
+          const myLogIds = new Set(myLogs.map((l) => l.id));
+          const myComments = (tComments || []).filter((c) => myLogIds.has(c.log_id));
           return {
             id: p.id, name: p.name, email: p.email, cohort: p.cohort || "Spring 2026",
-            photo: p.photo, skillIds, progress, focusSkills: p.focus_skills || [], timingLogs: {},
+            photo: p.photo, skillIds, progress, focusSkills: p.focus_skills || [],
+            timingLogs: buildTimingLogs(myLogs, myComments),
           };
         });
         setResidents(resList);
       } else {
-        // Resident: load own skills
-        const { data: rSkills } = await supabase.from("resident_skills").select("*").eq("user_id", profile.id);
+        // Resident: load own skills + logs
+        const [{ data: rSkills }, { data: tLogs }, { data: tComments }] = await Promise.all([
+          supabase.from("resident_skills").select("*").eq("user_id", profile.id),
+          supabase.from("timing_logs").select("*").eq("user_id", profile.id).order("created_at"),
+          supabase.from("log_comments").select("*").order("created_at"),
+        ]);
         const mySkills = rSkills || [];
         const skillIds = mySkills.sort((a, b) => a.sort_order - b.sort_order).map((rs) => rs.skill_id);
         const progress = {};
@@ -6887,9 +6963,12 @@ const App = () => {
             progress[rs.skill_id] = { technique: rs.technique, timing: rs.timing };
           }
         });
+        const myLogIds = new Set((tLogs || []).map((l) => l.id));
+        const myComments = (tComments || []).filter((c) => myLogIds.has(c.log_id));
         setResidents([{
           id: profile.id, name: profile.name, email: profile.email, cohort: profile.cohort || "Spring 2026",
-          photo: profile.photo, skillIds, progress, focusSkills: profile.focus_skills || [], timingLogs: {},
+          photo: profile.photo, skillIds, progress, focusSkills: profile.focus_skills || [],
+          timingLogs: buildTimingLogs(tLogs, myComments),
         }]);
       }
     } else {
