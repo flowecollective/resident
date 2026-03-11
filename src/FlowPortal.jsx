@@ -6900,31 +6900,35 @@ const fetchIcalEvents = async (icalUrl) => {
     const text = json.data;
     if (!text) return null;
     const events = [];
-    const blocks = text.split("BEGIN:VEVENT");
+    const clean = text.replace(/\r\n /g, "").replace(/\r/g, ""); // unfold long lines + strip \r
+    const blocks = clean.split("BEGIN:VEVENT");
     const now = new Date();
     const minDate = new Date(now.getFullYear(), now.getMonth(), 1);
     const maxDate = new Date(now.getFullYear(), now.getMonth() + 3, 0);
     for (let i = 1; i < blocks.length; i++) {
       const b = blocks[i].split("END:VEVENT")[0];
-      const get = (key) => { const m = b.match(new RegExp(`${key}[^:]*:(.*)`)); return m ? m[1].trim() : ""; };
-      const summary = get("SUMMARY");
+      const get = (key) => { const m = b.match(new RegExp(`${key}[^:\\n]*:(.*)`, "m")); return m ? m[1].trim() : ""; };
+      const rawSummary = get("SUMMARY").replace(/\\n/g, " · ").replace(/\\,/g, ",");
+      const summary = rawSummary.replace(/\s*·\s*Phone:.*$/, ""); // strip phone numbers
       const dtstart = get("DTSTART");
       const dtend = get("DTEND");
       const parseIcalDate = (s) => {
         if (!s) return null;
-        if (s.length === 8) return new Date(s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8));
-        if (s.includes("T")) { const d = s.replace(/Z$/, ""); return new Date(d.slice(0, 4) + "-" + d.slice(4, 6) + "-" + d.slice(6, 8) + "T" + d.slice(9, 11) + ":" + d.slice(11, 13) + ":" + d.slice(13, 15)); }
-        return new Date(s);
+        const v = s.replace(/Z$/, "");
+        if (v.length === 8) return new Date(v.slice(0, 4) + "-" + v.slice(4, 6) + "-" + v.slice(6, 8));
+        if (v.includes("T")) return new Date(v.slice(0, 4) + "-" + v.slice(4, 6) + "-" + v.slice(6, 8) + "T" + v.slice(9, 11) + ":" + v.slice(11, 13) + ":" + v.slice(13, 15));
+        return new Date(v);
       };
       const startD = parseIcalDate(dtstart);
       const endD = parseIcalDate(dtend);
-      if (!startD || startD < minDate || startD > maxDate) continue;
+      if (!startD || isNaN(startD.getTime()) || startD < minDate || startD > maxDate) continue;
       const date = startD.toISOString().slice(0, 10);
-      const fmt = (d) => d ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+      const fmt = (d) => d && !isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
       const isAllDay = dtstart.length === 8;
       const time = isAllDay ? "All day" : (fmt(startD) && fmt(endD) ? `${fmt(startD)} – ${fmt(endD)}` : "All day");
       events.push({ title: summary || "(No title)", time, date });
     }
+    console.log("iCal events parsed:", events.length);
     return events;
   } catch { return null; }
 };
