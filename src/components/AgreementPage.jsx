@@ -119,9 +119,9 @@ const AGREEMENT_CSS = `
   margin-bottom: 36px;
 }
 .agreement-page h2 {
-  font-family: ${T.fontD};
-  font-size: 12px;
-  font-weight: 600;
+  font-family: ${T.font};
+  font-size: 11px;
+  font-weight: 700;
   margin: 0 0 16px;
   padding: 8px 16px;
   border-bottom: none;
