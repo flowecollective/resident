@@ -1059,13 +1059,13 @@ const TraineeOnboarding = ({ user, onNav }) => {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("profiles")
-        .select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields")
+        .select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields")
         .eq("id", user.id).single();
       if (data) {
         setOb(data);
         setGustoFields(data.gusto_fields || {});
       } else {
-        setOb({ agreement_signed: false, agreement_countersigned: false, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
+        setOb({ agreement_signed: false, agreement_countersigned: false, agreement_data: {}, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
       }
       setLoading(false);
     };
@@ -1073,7 +1073,7 @@ const TraineeOnboarding = ({ user, onNav }) => {
   }, [user.id]);
 
   const updateOb = async (updates) => {
-    const { data } = await supabase.from("profiles").update(updates).eq("id", user.id).select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields").single();
+    const { data } = await supabase.from("profiles").update(updates).eq("id", user.id).select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields").single();
     if (data) setOb(data);
     return data;
   };
@@ -1102,13 +1102,26 @@ const TraineeOnboarding = ({ user, onNav }) => {
     }
   };
 
+  const STRIPE_LINKS = {
+    A: "https://buy.stripe.com/00wcN4dmoetn7Y0aLU9EI07",
+    B: "https://buy.stripe.com/4gM8wObegetnemo6vE9EI08",
+  };
+
   const handleEnroll = () => {
-    window.open("https://jordanwangco.com/enroll", "_blank");
+    const payOpt = ob?.agreement_data?.paymentOption || "B";
+    const link = STRIPE_LINKS[payOpt] || STRIPE_LINKS.B;
+    const params = new URLSearchParams({
+      client_reference_id: user.id,
+      prefilled_email: user.email,
+    });
+    window.open(`${link}?${params}`, "_blank");
   };
 
   const markEnrolled = async () => {
+    const payOpt = ob?.agreement_data?.paymentOption || "B";
+    const plan = payOpt === "A" ? "full" : "monthly";
     const now = new Date().toISOString().split("T")[0];
-    await updateOb({ enrollment_completed: true, enrollment_date: now, enrollment_plan: "monthly" });
+    await updateOb({ enrollment_completed: true, enrollment_date: now, enrollment_plan: plan });
     showToast("Enrollment confirmed!");
   };
 
