@@ -5710,7 +5710,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
 //  ADMIN: DOCUMENTS
 // ════════════════════════════════════════════
 const AdminDocs = () => {
-  const { docs, setDocs, showToast } = useData();
+  const { user, docs, setDocs, showToast } = useData();
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: "", category: "Resources", url: "" });
   const [fileData, setFileData] = useState(null);
@@ -5741,26 +5741,49 @@ const AdminDocs = () => {
     reader.readAsDataURL(file);
   };
 
-  const add = () => {
+  const add = async () => {
     if (!form.name.trim()) return;
-    const doc = {
-      id: Date.now(),
+    const now = new Date().toISOString().split("T")[0];
+    let uploadUrl = form.url.trim() || null;
+    let storagePath = null;
+
+    // Upload file to Supabase Storage if file selected
+    if (fileData) {
+      const ext = fileName.split(".").pop() || "bin";
+      const path = `uploads/${Date.now()}-${fileName}`;
+      const base64 = fileData.split(",")[1];
+      const blob = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const { error: upErr } = await supabase.storage.from("documents").upload(path, blob, { contentType: fileData.split(";")[0].split(":")[1] || "application/octet-stream", upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+        uploadUrl = urlData?.publicUrl || null;
+        storagePath = "documents/" + path;
+      }
+    }
+
+    const { data: inserted, error: insErr } = await supabase.from("documents").insert({
       name: form.name.trim(),
       category: form.category,
-      date: new Date().toISOString().split("T")[0],
+      date: now,
       size: fileSize || "—",
-      dataUrl: fileData || null,
-      url: form.url.trim() || null,
-      fileType: fileType || "other",
-    };
-    setDocs((p) => [...p, doc]);
+      url: uploadUrl,
+      storage_path: storagePath,
+      uploaded_by: user.id,
+    }).select().single();
+
+    if (insErr) { console.error("Doc insert error:", insErr); showToast("Error uploading"); return; }
+    setDocs((p) => [inserted, ...p]);
     setForm({ name: "", category: "Resources", url: "" });
     setFileData(null); setFileName(""); setFileSize(""); setFileType("");
     setModal(false);
     showToast("Document uploaded");
   };
 
-  const rem = (id) => { setDocs((p) => p.filter((d) => d.id !== id)); showToast("Document removed"); };
+  const rem = async (id) => {
+    await supabase.from("documents").delete().eq("id", id);
+    setDocs((p) => p.filter((d) => d.id !== id));
+    showToast("Document removed");
+  };
 
   const openModal = () => {
     setForm({ name: "", category: "Resources", url: "" });
@@ -6519,7 +6542,7 @@ const App = () => {
   const [presets, setPresets] = useState(INIT_PRESETS);
   const [residents, setResidents] = useState(INIT_RESIDENTS);
   const [schedule, setSchedule] = useState(INIT_SCHEDULE);
-  const [docs, setDocs] = useState(INIT_DOCS);
+  const [docs, setDocs] = useState([]);
   const [messages, setMessages] = useState(INIT_MESSAGES);
   const [gcalConnected, setGcalConnected] = useState(false);
   const [gcalEvents, setGcalEvents] = useState([]);
@@ -6549,6 +6572,12 @@ const App = () => {
         photo: profile.photo,
       });
       setPage(profile.role === "admin" ? "a-dash" : "dash");
+      // Fetch documents from Supabase
+      const docsQuery = profile.role === "admin"
+        ? supabase.from("documents").select("*").order("created_at", { ascending: false })
+        : supabase.from("documents").select("*").eq("uploaded_by", profile.id).order("created_at", { ascending: false });
+      const { data: docsData } = await docsQuery;
+      setDocs(docsData || []);
     } else {
       // Profile not created yet (trigger may not have fired) — use auth metadata
       const meta = authUser.user_metadata || {};
