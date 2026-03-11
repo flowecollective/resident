@@ -126,8 +126,8 @@ const AGREEMENT_CSS = `
   padding: 8px 16px;
   border-bottom: none;
   border-radius: 4px;
-  background: ${T.charcoal};
-  color: ${T.cream};
+  background: ${T.gold};
+  color: ${T.white};
   text-transform: uppercase;
   letter-spacing: 0.15em;
 }
