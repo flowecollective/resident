@@ -801,6 +801,7 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
         { id: "handbook", label: "Handbook", icon: "file" },
         { id: "docs", label: "Documents", icon: "file" },
         { id: "msg", label: "Messages", icon: "message" },
+        { id: "settings", label: "Settings", icon: "settings" },
       ];
 
   const handleNav = (id) => {
@@ -6596,6 +6597,7 @@ const App = () => {
       handbook: <HandbookPage />,
       docs: <TraineeDocs />,
       msg: <MsgPage user={user} />,
+      settings: <SettingsPage />,
       "a-dash": <AdminDash onNav={setPage} />,
       "a-sched": <AdminSchedule />,
       "a-master": <AdminMaster />,
