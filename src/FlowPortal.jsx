@@ -1226,14 +1226,9 @@ const TraineeOnboarding = ({ user, onNav }) => {
           {ob.enrollment_completed ? (
             <Badge color={T.success} bg={T.successBg}>Enrolled</Badge>
           ) : (
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={handleEnroll} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.charcoal }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="link" size={14} color={T.charcoal} /> Enroll</span>
-              </button>
-              <button onClick={markEnrolled} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
-                Confirm
-              </button>
-            </div>
+            <button onClick={handleEnroll} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="dollar" size={14} color={T.cream} /> Enroll & Pay</span>
+            </button>
           )}
         </div>
       </Card>
