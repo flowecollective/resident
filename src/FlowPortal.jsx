@@ -5811,13 +5811,8 @@ const AdminDocs = () => {
   const [viewDoc, setViewDoc] = useState(null);
 
   const rem = async (doc) => {
-    // Delete file from storage bucket if it has a storage_path
-    if (doc.storage_path) {
-      const bucket = doc.storage_path.split("/")[0];
-      const path = doc.storage_path.split("/").slice(1).join("/");
-      await supabase.storage.from(bucket).remove([path]);
-    }
-    await supabase.from("documents").delete().eq("id", doc.id);
+    // Soft delete — set deleted_at timestamp instead of removing
+    await supabase.from("documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id);
     setDocs((p) => p.filter((d) => d.id !== doc.id));
     setConfirmDelete(null);
     showToast("Document removed");
