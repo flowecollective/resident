@@ -6161,8 +6161,8 @@ const TraineeTuition = ({ user }) => {
                   <Icon name="check" size={16} color={T.success} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: "13px", fontWeight: 500 }}>{pay.note}</p>
-                  <p style={{ fontSize: "11px", color: T.textMuted }}>{pay.date}</p>
+                  <p style={{ fontSize: "13px", fontWeight: 500 }}>{pay.note || "Payment"}</p>
+                  <p style={{ fontSize: "11px", color: T.textMuted }}>{pay.date}{pay.method ? ` · ${pay.method}` : ""}</p>
                 </div>
                 <p style={{ fontSize: "15px", fontWeight: 600, color: T.success }}>+${Number(pay.amount).toLocaleString()}</p>
               </div>
