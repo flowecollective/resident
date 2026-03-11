@@ -3,6 +3,7 @@ import { T, TC, CAT_COLORS, TECHNIQUE_STAGES, TIMING_STAGES, TECHNIQUE_COLORS, T
 import { GlobalStyle } from "./GlobalStyle";
 import { Icon } from "./components/Icon";
 import { Card, Badge, ProgressBar, Avatar, SectionTitle, FormField, Btn, Modal, Toast } from "./components/ui";
+import { supabase } from "./lib/supabase";
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -673,17 +674,34 @@ const AuthScreen = ({ onLogin }) => {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [mode, setMode] = useState("login"); // "login" or "signup"
 
-  const go = () => {
-    if (!email) return;
+  const go = async () => {
+    if (!email || !pw) { setError("Email and password required"); return; }
     setLoading(true);
-    setTimeout(() => {
-      onLogin(
-        email.toLowerCase().includes("admin")
-          ? { id: "a1", name: "Flowe Educator", email, role: "admin" }
-          : { id: "r1", name: "Cheyenne Rollins", email, role: "resident", cohort: "Spring 2026" }
-      );
-    }, 600);
+    setError("");
+    try {
+      if (mode === "signup") {
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email,
+          password: pw,
+          options: { data: { name: email.split("@")[0], role: "resident" } },
+        });
+        if (signUpErr) throw signUpErr;
+        setError("");
+        setMode("login");
+        setLoading(false);
+        alert("Account created! Check your email to confirm, then sign in.");
+        return;
+      }
+      const { data, error: signInErr } = await supabase.auth.signInWithPassword({ email, password: pw });
+      if (signInErr) throw signInErr;
+      // Profile is fetched in App via onAuthStateChange
+    } catch (err) {
+      setError(err.message || "Sign in failed");
+      setLoading(false);
+    }
   };
 
   return (
@@ -706,8 +724,17 @@ const AuthScreen = ({ onLogin }) => {
           <p style={{ color: T.gold, fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.3em", textTransform: "uppercase" }}>Training Portal</p>
         </div>
         <Card style={{ padding: 36 }}>
-          <h3 style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 500, textAlign: "center", marginBottom: 4 }}>Welcome back</h3>
-          <p style={{ color: T.textMuted, fontSize: "13px", textAlign: "center", marginBottom: 28 }}>Sign in to continue</p>
+          <h3 style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 500, textAlign: "center", marginBottom: 4 }}>
+            {mode === "login" ? "Welcome back" : "Create account"}
+          </h3>
+          <p style={{ color: T.textMuted, fontSize: "13px", textAlign: "center", marginBottom: 28 }}>
+            {mode === "login" ? "Sign in to continue" : "Set up your resident account"}
+          </p>
+          {error && (
+            <div style={{ padding: "10px 14px", borderRadius: T.radiusSm, background: "#fee", border: "1px solid #fcc", marginBottom: 16 }}>
+              <p style={{ fontSize: "12px", color: "#c33" }}>{error}</p>
+            </div>
+          )}
           <FormField label="Email">
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@flowecollective.com" style={iSt} onKeyDown={(e) => e.key === "Enter" && go()} />
           </FormField>
@@ -716,6 +743,7 @@ const AuthScreen = ({ onLogin }) => {
           </FormField>
           <button
             onClick={go}
+            disabled={loading}
             style={{
               width: "100%",
               padding: 14,
@@ -725,16 +753,20 @@ const AuthScreen = ({ onLogin }) => {
               border: "none",
               fontSize: "14px",
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: loading ? "wait" : "pointer",
               marginTop: 8,
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (mode === "login" ? "Sign In" : "Create Account")}
           </button>
         </Card>
-        <p style={{ textAlign: "center", marginTop: 20, fontSize: "11px", color: T.textMuted }}>
-          <b>Demo:</b> any email = trainee · "admin" in email = educator
+        <p style={{ textAlign: "center", marginTop: 20, fontSize: "12px", color: T.textMuted }}>
+          {mode === "login" ? (
+            <>Don't have an account?{" "}<button onClick={() => { setMode("signup"); setError(""); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", fontWeight: 600, fontSize: "12px" }}>Sign up</button></>
+          ) : (
+            <>Already have an account?{" "}<button onClick={() => { setMode("login"); setError(""); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", fontWeight: 600, fontSize: "12px" }}>Sign in</button></>
+          )}
         </p>
       </div>
     </div>
@@ -6356,6 +6388,7 @@ const FloatingTimer = ({ user, onNav }) => {
 // ════════════════════════════════════════════
 const App = () => {
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [page, setPage] = useState("dash");
   const [masterProgram, setMasterProgram] = useState(MASTER_PROGRAM);
   const [presets, setPresets] = useState(INIT_PRESETS);
@@ -6368,7 +6401,6 @@ const App = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState({ message: "", visible: false });
   const [notifications, setNotifications] = useState([
-    // Seed demo notifications
     { id: "n1", type: "practice", residentId: "r1", skillId: "sk1", logIdx: 3, read: false, reviewed: false, ts: "2026-03-03T14:30:00" },
     { id: "n2", type: "practice", residentId: "r1", skillId: "sk2", logIdx: 1, read: false, reviewed: false, ts: "2026-03-04T11:00:00" },
   ]);
@@ -6378,10 +6410,62 @@ const App = () => {
     setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2200);
   };
 
-  const login = (u) => { setUser(u); setPage(u.role === "admin" ? "a-dash" : "dash"); };
-  const logout = () => { setUser(null); setPage("dash"); };
+  // Fetch profile from Supabase after auth
+  const loadProfile = async (authUser) => {
+    if (!authUser) { setUser(null); setAuthLoading(false); return; }
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", authUser.id).single();
+    if (profile) {
+      setUser({
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        cohort: profile.cohort,
+      });
+      setPage(profile.role === "admin" ? "a-dash" : "dash");
+    } else {
+      // Profile not created yet (trigger may not have fired) — use auth metadata
+      const meta = authUser.user_metadata || {};
+      setUser({
+        id: authUser.id,
+        name: meta.name || authUser.email.split("@")[0],
+        email: authUser.email,
+        role: meta.role || "resident",
+        cohort: meta.cohort || "Spring 2026",
+      });
+      setPage((meta.role || "resident") === "admin" ? "a-dash" : "dash");
+    }
+    setAuthLoading(false);
+  };
 
-  if (!user) return <><GlobalStyle /><AuthScreen onLogin={login} /></>;
+  // Listen for Supabase auth state changes
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      loadProfile(session?.user || null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadProfile(session?.user || null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setPage("dash");
+  };
+
+  if (authLoading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.cream }}>
+      <GlobalStyle />
+      <div style={{ textAlign: "center" }}>
+        <span style={{ fontFamily: T.fontD, fontSize: "1.6rem", fontWeight: 500, letterSpacing: "0.15em", color: T.charcoal }}>FLOWE</span>
+        <p style={{ color: T.textMuted, fontSize: "13px", marginTop: 8 }}>Loading...</p>
+      </div>
+    </div>
+  );
+
+  if (!user) return <><GlobalStyle /><AuthScreen /></>;
 
   const data = { masterProgram, setMasterProgram, presets, setPresets, residents, setResidents, schedule, setSchedule, docs, setDocs, messages, setMessages, gcalConnected, setGcalConnected, gcalEvents, setGcalEvents, notifications, setNotifications, showToast };
 
