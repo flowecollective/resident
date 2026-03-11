@@ -6109,9 +6109,10 @@ const AdminTuition = ({ onNav }) => {
   const [targetId, setTargetId] = useState(null);
   const [payAmount, setPayAmount] = useState("");
   const [payNote, setPayNote] = useState("");
+  const [payDate, setPayDate] = useState("");
 
   const loadData = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, name, email, photo").eq("role", "resident");
+    const { data: profiles } = await supabase.from("profiles").select("id, name, email, photo, enrollment_completed").eq("role", "resident");
     if (!profiles) { setLoading(false); return; }
     const [{ data: tuitionData }, { data: paymentsData }] = await Promise.all([
       supabase.from("tuition").select("*"),
@@ -6127,7 +6128,7 @@ const AdminTuition = ({ onNav }) => {
       const remaining = Math.max(0, total - paid);
       const paidPct = total ? Math.round((paid / total) * 100) : 0;
       const status = remaining <= 0 ? "paid" : paid > 0 ? "partial" : "unpaid";
-      return { ...p, tuition: t, payments: pays, paid, total, remaining, paidPct, status };
+      return { ...p, enrollment_completed: p.enrollment_completed, tuition: t, payments: pays, paid, total, remaining, paidPct, status };
     }));
     setLoading(false);
   };
@@ -6146,17 +6147,34 @@ const AdminTuition = ({ onNav }) => {
   const totalRemaining = totalRevenue - totalPaid;
   const target = residents.find((r) => r.id === targetId);
 
-  const openPay = (r) => { setTargetId(r.id); setPayAmount(""); setPayNote(""); setPayModal(true); };
+  const openPay = (r) => { setTargetId(r.id); setPayAmount(""); setPayNote(""); setPayDate(new Date().toISOString().split("T")[0]); setPayModal(true); };
   const recordPayment = async () => {
     if (!payAmount || !targetId) return;
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) return;
+    const date = payDate || new Date().toISOString().split("T")[0];
+
+    // Ensure tuition record exists
+    await supabase.from("tuition").upsert(
+      { user_id: targetId, plan: target?.tuition?.plan || "monthly", total: target?.total || 4950 },
+      { onConflict: "user_id" }
+    );
+
     const { error } = await supabase.from("payments").insert({
-      user_id: targetId, amount: amt,
-      date: new Date().toISOString().split("T")[0],
+      user_id: targetId, amount: amt, date,
       note: payNote || "Payment",
     });
     if (error) { console.error(error); return; }
+
+    // Auto-mark enrollment complete if not already
+    if (!target?.enrollment_completed) {
+      await supabase.from("profiles").update({
+        enrollment_completed: true,
+        enrollment_date: date,
+        enrollment_plan: target?.tuition?.plan || "monthly",
+      }).eq("id", targetId);
+    }
+
     showToast("Payment recorded");
     setPayModal(false);
     await loadData();
@@ -6247,11 +6265,19 @@ const AdminTuition = ({ onNav }) => {
             <div style={{ padding: 14, borderRadius: T.radiusSm, background: T.cream, marginBottom: 16 }}>
               <p style={{ fontSize: "12px", color: T.textMuted }}>Balance remaining: <b style={{ color: target.remaining > 0 ? T.warn : T.success }}>${target.remaining.toLocaleString()}</b></p>
             </div>
+            {!target.enrollment_completed && (
+              <div style={{ padding: 10, borderRadius: T.radiusSm, background: T.warnBg, marginBottom: 12 }}>
+                <p style={{ fontSize: "11px", color: T.warn, fontWeight: 500 }}>This will also mark enrollment as complete.</p>
+              </div>
+            )}
             <FormField label="Amount ($)">
               <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder={target.tuition?.plan === "monthly" ? "1650" : "4500"} style={iSt} />
             </FormField>
+            <FormField label="Date">
+              <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} style={iSt} />
+            </FormField>
             <FormField label="Note (optional)">
-              <input value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="e.g. Month 2, Cash payment" style={iSt} />
+              <input value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="e.g. Month 1 — manual entry" style={iSt} />
             </FormField>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
               <Btn variant="outline" onClick={() => setPayModal(false)}>Cancel</Btn>
