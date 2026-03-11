@@ -310,6 +310,30 @@ const AGREEMENT_CSS = `
   max-height: 100px;
 }
 
+/* Countersign mode: lock all resident fields */
+.agreement-page.countersign-mode .ag-input,
+.agreement-page.countersign-mode .ag-radio-label {
+  pointer-events: none;
+  opacity: 0.7;
+  background: ${T.cream};
+}
+.agreement-page.countersign-mode .ag-card .sig-canvas-wrap {
+  pointer-events: none;
+  opacity: 0.5;
+}
+.agreement-page.countersign-mode .ag-card .clear-sig-btn {
+  display: none;
+}
+.agreement-page.countersign-mode .ag-card.company-sig .ag-input,
+.agreement-page.countersign-mode .ag-card.company-sig .sig-canvas-wrap {
+  pointer-events: auto;
+  opacity: 1;
+  background: ${T.white};
+}
+.agreement-page.countersign-mode .ag-card.company-sig .clear-sig-btn {
+  display: inline;
+}
+
 /* PDF prep: hide interactive, show filled */
 .agreement-page.pdf-mode .ag-input,
 .agreement-page.pdf-mode .ag-radio-group,
@@ -542,21 +566,78 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
     setSubmitting(true);
 
     try {
-      /* ── Countersign mode: just mark profile, keep original PDF ── */
+      /* ── Countersign mode: generate full PDF with company sig, overwrite original ── */
       if (isCountersign) {
+        const el = wrapRef.current;
+
+        /* prepare filled values */
+        el.querySelectorAll(".ag-filled-value").forEach((fv) => {
+          const key = fv.dataset.key;
+          if (key === "residentName") fv.textContent = residentName;
+          if (key === "startDate") fv.textContent = startDate;
+          if (key === "endDate") fv.textContent = endDate;
+          if (key === "residentPrintedName") fv.textContent = residentPrintedName;
+          if (key === "residentDate") fv.textContent = residentDate;
+          if (key === "exhibitPrintedName") fv.textContent = exhibitPrintedName;
+          if (key === "exhibitDate") fv.textContent = exhibitDate;
+          if (key === "companyDate") fv.textContent = companyDate;
+        });
+
+        /* render canvas → images */
+        el.querySelectorAll(".ag-sig-image").forEach((img) => {
+          const key = img.dataset.key;
+          if (key === "companySig" && companySigRef.current)
+            img.src = companySigRef.current.toDataURL("image/png");
+        });
+
+        el.classList.add("pdf-mode");
+
+        // Use original file name to overwrite
+        const existingUrl = residentProfile?.agreement_url || "";
+        const existingPath = existingUrl.split("/agreements/").pop() || "";
+        const sanitized = residentName.trim().replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").toLowerCase();
+        const fileName = existingPath || `${sanitized}-countersigned-${Date.now()}.pdf`;
+
+        const opt = {
+          margin: [0.3, 0.3, 0.3, 0.3],
+          filename: fileName,
+          image: { type: "jpeg", quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+          jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"], before: [".exhibit-a"], avoid: [".sig-block", ".day"] },
+        };
+
+        // eslint-disable-next-line no-undef
+        const pdfBlob = await html2pdf().set(opt).from(el).outputPdf("blob");
+        el.classList.remove("pdf-mode");
+
+        const { error: uploadErr } = await supabase.storage
+          .from("agreements")
+          .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+        if (uploadErr) {
+          console.error("Countersign upload error:", uploadErr);
+          throw uploadErr;
+        }
+
+        const { data: urlData } = supabase.storage.from("agreements").getPublicUrl(fileName);
+        const publicUrl = urlData?.publicUrl || existingUrl;
+
         const now = new Date().toISOString().split("T")[0];
         const { error: profErr } = await supabase
           .from("profiles")
           .update({
             agreement_countersigned: true,
             agreement_countersigned_date: now,
+            agreement_url: publicUrl,
           })
           .eq("id", residentId);
         if (profErr) {
           console.error("Profile update error:", profErr);
           throw profErr;
         }
-        setSuccess({ url: residentProfile?.agreement_url || "", fileName: "" });
+
+        setSuccess({ url: publicUrl, fileName });
         return;
       }
 
@@ -777,9 +858,11 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         </div>
       )}
 
-      {/* ── COUNTERSIGN MODE: show signed PDF + company sig ── */}
-      {isCountersign && !loadingProfile && (
-        <div className="agreement-page" ref={wrapRef}>
+      {/* ── AGREEMENT FORM (both sign + countersign modes) ── */}
+      {!loadingProfile && (
+      <div className={`agreement-page${isCountersign ? " countersign-mode" : ""}`} ref={wrapRef}>
+        {/* Countersign banner */}
+        {isCountersign && (
           <div className="ag-countersign-banner" style={{ marginBottom: 16 }}>
             <button onClick={() => onNav && onNav("a-dash")} className="ag-back-btn" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: T.textMuted, fontSize: 13 }}>
               <Icon name="back" size={16} color={T.textMuted} /> Back to Dashboard
@@ -789,70 +872,12 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
                 Countersigning agreement for <strong>{residentName}</strong>
               </p>
               <p style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
-                Review the signed agreement below, then add your company signature.
+                All fields are read-only. Add your company signature at the bottom.
               </p>
             </div>
           </div>
+        )}
 
-          <h1>FLOWE COLLECTIVE</h1>
-          <p className="ag-subtitle">Stylist Residency Program Agreement</p>
-
-          {/* Embed the signed PDF */}
-          {residentProfile?.agreement_url ? (
-            <div style={{ marginBottom: 24 }}>
-              <iframe
-                src={residentProfile.agreement_url}
-                style={{ width: "100%", height: 800, border: `1px solid ${T.lightLine}`, borderRadius: T.radiusSm }}
-                title="Signed Agreement"
-              />
-              <a href={residentProfile.agreement_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.gold, marginTop: 8, display: "inline-block" }}>
-                Open PDF in new tab
-              </a>
-            </div>
-          ) : (
-            <div style={{ padding: 32, textAlign: "center", color: T.textMuted, fontSize: 13, background: T.cream, borderRadius: T.radiusSm, marginBottom: 24 }}>
-              No signed agreement PDF found for this resident.
-            </div>
-          )}
-
-          {/* errors */}
-          {errors.length > 0 && (
-            <div style={{ background: T.dangerBg, border: `1px solid ${T.danger}`, borderRadius: T.radiusSm, padding: "16px 20px", marginBottom: 20 }}>
-              <strong style={{ color: T.danger, fontSize: 13 }}>Please fix the following:</strong>
-              <ul style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-                {errors.map((e, i) => <li key={i} style={{ color: T.danger, fontSize: 13 }}>{e}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Company signature */}
-          <div className="ag-card">
-            <h2>Company Countersignature</h2>
-            <h3>Company &mdash; Flowe Beauty Interests LLC / Jordan Wang</h3>
-            <SigPad canvasRef={companySigRef} padRef={companyPad} label="Signature" />
-            <div style={{ marginTop: 12 }}>
-              <label className="ag-label">Date</label>
-              <input
-                className="ag-input"
-                type="date"
-                value={companyDate}
-                onChange={(e) => setCompanyDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="ag-actions">
-            <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Countersigning..." : "Countersign Agreement"}
-            </Btn>
-          </div>
-        </div>
-      )}
-
-      {/* ── SIGN MODE: full agreement form ── */}
-      {!isCountersign && !loadingProfile && (
-      <div className="agreement-page" ref={wrapRef}>
         <h1>FLOWE COLLECTIVE</h1>
         <p className="ag-subtitle">Stylist Residency Program Agreement</p>
 
@@ -1287,8 +1312,12 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
             <div className="ag-filled-value" data-key="residentDate" />
           </div>
 
-          {/* Company signature */}
-          <h3 style={{ marginTop: 32 }}>Company &mdash; Flowe Beauty Interests LLC / Jordan Wang</h3>
+        </div>
+
+        {/* ── Company Signature (separate card so countersign CSS can target it) ── */}
+        <div className="ag-card company-sig">
+          <h2>Company Signature</h2>
+          <h3>Company &mdash; Flowe Beauty Interests LLC / Jordan Wang</h3>
 
           {!companyUnlocked ? (
             <div className="ag-lock-box">
@@ -1422,7 +1451,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         {/* ── Actions ── */}
         <div className="ag-actions">
           <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Agreement"}
+            {submitting ? (isCountersign ? "Countersigning..." : "Submitting...") : (isCountersign ? "Countersign Agreement" : "Submit Agreement")}
           </Btn>
           <Btn variant="outline" onClick={handlePrint}>
             Print
