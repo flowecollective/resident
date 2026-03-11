@@ -596,18 +596,22 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         .from("agreements")
         .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
 
-      if (uploadErr) throw uploadErr;
+      if (uploadErr) {
+        console.error("Storage upload error:", uploadErr);
+        throw uploadErr;
+      }
 
       /* get public url */
       const { data: urlData } = supabase.storage.from("agreements").getPublicUrl(fileName);
       const publicUrl = urlData?.publicUrl || "";
+      console.log("PDF uploaded:", publicUrl);
 
       /* update profile + insert document */
       const targetId = isCountersign ? residentId : user.id;
       const now = new Date().toISOString().split("T")[0];
 
       if (isCountersign) {
-        await supabase
+        const { error: profErr } = await supabase
           .from("profiles")
           .update({
             agreement_countersigned: true,
@@ -615,8 +619,9 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
             agreement_url: publicUrl,
           })
           .eq("id", targetId);
+        if (profErr) console.error("Profile update error:", profErr);
       } else {
-        await supabase
+        const { error: profErr } = await supabase
           .from("profiles")
           .update({
             agreement_signed: true,
@@ -624,9 +629,10 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
             agreement_url: publicUrl,
           })
           .eq("id", targetId);
+        if (profErr) console.error("Profile update error:", profErr);
       }
 
-      await supabase.from("documents").insert({
+      const { error: docErr } = await supabase.from("documents").insert({
         name: isCountersign ? "Residency Agreement \u2014 Countersigned" : "Residency Agreement \u2014 Signed",
         category: "Agreements",
         size: "PDF",
@@ -635,6 +641,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         storage_path: "agreements/" + fileName,
         uploaded_by: user.id,
       });
+      if (docErr) console.error("Document insert error:", docErr);
 
       setSuccess({ url: publicUrl, fileName });
     } catch (err) {
