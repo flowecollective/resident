@@ -1080,7 +1080,7 @@ const TraineeOnboarding = ({ user }) => {
   const allDone = completedCount === steps.length;
 
   const handleAgreement = () => {
-    window.open("https://www.jordanwangco.com/fc-residency-agreement", "_blank");
+    window.open(`https://www.jordanwangco.com/fc-residency-agreement?uid=${user.id}&email=${encodeURIComponent(user.email)}`, "_blank");
   };
 
   const markAgreementSigned = async () => {
