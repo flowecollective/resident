@@ -519,11 +519,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
       if (!exhibitPrintedName.trim()) errs.push("Exhibit A printed name is required.");
       if (!exhibitDate) errs.push("Exhibit A date is required.");
       if (!exhibitPad.current?.state.hasSig) errs.push("Exhibit A signature is required.");
-      if (!companyUnlocked) errs.push("Company signature section must be unlocked.");
-      else {
-        if (!companyPad.current?.state.hasSig) errs.push("Company signature is required.");
-        if (!companyDate) errs.push("Company signature date is required.");
-      }
+      // Company signature is optional for resident — admin countersigns later
     }
     return errs;
   };
