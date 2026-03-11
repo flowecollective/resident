@@ -5779,9 +5779,12 @@ const AdminDocs = () => {
     showToast("Document uploaded");
   };
 
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
   const rem = async (id) => {
     await supabase.from("documents").delete().eq("id", id);
     setDocs((p) => p.filter((d) => d.id !== id));
+    setConfirmDelete(null);
     showToast("Document removed");
   };
 
@@ -5819,7 +5822,7 @@ const AdminDocs = () => {
                   <Icon name="eye" size={14} color={T.gold} />
                 </button>
               )}
-              <button onClick={() => rem(doc.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
+              <button onClick={() => setConfirmDelete(doc)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
             </Card>
           ))}
         </div>
@@ -5885,6 +5888,17 @@ const AdminDocs = () => {
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
           <Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn>
           <Btn onClick={add} disabled={!form.name.trim() && !fileData}>Upload</Btn>
+        </div>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete Document" width={400}>
+        <p style={{ fontSize: 13, color: T.textMuted, marginBottom: 16 }}>
+          Are you sure you want to delete <strong>{confirmDelete?.name}</strong>? This cannot be undone.
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <Btn variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Btn>
+          <Btn variant="danger" onClick={() => rem(confirmDelete.id)}>Delete</Btn>
         </div>
       </Modal>
     </div>
