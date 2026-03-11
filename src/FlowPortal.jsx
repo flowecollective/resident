@@ -1559,7 +1559,7 @@ const MonthGrid = ({ cal, schedule, onDayClick, gcalEvents = [], masterProgram =
           const gcalOnDay = cell.date ? gcalEvents.filter((e) => e.date === cell.date) : [];
           const hasConflict = eventsOnDay.length > 0 && gcalOnDay.length > 0;
           const isSelected = cell.date && cell.date === selectedDate;
-          const isToday = cell.date === "2026-03-05";
+          const td = new Date(); const isToday = cell.date === `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, "0")}-${String(td.getDate()).padStart(2, "0")}`;
           const hasEvents = eventsOnDay.length > 0;
           const hasGcal = gcalOnDay.length > 0;
 
@@ -1571,8 +1571,8 @@ const MonthGrid = ({ cal, schedule, onDayClick, gcalEvents = [], masterProgram =
                 padding: isMobile ? "4px 2px" : "6px 4px",
                 minHeight: isMobile ? 40 : 72,
                 borderRadius: T.radiusSm,
-                border: isSelected ? "2px solid " + T.gold : hasConflict ? "2px solid " + T.warn : "1px solid " + (cell.current ? (T.lightLine) : "transparent"),
-                background: isSelected ? T.goldMuted : hasConflict ? T.warnBg : cell.current ? T.white : "transparent",
+                border: isSelected ? "2px solid " + T.gold : "1px solid " + (cell.current ? T.lightLine : "transparent"),
+                background: isSelected ? T.goldMuted : cell.current ? T.white : "transparent",
                 cursor: cell.current ? "pointer" : "default",
                 textAlign: "center",
                 display: "flex",
@@ -3672,7 +3672,7 @@ const AdminDash = ({ onNav }) => {
 const AdminSchedule = () => {
   const { schedule, setSchedule, gcalEvents, masterProgram, residents, showToast } = useData();
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ title: "", date: "2026-03-05", time: "9:00 AM", type: "skill", assignTo: "all", skillId: "" });
+  const [form, setForm] = useState({ title: "", date: localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "" });
   const [editId, setEditId] = useState(null);
   const cal = useCalendar(2026, 2);
 
@@ -3686,12 +3686,15 @@ const AdminSchedule = () => {
   const allSkills = masterProgram.flatMap((c) => c.skills.map((s) => ({ ...s, catName: c.name })));
 
   const openNew = (date) => {
-    setForm({ title: "", date: date || "2026-03-05", time: "9:00 AM", type: "skill", assignTo: "all", skillId: "" });
+    setForm({ title: "", date: date || localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "" });
     setEditId(null);
     setModal(true);
   };
   const openEdit = (ev) => {
-    setForm({ title: ev.title, date: ev.date, time: ev.time, type: ev.type, assignTo: ev.assignTo || "all", skillId: ev.skillId || "" });
+    const timeParts = ev.time?.split("–").map((s) => s.trim()) || [];
+    const startTime = timeParts[0] || ev.time || "9:00 AM";
+    const dur = timeParts.length === 2 ? (() => { const s = parseTime12(timeParts[0]), e = parseTime12(timeParts[1]); return s != null && e != null ? String(Math.round((e - s) * 60)) : "60"; })() : "60";
+    setForm({ title: ev.title, date: ev.date, time: startTime, duration: dur, type: ev.type, assignTo: ev.assignTo || "all", skillId: ev.skillId || "" });
     setEditId(ev.id);
     setModal(true);
   };
@@ -3702,9 +3705,24 @@ const AdminSchedule = () => {
     setForm((f) => ({ ...f, skillId, title: sk ? sk.name : f.title }));
   };
 
+  const buildTimeRange = (startStr, durationMin) => {
+    const startH = parseTime12(startStr);
+    if (startH == null) return startStr;
+    const endH = startH + durationMin / 60;
+    const fmt = (h) => {
+      const hr = Math.floor(h);
+      const min = Math.round((h - hr) * 60);
+      const ampm = hr >= 12 ? "PM" : "AM";
+      const display = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+      return `${display}:${String(min).padStart(2, "0")} ${ampm}`;
+    };
+    return `${fmt(startH)} – ${fmt(endH)}`;
+  };
+
   const save = () => {
     if (!form.title.trim()) return;
-    const event = { ...form };
+    const event = { ...form, time: buildTimeRange(form.time, parseInt(form.duration, 10) || 60) };
+    delete event.duration;
     if (event.type !== "skill") event.skillId = null;
     if (editId) {
       setSchedule((p) => p.map((e) => (e.id === editId ? { ...e, ...event } : e)));
@@ -3815,9 +3833,23 @@ const AdminSchedule = () => {
           <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder={form.type === "mannequin" ? "Mannequin Practice" : form.type === "model" ? "Live Model Day" : "Event name"} style={iSt} />
         </FormField>
 
-        <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
           <FormField label="Date"><input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} style={iSt} /></FormField>
-          <FormField label="Time"><input value={form.time} onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))} placeholder="10:00 AM" style={iSt} /></FormField>
+          <FormField label="Start Time"><input value={form.time} onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))} placeholder="10:00 AM" style={iSt} /></FormField>
+          <FormField label="Duration">
+            <select value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))} style={selSt}>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+              <option value="60">1 hr</option>
+              <option value="90">1.5 hr</option>
+              <option value="120">2 hr</option>
+              <option value="180">3 hr</option>
+              <option value="240">4 hr</option>
+              <option value="360">6 hr</option>
+              <option value="480">8 hr (all day)</option>
+            </select>
+          </FormField>
         </div>
 
         {/* Assign to */}
