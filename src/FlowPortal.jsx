@@ -6013,10 +6013,36 @@ const STATUS_STYLES = {
 //  TUITION: Trainee View (My Tuition)
 // ════════════════════════════════════════════
 const TraineeTuition = ({ user }) => {
-  const { residents } = useData();
-  const me = residents.find((r) => r.id === user.id) || residents[0];
-  const info = getTuitionInfo(me);
-  const st = STATUS_STYLES[info.status];
+  const [tuition, setTuition] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const [{ data: tData }, { data: pData }] = await Promise.all([
+        supabase.from("tuition").select("*").eq("user_id", user.id).single(),
+        supabase.from("payments").select("*").eq("user_id", user.id).order("date", { ascending: true }),
+      ]);
+      setTuition(tData || { plan: "monthly", total: 4950 });
+      setPayments(pData || []);
+      setLoading(false);
+    };
+    load();
+  }, [user.id]);
+
+  if (loading) return (
+    <div className="fade-up">
+      <SectionTitle sub="Loading...">My Tuition</SectionTitle>
+      <Card style={{ padding: 40, textAlign: "center" }}><p style={{ color: T.textMuted, fontSize: "13px" }}>Loading tuition data...</p></Card>
+    </div>
+  );
+
+  const paid = payments.reduce((a, p) => a + Number(p.amount), 0);
+  const total = Number(tuition.total);
+  const remaining = Math.max(0, total - paid);
+  const paidPct = total ? Math.round((paid / total) * 100) : 0;
+  const status = remaining <= 0 ? "paid" : paid > 0 ? "partial" : "unpaid";
+  const st = STATUS_STYLES[status];
 
   return (
     <div className="fade-up">
@@ -6026,8 +6052,8 @@ const TraineeTuition = ({ user }) => {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
             <p style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: T.textMuted, marginBottom: 4 }}>Payment Plan</p>
-            <h3 style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600 }}>{info.plan === "full" ? "Pay in Full" : "Monthly Plan"}</h3>
-            <p style={{ fontSize: "13px", color: T.textMuted, marginTop: 2 }}>{info.plan === "full" ? "$4,500 one-time" : "$1,650/mo × 3 ($4,950)"}</p>
+            <h3 style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600 }}>{tuition.plan === "full" ? "Pay in Full" : "Monthly Plan"}</h3>
+            <p style={{ fontSize: "13px", color: T.textMuted, marginTop: 2 }}>{tuition.plan === "full" ? "$4,500 one-time" : "$1,650/mo × 3 ($4,950)"}</p>
           </div>
           <Badge color={st.color} bg={st.bg}>{st.label}</Badge>
         </div>
@@ -6035,29 +6061,29 @@ const TraineeTuition = ({ user }) => {
         <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
           <div style={{ padding: 16, borderRadius: T.radiusSm, background: T.cream, textAlign: "center" }}>
             <p style={{ fontSize: "11px", color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Total</p>
-            <p style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600 }}>${info.total.toLocaleString()}</p>
+            <p style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600 }}>${total.toLocaleString()}</p>
           </div>
           <div style={{ padding: 16, borderRadius: T.radiusSm, background: T.successBg, textAlign: "center" }}>
             <p style={{ fontSize: "11px", color: T.success, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Paid</p>
-            <p style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600, color: T.success }}>${info.paid.toLocaleString()}</p>
+            <p style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600, color: T.success }}>${paid.toLocaleString()}</p>
           </div>
-          <div style={{ padding: 16, borderRadius: T.radiusSm, background: info.remaining > 0 ? T.warnBg : T.successBg, textAlign: "center" }}>
-            <p style={{ fontSize: "11px", color: info.remaining > 0 ? T.warn : T.success, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Remaining</p>
-            <p style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600, color: info.remaining > 0 ? T.warn : T.success }}>${info.remaining.toLocaleString()}</p>
+          <div style={{ padding: 16, borderRadius: T.radiusSm, background: remaining > 0 ? T.warnBg : T.successBg, textAlign: "center" }}>
+            <p style={{ fontSize: "11px", color: remaining > 0 ? T.warn : T.success, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Remaining</p>
+            <p style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600, color: remaining > 0 ? T.warn : T.success }}>${remaining.toLocaleString()}</p>
           </div>
         </div>
 
-        <ProgressBar value={info.paidPct} height={10} color={info.status === "paid" ? T.success : T.gold} />
-        <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 6, textAlign: "right" }}>{info.paidPct}% paid</p>
+        <ProgressBar value={paidPct} height={10} color={status === "paid" ? T.success : T.gold} />
+        <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 6, textAlign: "right" }}>{paidPct}% paid</p>
       </Card>
 
       <Card style={{ padding: 24 }}>
         <h4 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, marginBottom: 16 }}>Payment History</h4>
-        {info.payments.length === 0 ? (
+        {payments.length === 0 ? (
           <p style={{ color: T.textMuted, fontSize: "13px" }}>No payments recorded yet.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {info.payments.map((pay) => (
+            {payments.map((pay) => (
               <div key={pay.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: T.radiusSm, background: T.cream }}>
                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.successBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Icon name="check" size={16} color={T.success} />
@@ -6066,7 +6092,7 @@ const TraineeTuition = ({ user }) => {
                   <p style={{ fontSize: "13px", fontWeight: 500 }}>{pay.note}</p>
                   <p style={{ fontSize: "11px", color: T.textMuted }}>{pay.date}</p>
                 </div>
-                <p style={{ fontSize: "15px", fontWeight: 600, color: T.success }}>+${pay.amount.toLocaleString()}</p>
+                <p style={{ fontSize: "15px", fontWeight: 600, color: T.success }}>+${Number(pay.amount).toLocaleString()}</p>
               </div>
             ))}
           </div>
@@ -6080,42 +6106,76 @@ const TraineeTuition = ({ user }) => {
 //  TUITION: Admin Overview
 // ════════════════════════════════════════════
 const AdminTuition = ({ onNav }) => {
-  const { residents, setResidents, showToast } = useData();
+  const { showToast } = useData();
+  const [residents, setResidents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [payModal, setPayModal] = useState(false);
   const [planModal, setPlanModal] = useState(false);
-  const [targetResident, setTargetResident] = useState(null);
+  const [targetId, setTargetId] = useState(null);
   const [payAmount, setPayAmount] = useState("");
   const [payNote, setPayNote] = useState("");
 
-  const totalRevenue = residents.reduce((a, r) => a + getTuitionInfo(r).total, 0);
-  const totalPaid = residents.reduce((a, r) => a + getTuitionInfo(r).paid, 0);
-  const totalRemaining = totalRevenue - totalPaid;
-
-  const openPay = (r) => { setTargetResident(r); setPayAmount(""); setPayNote(""); setPayModal(true); };
-  const recordPayment = () => {
-    if (!payAmount || !targetResident) return;
-    const amt = parseFloat(payAmount);
-    if (isNaN(amt) || amt <= 0) return;
-    setResidents((p) => p.map((r) => {
-      if (r.id !== targetResident.id) return r;
-      const t = r.tuition || { plan: "monthly", total: 4950, payments: [] };
-      return { ...r, tuition: { ...t, payments: [...t.payments, { id: `pay_${uid()}`, amount: amt, date: new Date().toISOString().split("T")[0], note: payNote || "Payment" }] } };
+  const loadData = async () => {
+    const { data: profiles } = await supabase.from("profiles").select("id, name, email, photo").eq("role", "resident");
+    if (!profiles) { setLoading(false); return; }
+    const [{ data: tuitionData }, { data: paymentsData }] = await Promise.all([
+      supabase.from("tuition").select("*"),
+      supabase.from("payments").select("*").order("date", { ascending: true }),
+    ]);
+    const tMap = {}; (tuitionData || []).forEach((t) => { tMap[t.user_id] = t; });
+    const pMap = {}; (paymentsData || []).forEach((p) => { if (!pMap[p.user_id]) pMap[p.user_id] = []; pMap[p.user_id].push(p); });
+    setResidents(profiles.map((p) => {
+      const t = tMap[p.id] || { plan: "monthly", total: 4950 };
+      const pays = pMap[p.id] || [];
+      const paid = pays.reduce((a, pay) => a + Number(pay.amount), 0);
+      const total = Number(t.total);
+      const remaining = Math.max(0, total - paid);
+      const paidPct = total ? Math.round((paid / total) * 100) : 0;
+      const status = remaining <= 0 ? "paid" : paid > 0 ? "partial" : "unpaid";
+      return { ...p, tuition: t, payments: pays, paid, total, remaining, paidPct, status };
     }));
-    showToast("Payment recorded");
-    setPayModal(false);
+    setLoading(false);
   };
 
-  const openPlan = (r) => { setTargetResident(r); setPlanModal(true); };
-  const setPlan = (plan) => {
-    if (!targetResident) return;
+  useEffect(() => { loadData(); }, []);
+
+  if (loading) return (
+    <div className="fade-up">
+      <SectionTitle sub="Loading...">Tuition Manager</SectionTitle>
+      <Card style={{ padding: 40, textAlign: "center" }}><p style={{ color: T.textMuted, fontSize: "13px" }}>Loading tuition data...</p></Card>
+    </div>
+  );
+
+  const totalRevenue = residents.reduce((a, r) => a + r.total, 0);
+  const totalPaid = residents.reduce((a, r) => a + r.paid, 0);
+  const totalRemaining = totalRevenue - totalPaid;
+  const target = residents.find((r) => r.id === targetId);
+
+  const openPay = (r) => { setTargetId(r.id); setPayAmount(""); setPayNote(""); setPayModal(true); };
+  const recordPayment = async () => {
+    if (!payAmount || !targetId) return;
+    const amt = parseFloat(payAmount);
+    if (isNaN(amt) || amt <= 0) return;
+    const { error } = await supabase.from("payments").insert({
+      user_id: targetId, amount: amt,
+      date: new Date().toISOString().split("T")[0],
+      note: payNote || "Payment",
+    });
+    if (error) { console.error(error); return; }
+    showToast("Payment recorded");
+    setPayModal(false);
+    await loadData();
+  };
+
+  const openPlan = (r) => { setTargetId(r.id); setPlanModal(true); };
+  const savePlan = async (plan) => {
+    if (!targetId) return;
     const total = plan === "full" ? 4500 : 4950;
-    setResidents((p) => p.map((r) => {
-      if (r.id !== targetResident.id) return r;
-      const t = r.tuition || { plan: "monthly", total: 4950, payments: [] };
-      return { ...r, tuition: { ...t, plan, total } };
-    }));
+    const { error } = await supabase.from("tuition").upsert({ user_id: targetId, plan, total }, { onConflict: "user_id" });
+    if (error) { console.error(error); return; }
     showToast("Plan updated to " + (plan === "full" ? "Pay in Full" : "Monthly"));
     setPlanModal(false);
+    await loadData();
   };
 
   return (
@@ -6139,81 +6199,90 @@ const AdminTuition = ({ onNav }) => {
 
       <Card style={{ padding: 24 }}>
         <h4 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, marginBottom: 16 }}>Trainee Accounts</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {residents.map((r) => {
-            const info = getTuitionInfo(r);
-            const st = STATUS_STYLES[info.status];
-            return (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: T.radiusSm, background: T.cream }}>
-                <Avatar name={r.name} size={40} photo={r.photo} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <p style={{ fontSize: "14px", fontWeight: 500 }}>{r.name}</p>
-                    <Badge color={st.color} bg={st.bg}>{st.label}</Badge>
-                    <span style={{ fontSize: "11px", color: T.textMuted }}>{info.plan === "full" ? "Pay in Full" : "Monthly"}</span>
+        {residents.length === 0 ? (
+          <p style={{ color: T.textMuted, fontSize: "13px" }}>No residents enrolled yet.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {residents.map((r) => {
+              const st = STATUS_STYLES[r.status];
+              return (
+                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: T.radiusSm, background: T.cream }}>
+                  <Avatar name={r.name} size={40} photo={r.photo} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <p style={{ fontSize: "14px", fontWeight: 500 }}>{r.name}</p>
+                      <Badge color={st.color} bg={st.bg}>{st.label}</Badge>
+                      <span style={{ fontSize: "11px", color: T.textMuted }}>{r.tuition?.plan === "full" ? "Pay in Full" : "Monthly"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ flex: 1 }}><ProgressBar value={r.paidPct} height={6} color={r.status === "paid" ? T.success : T.gold} /></div>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: T.textMuted, minWidth: 100, textAlign: "right" }}>
+                        ${r.paid.toLocaleString()} / ${r.total.toLocaleString()}
+                      </span>
+                    </div>
+                    {r.payments.length > 0 && (
+                      <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {r.payments.map((p) => (
+                          <span key={p.id} style={{ fontSize: "10px", padding: "3px 8px", background: T.white, borderRadius: T.radiusSm, color: T.textMuted }}>
+                            ${Number(p.amount).toLocaleString()} &middot; {p.date} {p.note ? `— ${p.note}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ flex: 1 }}><ProgressBar value={info.paidPct} height={6} color={info.status === "paid" ? T.success : T.gold} /></div>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: T.textMuted, minWidth: 100, textAlign: "right" }}>
-                      ${info.paid.toLocaleString()} / ${info.total.toLocaleString()}
-                    </span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => openPlan(r)} style={{ background: T.charcoalMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.textMuted }}>
+                      Plan
+                    </button>
+                    <button onClick={() => openPay(r)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="plus" size={12} color={T.gold} /> Payment
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => openPlan(r)} style={{ background: T.charcoalMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.textMuted }}>
-                    Plan
-                  </button>
-                  <button onClick={() => openPay(r)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
-                    <Icon name="plus" size={12} color={T.gold} /> Payment
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Record Payment Modal */}
-      <Modal open={payModal} onClose={() => setPayModal(false)} title={"Record Payment — " + (targetResident?.name || "")} width={420}>
-        {targetResident && (() => {
-          const info = getTuitionInfo(targetResident);
-          return (
-            <>
-              <div style={{ padding: 14, borderRadius: T.radiusSm, background: T.cream, marginBottom: 16 }}>
-                <p style={{ fontSize: "12px", color: T.textMuted }}>Balance remaining: <b style={{ color: info.remaining > 0 ? T.warn : T.success }}>${info.remaining.toLocaleString()}</b></p>
-              </div>
-              <FormField label="Amount ($)">
-                <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder={info.plan === "monthly" ? "1650" : "4500"} style={iSt} />
-              </FormField>
-              <FormField label="Note (optional)">
-                <input value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="e.g. Month 2, Cash payment" style={iSt} />
-              </FormField>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
-                <Btn variant="outline" onClick={() => setPayModal(false)}>Cancel</Btn>
-                <Btn onClick={recordPayment}>Record Payment</Btn>
-              </div>
-            </>
-          );
-        })()}
+      <Modal open={payModal} onClose={() => setPayModal(false)} title={"Record Payment — " + (target?.name || "")} width={420}>
+        {target && (
+          <>
+            <div style={{ padding: 14, borderRadius: T.radiusSm, background: T.cream, marginBottom: 16 }}>
+              <p style={{ fontSize: "12px", color: T.textMuted }}>Balance remaining: <b style={{ color: target.remaining > 0 ? T.warn : T.success }}>${target.remaining.toLocaleString()}</b></p>
+            </div>
+            <FormField label="Amount ($)">
+              <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder={target.tuition?.plan === "monthly" ? "1650" : "4500"} style={iSt} />
+            </FormField>
+            <FormField label="Note (optional)">
+              <input value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="e.g. Month 2, Cash payment" style={iSt} />
+            </FormField>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+              <Btn variant="outline" onClick={() => setPayModal(false)}>Cancel</Btn>
+              <Btn onClick={recordPayment}>Record Payment</Btn>
+            </div>
+          </>
+        )}
       </Modal>
 
       {/* Change Plan Modal */}
-      <Modal open={planModal} onClose={() => setPlanModal(false)} title={"Payment Plan — " + (targetResident?.name || "")} width={440}>
+      <Modal open={planModal} onClose={() => setPlanModal(false)} title={"Payment Plan — " + (target?.name || "")} width={440}>
         <p style={{ fontSize: "13px", color: T.textMuted, marginBottom: 16 }}>Choose the payment plan for this trainee. Existing payments are preserved.</p>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => setPlan("full")} style={{
+          <button onClick={() => savePlan("full")} style={{
             flex: 1, padding: "20px 16px", borderRadius: T.radiusSm, textAlign: "center", cursor: "pointer",
-            border: "2px solid " + ((targetResident?.tuition?.plan === "full") ? T.gold : T.creamDark),
-            background: (targetResident?.tuition?.plan === "full") ? T.goldMuted : T.cream,
+            border: "2px solid " + ((target?.tuition?.plan === "full") ? T.gold : T.creamDark),
+            background: (target?.tuition?.plan === "full") ? T.goldMuted : T.cream,
           }}>
             <p style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 600, marginBottom: 4 }}>$4,500</p>
             <p style={{ fontSize: "13px", fontWeight: 500, marginBottom: 2 }}>Pay in Full</p>
             <p style={{ fontSize: "11px", color: T.textMuted }}>One-time payment</p>
           </button>
-          <button onClick={() => setPlan("monthly")} style={{
+          <button onClick={() => savePlan("monthly")} style={{
             flex: 1, padding: "20px 16px", borderRadius: T.radiusSm, textAlign: "center", cursor: "pointer",
-            border: "2px solid " + ((targetResident?.tuition?.plan === "monthly") ? T.gold : T.creamDark),
-            background: (targetResident?.tuition?.plan === "monthly") ? T.goldMuted : T.cream,
+            border: "2px solid " + ((target?.tuition?.plan === "monthly") ? T.gold : T.creamDark),
+            background: (target?.tuition?.plan === "monthly") ? T.goldMuted : T.cream,
           }}>
             <p style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 600, marginBottom: 4 }}>$1,650<span style={{ fontSize: "14px", fontWeight: 400 }}>/mo</span></p>
             <p style={{ fontSize: "13px", fontWeight: 500, marginBottom: 2 }}>Monthly Plan</p>
