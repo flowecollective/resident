@@ -1660,62 +1660,133 @@ const CalendarHeader = ({ cal }) => (
   </div>
 );
 
+const parseTime12 = (str) => {
+  if (!str) return null;
+  const m = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
+  if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
+  return h + min / 60;
+};
+
+const parseTimeRange = (timeStr) => {
+  if (!timeStr || timeStr === "All day") return { start: 8, end: 9 };
+  const parts = timeStr.split("–").map((s) => s.trim());
+  if (parts.length === 2) return { start: parseTime12(parts[0]) ?? 8, end: parseTime12(parts[1]) ?? 9 };
+  const s = parseTime12(timeStr);
+  return { start: s ?? 8, end: (s ?? 8) + 1 };
+};
+
 const DayEventList = ({ date, schedule, gcalEvents = [], masterProgram = [] }) => {
   const events = schedule.filter((e) => e.date === date);
   const gcal = gcalEvents.filter((e) => e.date === date);
   if (!date) return null;
   const parts = date.split("-");
   const label = MONTH_NAMES[parseInt(parts[1], 10) - 1] + " " + parseInt(parts[2], 10);
+
+  // Build unified timeline items
+  const allItems = [
+    ...events.map((ev) => {
+      const r = parseTimeRange(ev.time);
+      return { ...ev, startH: r.start, endH: r.end, source: "training", color: getEvColor(ev, masterProgram) };
+    }),
+    ...gcal.map((ev, i) => {
+      const r = parseTimeRange(ev.time);
+      return { ...ev, id: `gcal-${i}`, startH: r.start, endH: r.end, source: "salon", color: "#4285f4" };
+    }),
+  ];
+
+  if (allItems.length === 0) {
+    return (
+      <div style={{ marginTop: 20 }}>
+        <h4 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, marginBottom: 12 }}>{label}</h4>
+        <p style={{ color: T.textMuted, fontSize: "13px" }}>No sessions on this day.</p>
+      </div>
+    );
+  }
+
+  // Find hour range
+  const minH = Math.floor(Math.min(...allItems.map((e) => e.startH)));
+  const maxH = Math.ceil(Math.max(...allItems.map((e) => e.endH)));
+  const startHour = Math.max(0, minH - 1);
+  const endHour = Math.min(24, maxH + 1);
+  const totalHours = endHour - startHour;
+  const hourHeight = 60;
+
+  // Compute columns for overlapping events
+  const sorted = [...allItems].sort((a, b) => a.startH - b.startH || a.endH - b.endH);
+  const columns = [];
+  sorted.forEach((ev) => {
+    let placed = false;
+    for (let c = 0; c < columns.length; c++) {
+      const last = columns[c][columns[c].length - 1];
+      if (ev.startH >= last.endH - 0.01) { columns[c].push(ev); ev._col = c; placed = true; break; }
+    }
+    if (!placed) { ev._col = columns.length; columns.push([ev]); }
+  });
+  const totalCols = columns.length || 1;
+
+  const formatHour = (h) => {
+    const hr = Math.floor(h);
+    const ampm = hr >= 12 ? "PM" : "AM";
+    const display = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+    return `${display} ${ampm}`;
+  };
+
   return (
     <div style={{ marginTop: 20 }}>
-      <h4 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, marginBottom: 12 }}>{label}</h4>
-
-      {gcal.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4285f4" }} />
-            <p style={{ fontSize: "12px", fontWeight: 600, color: "#4285f4" }}>Salon Calendar</p>
-            {events.length > 0 && <Badge color={T.warn}>Potential Conflicts</Badge>}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {gcal.map((ev, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: T.radiusSm, background: "#4285f408", border: "1px solid #4285f418" }}>
-                <div style={{ width: 4, height: 30, borderRadius: 2, background: "#4285f4" }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: "13px", fontWeight: 500, color: "#4285f4" }}>{ev.title}</p>
-                  <p style={{ fontSize: "11px", color: T.textMuted }}>{ev.time}</p>
-                </div>
-                <Badge color="#4285f4">Salon</Badge>
-              </div>
-            ))}
-          </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h4 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600 }}>{label}</h4>
+        <div style={{ display: "flex", gap: 12, fontSize: "11px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: T.gold }} /> Training</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4285f4" }} /> Salon</div>
         </div>
-      )}
-
-      {events.length > 0 && (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.gold }} />
-            <p style={{ fontSize: "12px", fontWeight: 600, color: T.gold }}>Training Events</p>
+      </div>
+      <div style={{ position: "relative", height: totalHours * hourHeight, borderLeft: `1px solid ${T.lightLine}` }}>
+        {/* Hour grid lines */}
+        {Array.from({ length: totalHours + 1 }, (_, i) => (
+          <div key={i} style={{ position: "absolute", top: i * hourHeight, left: 0, right: 0, display: "flex", alignItems: "flex-start" }}>
+            <span style={{ fontSize: "10px", color: T.textMuted, width: 48, textAlign: "right", paddingRight: 8, marginTop: -6, flexShrink: 0 }}>
+              {formatHour(startHour + i)}
+            </span>
+            <div style={{ flex: 1, borderTop: `1px solid ${i === 0 ? "transparent" : T.lightLine}` }} />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {events.map((ev) => (
-              <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: T.radiusSm, background: T.cream }}>
-                <div style={{ width: 4, height: 36, borderRadius: 2, background: getEvColor(ev, masterProgram) }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: "14px", fontWeight: 500 }}>{ev.title}</p>
-                  <p style={{ fontSize: "12px", color: T.textMuted }}>{ev.time}</p>
-                </div>
-                <Badge color={getEvColor(ev, masterProgram)}>{ev.type}</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {events.length === 0 && gcal.length === 0 && (
-        <p style={{ color: T.textMuted, fontSize: "13px" }}>No sessions on this day.</p>
-      )}
+        ))}
+        {/* Event blocks */}
+        {sorted.map((ev) => {
+          const top = (ev.startH - startHour) * hourHeight;
+          const height = Math.max((ev.endH - ev.startH) * hourHeight, 24);
+          const colWidth = (100 - 8) / totalCols; // 8% for time labels
+          const left = 52 + ev._col * ((100 - 8) / totalCols) * 0.01 * (typeof window !== "undefined" ? 1 : 1);
+          const isSalon = ev.source === "salon";
+          return (
+            <div
+              key={ev.id}
+              style={{
+                position: "absolute",
+                top,
+                left: `calc(52px + ${ev._col * colWidth}%)`,
+                width: `calc(${colWidth}% - 4px)`,
+                height,
+                borderRadius: 6,
+                padding: "4px 8px",
+                background: isSalon ? "#4285f412" : (ev.color || T.gold) + "18",
+                borderLeft: `3px solid ${ev.color || T.gold}`,
+                overflow: "hidden",
+                cursor: "default",
+                fontSize: "11px",
+                lineHeight: 1.3,
+              }}
+            >
+              <p style={{ fontWeight: 600, color: isSalon ? "#4285f4" : T.charcoal, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title}</p>
+              {height > 30 && <p style={{ color: T.textMuted, fontSize: "10px" }}>{ev.time}</p>}
+              {height > 46 && ev.type && !isSalon && <p style={{ color: ev.color || T.gold, fontSize: "9px", fontWeight: 600, textTransform: "uppercase", marginTop: 2 }}>{ev.type}</p>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -3680,56 +3751,29 @@ const AdminSchedule = () => {
 
       {cal.selectedDate && (
         <Card className="fade-up" style={{ padding: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h4 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600 }}>
-              {MONTH_NAMES[parseInt(cal.selectedDate.split("-")[1], 10) - 1]} {parseInt(cal.selectedDate.split("-")[2], 10)}
-            </h4>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <Btn variant="gold" onClick={() => openNew(cal.selectedDate)}>
               <Icon name="plus" size={14} color={T.gold} /> Add to this day
             </Btn>
           </div>
-          {(() => { const gcalOnDay = cal.selectedDate ? gcalEvents.filter((e) => e.date === cal.selectedDate) : []; return (<>
-            {selectedEvents.length === 0 && gcalOnDay.length === 0 && (
-              <p style={{ color: T.textMuted, fontSize: "13px" }}>No events on this day.</p>
-            )}
-            {selectedEvents.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <DayEventList date={cal.selectedDate} schedule={schedule} gcalEvents={gcalEvents} masterProgram={masterProgram} />
+          {/* Editable event list below timeline */}
+          {selectedEvents.length > 0 && (
+            <div style={{ marginTop: 20, borderTop: `1px solid ${T.lightLine}`, paddingTop: 16 }}>
+              <p style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted, marginBottom: 8 }}>Manage Events</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {selectedEvents.map((ev) => (
-                  <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: T.radiusSm, background: T.cream }}>
-                    <div style={{ width: 4, height: 40, borderRadius: 2, background: getEvColor(ev, masterProgram) }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <p style={{ fontSize: "14px", fontWeight: 500 }}>{ev.title}</p>
-                        {ev.skillId && <span style={{ fontSize: "8px", fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: T.goldMuted, color: T.gold }}>SKILL</span>}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-                        <p style={{ fontSize: "12px", color: T.textMuted }}>{ev.time}</p>
-                        <span style={{ fontSize: "10px", color: T.textMuted }}>·</span>
-                        <p style={{ fontSize: "11px", color: ev.assignTo === "all" ? T.textMuted : T.gold, fontWeight: ev.assignTo === "all" ? 400 : 500 }}>{getAssignLabel(ev)}</p>
-                      </div>
-                    </div>
-                    <Badge color={getEvColor(ev, masterProgram)}>{ev.type}</Badge>
-                    <button onClick={() => openEdit(ev)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="edit" size={16} color={T.textMuted} /></button>
-                    <button onClick={() => rem(ev.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
+                  <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: T.radiusSm, background: T.cream, fontSize: "12px" }}>
+                    <div style={{ width: 3, height: 24, borderRadius: 2, background: getEvColor(ev, masterProgram) }} />
+                    <span style={{ flex: 1, fontWeight: 500 }}>{ev.title}</span>
+                    <span style={{ color: T.textMuted }}>{ev.time}</span>
+                    <button onClick={() => openEdit(ev)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="edit" size={14} color={T.textMuted} /></button>
+                    <button onClick={() => rem(ev.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
                   </div>
                 ))}
               </div>
-            )}
-            {gcalOnDay.length > 0 && (
-              <div style={{ marginTop: selectedEvents.length > 0 ? 12 : 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: "#4285f4" }}>Salon Calendar</p>
-                {gcalOnDay.map((ev, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: T.radiusSm, background: "#4285f408", border: "1px solid #4285f420" }}>
-                    <div style={{ width: 4, height: 32, borderRadius: 2, background: "#4285f4" }} />
-                    <div>
-                      <p style={{ fontSize: "13px", fontWeight: 500 }}>{ev.title}</p>
-                      <p style={{ fontSize: "11px", color: T.textMuted }}>{ev.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>); })()}
+            </div>
+          )}
         </Card>
       )}
 
