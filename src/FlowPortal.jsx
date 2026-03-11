@@ -1036,36 +1036,21 @@ const ReplyInput = ({ skillId, logIdx, me, setResidents, showToast }) => {
 // ════════════════════════════════════════════
 //  TRAINEE: ONBOARDING
 // ════════════════════════════════════════════
-const GUSTO_FIELDS = [
-  { key: "legalName", label: "Legal Full Name", type: "text", placeholder: "First Last" },
-  { key: "ssn", label: "SSN", type: "password", placeholder: "XXX-XX-XXXX" },
-  { key: "dob", label: "Date of Birth", type: "date", placeholder: "" },
-  { key: "address", label: "Home Address", type: "text", placeholder: "Street, City, State ZIP" },
-  { key: "phone", label: "Phone Number", type: "tel", placeholder: "(555) 555-0000" },
-  { key: "emergencyName", label: "Emergency Contact Name", type: "text", placeholder: "Full Name" },
-  { key: "emergencyPhone", label: "Emergency Contact Phone", type: "tel", placeholder: "(555) 555-0000" },
-  { key: "bankRouting", label: "Bank Routing Number", type: "password", placeholder: "9 digits" },
-  { key: "bankAccount", label: "Bank Account Number", type: "password", placeholder: "Account number" },
-];
-
 const TraineeOnboarding = ({ user, onNav }) => {
   const { showToast, setUser } = useData();
   const [ob, setOb] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [gustoOpen, setGustoOpen] = useState(false);
-  const [gustoFields, setGustoFields] = useState({});
 
   // Load onboarding fields from profiles table
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("profiles")
-        .select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields")
+        .select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_invite_url")
         .eq("id", user.id).single();
       if (data) {
         setOb(data);
-        setGustoFields(data.gusto_fields || {});
       } else {
-        setOb({ agreement_signed: false, agreement_countersigned: false, agreement_data: {}, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
+        setOb({ agreement_signed: false, agreement_countersigned: false, agreement_data: {}, enrollment_completed: false, gusto_completed: false, gusto_invite_url: null });
       }
       setLoading(false);
     };
@@ -1073,7 +1058,7 @@ const TraineeOnboarding = ({ user, onNav }) => {
   }, [user.id]);
 
   const updateOb = async (updates) => {
-    const { data } = await supabase.from("profiles").update(updates).eq("id", user.id).select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields").single();
+    const { data } = await supabase.from("profiles").update(updates).eq("id", user.id).select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_invite_url").single();
     if (data) setOb(data);
     return data;
   };
@@ -1125,17 +1110,12 @@ const TraineeOnboarding = ({ user, onNav }) => {
     showToast("Enrollment confirmed!");
   };
 
-  const saveGusto = async () => {
-    const required = ["legalName", "dob", "address", "phone", "emergencyName", "emergencyPhone"];
-    const missing = required.filter((k) => !gustoFields[k]);
-    if (missing.length > 0) {
-      showToast("Please fill out all required fields");
-      return;
+  const handleGusto = () => {
+    if (ob.gusto_invite_url) {
+      window.open(ob.gusto_invite_url, "_blank");
+    } else {
+      showToast("Your Gusto invite link hasn't been set up yet. Contact your educator.");
     }
-    const now = new Date().toISOString().split("T")[0];
-    await updateOb({ gusto_completed: true, gusto_date: now, gusto_fields: gustoFields });
-    setGustoOpen(false);
-    showToast("Payroll information saved!");
   };
 
   return (
@@ -1251,47 +1231,23 @@ const TraineeOnboarding = ({ user, onNav }) => {
             <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
               {ob.gusto_completed
                 ? `Completed on ${ob.gusto_date}`
-                : "Fill out your tax, banking, and emergency contact information"
+                : ob.gusto_invite_url
+                  ? "Complete your onboarding on Gusto to set up payroll"
+                  : "Your educator will send you a Gusto invite link"
               }
             </p>
           </div>
           {ob.gusto_completed ? (
-            <button onClick={() => { setGustoFields(ob.gusto_fields || {}); setGustoOpen(true); }} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.textMuted }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="edit" size={14} color={T.textMuted} /> Edit</span>
+            <Badge color={T.success} bg={T.successBg}>Complete</Badge>
+          ) : ob.gusto_invite_url ? (
+            <button onClick={handleGusto} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="link" size={14} color={T.cream} /> Open Gusto</span>
             </button>
           ) : (
-            <button onClick={() => setGustoOpen(true)} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: "none", background: T.charcoal, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.cream }}>
-              Fill Out
-            </button>
+            <Badge color={T.textMuted}>Pending Invite</Badge>
           )}
         </div>
       </Card>
-
-      {/* Gusto Form Modal */}
-      <Modal open={gustoOpen} onClose={() => setGustoOpen(false)} title="Payroll & Tax Information" width={520}>
-        <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 20 }}>
-          This information is used for payroll processing through Gusto. All data is encrypted and stored securely.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {GUSTO_FIELDS.map((f) => (
-            <FormField key={f.key} label={f.label}>
-              <input
-                type={f.type}
-                value={gustoFields[f.key] || ""}
-                onChange={(e) => setGustoFields({ ...gustoFields, [f.key]: e.target.value })}
-                placeholder={f.placeholder}
-                style={iSt}
-              />
-            </FormField>
-          ))}
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-          <button onClick={() => setGustoOpen(false)} style={{ padding: "10px 20px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "13px", cursor: "pointer" }}>
-            Cancel
-          </button>
-          <Btn onClick={saveGusto}>Save Information</Btn>
-        </div>
-      </Modal>
     </div>
   );
 };
@@ -2818,6 +2774,9 @@ const MsgPage = ({ user }) => {
 const AdminDash = ({ onNav }) => {
   const { schedule, setSchedule, residents, setResidents, masterProgram, messages, showToast, notifications, setNotifications } = useData();
   const [pendingAgreements, setPendingAgreements] = useState([]);
+  const [gustoResidents, setGustoResidents] = useState([]);
+  const [gustoEditId, setGustoEditId] = useState(null);
+  const [gustoUrl, setGustoUrl] = useState("");
   const [noteModal, setNoteModal] = useState(false);
   const [noteTarget, setNoteTarget] = useState(null); // { residentId, skillId? }
   const [noteText, setNoteText] = useState("");
@@ -2827,7 +2786,7 @@ const AdminDash = ({ onNav }) => {
   const [advanceTiming, setAdvanceTiming] = useState(false);
   const [expandedTrainee, setExpandedTrainee] = useState(null);
 
-  // Fetch agreements pending countersign from Supabase
+  // Fetch agreements pending countersign + Gusto status from Supabase
   const loadPending = useCallback(async () => {
     const { data } = await supabase
       .from("profiles")
@@ -2836,6 +2795,12 @@ const AdminDash = ({ onNav }) => {
       .eq("agreement_signed", true)
       .or("agreement_countersigned.is.null,agreement_countersigned.eq.false");
     setPendingAgreements(data || []);
+
+    const { data: gusto } = await supabase
+      .from("profiles")
+      .select("id, name, email, gusto_invite_url, gusto_completed")
+      .eq("role", "resident");
+    setGustoResidents(gusto || []);
   }, []);
 
   useEffect(() => { loadPending(); }, [loadPending]);
@@ -3138,6 +3103,73 @@ const AdminDash = ({ onNav }) => {
                 >
                   <Icon name="shield" size={12} color={T.white} /> Countersign
                 </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Gusto Payroll Links */}
+      {gustoResidents.filter((r) => !r.gusto_completed).length > 0 && (
+        <Card style={{ padding: 22, marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="clipboard" size={18} color={T.charcoal} /> Payroll Setup
+            </h3>
+            <Badge color={T.textMuted}>{gustoResidents.filter((r) => !r.gusto_completed).length} pending</Badge>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {gustoResidents.filter((r) => !r.gusto_completed).map((r) => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: T.radiusSm, background: T.cream, border: `1px solid ${T.creamDark}` }}>
+                <Avatar name={r.name} size={28} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.name}</p>
+                  <p style={{ fontSize: "11px", color: T.textMuted }}>
+                    {r.gusto_invite_url ? "Invite link set — waiting for completion" : "No invite link set"}
+                  </p>
+                </div>
+                {gustoEditId === r.id ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input
+                      value={gustoUrl}
+                      onChange={(e) => setGustoUrl(e.target.value)}
+                      placeholder="Paste Gusto invite link"
+                      style={{ ...iSt, fontSize: "11px", padding: "6px 10px", width: 220 }}
+                    />
+                    <button
+                      onClick={async () => {
+                        await supabase.from("profiles").update({ gusto_invite_url: gustoUrl.trim() || null }).eq("id", r.id);
+                        setGustoEditId(null);
+                        setGustoUrl("");
+                        loadPending();
+                        showToast("Gusto link saved");
+                      }}
+                      style={{ background: T.charcoal, color: T.cream, border: "none", borderRadius: T.radiusSm, padding: "6px 12px", cursor: "pointer", fontSize: "11px", fontWeight: 600 }}
+                    >Save</button>
+                    <button
+                      onClick={() => { setGustoEditId(null); setGustoUrl(""); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
+                    ><Icon name="x" size={14} color={T.textMuted} /></button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => { setGustoEditId(r.id); setGustoUrl(r.gusto_invite_url || ""); }}
+                      style={{ background: T.goldMuted, border: "none", borderRadius: T.radiusSm, padding: "6px 12px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.gold }}
+                    >{r.gusto_invite_url ? "Edit Link" : "Add Link"}</button>
+                    {r.gusto_invite_url && (
+                      <button
+                        onClick={async () => {
+                          const now = new Date().toISOString().split("T")[0];
+                          await supabase.from("profiles").update({ gusto_completed: true, gusto_date: now }).eq("id", r.id);
+                          loadPending();
+                          showToast("Marked as complete");
+                        }}
+                        style={{ background: T.charcoal, color: T.cream, border: "none", borderRadius: T.radiusSm, padding: "6px 12px", cursor: "pointer", fontSize: "11px", fontWeight: 600 }}
+                      >Mark Complete</button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
