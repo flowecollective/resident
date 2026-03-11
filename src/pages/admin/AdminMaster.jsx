@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { T, CAT_COLORS, iSt } from "../../theme";
 import { useData } from "../../context";
 import { uid } from "../../utils";
+import { supabase } from "../../lib/supabase";
 import { Card, Badge, Btn, Modal, FormField, Icon, SectionTitle } from "../../components/ui";
 import { RichEditor } from "../../components/skills/RichEditor";
 import { SOPViewer, SOP_SECTIONS } from "../../components/skills/SOPViewer";
@@ -63,22 +64,50 @@ export const AdminMaster = () => {
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Archive
+  // Archive (local only — soft delete)
   const [showArchive, setShowArchive] = useState(false);
   const [archived, setArchived] = useState([]);
 
-  /* ---- Functions ---- */
+  /* ---- Helper to reload program from Supabase ---- */
+  const loadProgram = async () => {
+    const [{ data: cats }, { data: skills }] = await Promise.all([
+      supabase.from("categories").select("*").order("sort_order"),
+      supabase.from("skills").select("*").order("sort_order"),
+    ]);
+    const program = (cats || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      videos: c.videos || [],
+      skills: (skills || []).filter((s) => s.category_id === c.id).map((s) => ({
+        id: s.id,
+        name: s.name,
+        type: s.type,
+        targetMin: s.target_min,
+        maxMin: s.max_min,
+        videos: s.videos || [],
+        sop: s.sop,
+      })),
+    }));
+    setMasterProgram(program);
+  };
 
-  const addCat = () => {
+  /* ---- CRUD Functions ---- */
+
+  const addCat = async () => {
     if (!newCat.trim()) return;
-    const cat = {
-      id: uid(),
+    const id = uid();
+    const color = CAT_COLORS[masterProgram.length % CAT_COLORS.length];
+    const { error } = await supabase.from("categories").insert({
+      id,
       name: newCat.trim(),
-      color: CAT_COLORS[masterProgram.length % CAT_COLORS.length],
+      color,
       videos: [],
-      skills: [],
-    };
-    setMasterProgram([...masterProgram, cat]);
+      sort_order: masterProgram.length,
+    });
+    if (error) { console.error(error); showToast("Error adding category"); return; }
+
+    setMasterProgram([...masterProgram, { id, name: newCat.trim(), color, videos: [], skills: [] }]);
     setNewCat("");
     setCatModal(false);
     showToast("Category added");
@@ -97,16 +126,24 @@ export const AdminMaster = () => {
     setDeleteModal(true);
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.type === "category") {
       const cat = masterProgram.find((c) => c.id === deleteTarget.id);
+      // Delete from Supabase (cascade deletes skills)
+      const { error } = await supabase.from("categories").delete().eq("id", deleteTarget.id);
+      if (error) { console.error(error); showToast("Error deleting"); return; }
+
       if (cat) setArchived((prev) => [...prev, { ...cat, archivedType: "category", archivedAt: new Date().toISOString() }]);
       setMasterProgram(masterProgram.filter((c) => c.id !== deleteTarget.id));
       showToast("Category archived");
     } else {
       const cat = masterProgram.find((c) => c.id === deleteTarget.catId);
       const sk = cat?.skills.find((s) => s.id === deleteTarget.id);
+      // Delete skill from Supabase
+      const { error } = await supabase.from("skills").delete().eq("id", deleteTarget.id);
+      if (error) { console.error(error); showToast("Error deleting"); return; }
+
       if (sk) setArchived((prev) => [...prev, { ...sk, parentCatId: deleteTarget.catId, parentCatName: cat?.name, archivedType: "skill", archivedAt: new Date().toISOString() }]);
       setMasterProgram(masterProgram.map((c) =>
         c.id === deleteTarget.catId ? { ...c, skills: c.skills.filter((s) => s.id !== deleteTarget.id) } : c
@@ -117,25 +154,42 @@ export const AdminMaster = () => {
     setDeleteTarget(null);
   };
 
-  const restoreItem = (idx) => {
+  const restoreItem = async (idx) => {
     const item = archived[idx];
     if (!item) return;
     if (item.archivedType === "category") {
       const { archivedType, archivedAt, ...cat } = item;
+      // Re-insert category
+      const { error } = await supabase.from("categories").insert({
+        id: cat.id, name: cat.name, color: cat.color, videos: cat.videos || [], sort_order: masterProgram.length,
+      });
+      if (error) { console.error(error); showToast("Error restoring"); return; }
+      // Re-insert skills
+      if (cat.skills?.length > 0) {
+        const skillRows = cat.skills.map((s, i) => ({
+          id: s.id, category_id: cat.id, name: s.name, type: s.type,
+          target_min: s.targetMin || null, max_min: s.maxMin || null,
+          videos: s.videos || [], sop: s.sop || null, sort_order: i,
+        }));
+        await supabase.from("skills").insert(skillRows);
+      }
       setMasterProgram([...masterProgram, cat]);
       showToast("Category restored");
     } else {
       const { archivedType, archivedAt, parentCatId, parentCatName, ...sk } = item;
       const catExists = masterProgram.find((c) => c.id === parentCatId);
-      if (catExists) {
-        setMasterProgram(masterProgram.map((c) =>
-          c.id === parentCatId ? { ...c, skills: [...c.skills, sk] } : c
-        ));
-        showToast("Skill restored to " + catExists.name);
-      } else {
-        showToast("Parent category no longer exists");
-        return;
-      }
+      if (!catExists) { showToast("Parent category no longer exists"); return; }
+      // Re-insert skill
+      const { error } = await supabase.from("skills").insert({
+        id: sk.id, category_id: parentCatId, name: sk.name, type: sk.type,
+        target_min: sk.targetMin || null, max_min: sk.maxMin || null,
+        videos: sk.videos || [], sop: sk.sop || null, sort_order: catExists.skills.length,
+      });
+      if (error) { console.error(error); showToast("Error restoring"); return; }
+      setMasterProgram(masterProgram.map((c) =>
+        c.id === parentCatId ? { ...c, skills: [...c.skills, sk] } : c
+      ));
+      showToast("Skill restored to " + catExists.name);
     }
     setArchived(archived.filter((_, i) => i !== idx));
   };
@@ -149,15 +203,34 @@ export const AdminMaster = () => {
     setSkModal(true);
   };
 
-  const addSk = () => {
+  const addSk = async () => {
     if (!newSk.trim() || !targetCat) return;
+    const id = uid();
+    const cat = masterProgram.find((c) => c.id === targetCat);
+    const sopCleaned = {};
+    Object.keys(newSkSop).forEach((k) => { if (newSkSop[k]?.trim()) sopCleaned[k] = newSkSop[k]; });
+    const hasSop = Object.keys(sopCleaned).length > 0;
+
+    const { error } = await supabase.from("skills").insert({
+      id,
+      category_id: targetCat,
+      name: newSk.trim(),
+      type: newSkType,
+      target_min: newSkType === "service" ? 45 : null,
+      max_min: newSkType === "service" ? 75 : null,
+      videos: [],
+      sop: hasSop ? sopCleaned : null,
+      sort_order: cat?.skills.length || 0,
+    });
+    if (error) { console.error(error); showToast("Error adding skill"); return; }
+
     const sk = {
-      id: uid(),
+      id,
       name: newSk.trim(),
       type: newSkType,
       videos: [],
       ...(newSkType === "service" ? { targetMin: 45, maxMin: 75 } : {}),
-      ...(Object.keys(newSkSop).some((k) => newSkSop[k]?.trim()) ? { sop: { ...newSkSop } } : {}),
+      ...(hasSop ? { sop: sopCleaned } : {}),
     };
     setMasterProgram(masterProgram.map((c) =>
       c.id === targetCat ? { ...c, skills: [...c.skills, sk] } : c
@@ -176,18 +249,17 @@ export const AdminMaster = () => {
     setTimingModal(true);
   };
 
-  const saveTiming = () => {
+  const saveTiming = async () => {
     if (!timingSkill || !timingCatId) return;
     const tgt = parseInt(editTarget) || 0;
     const mx = parseInt(editMax) || 0;
+
+    const { error } = await supabase.from("skills").update({ target_min: tgt, max_min: mx }).eq("id", timingSkill.id);
+    if (error) { console.error(error); showToast("Error saving timing"); return; }
+
     setMasterProgram(masterProgram.map((c) =>
       c.id === timingCatId
-        ? {
-            ...c,
-            skills: c.skills.map((s) =>
-              s.id === timingSkill.id ? { ...s, targetMin: tgt, maxMin: mx } : s
-            ),
-          }
+        ? { ...c, skills: c.skills.map((s) => s.id === timingSkill.id ? { ...s, targetMin: tgt, maxMin: mx } : s) }
         : c
     ));
     setTimingModal(false);
@@ -213,14 +285,18 @@ export const AdminMaster = () => {
     setRenameModal(true);
   };
 
-  const saveRename = () => {
+  const saveRename = async () => {
     if (!renameName.trim()) return;
     if (renameType === "category") {
+      const { error } = await supabase.from("categories").update({ name: renameName.trim() }).eq("id", renameCatId);
+      if (error) { console.error(error); showToast("Error renaming"); return; }
       setMasterProgram(masterProgram.map((c) =>
         c.id === renameCatId ? { ...c, name: renameName.trim() } : c
       ));
       showToast("Category renamed");
     } else {
+      const { error } = await supabase.from("skills").update({ name: renameName.trim() }).eq("id", renameSkillId);
+      if (error) { console.error(error); showToast("Error renaming"); return; }
       setMasterProgram(masterProgram.map((c) =>
         c.id === renameCatId
           ? { ...c, skills: c.skills.map((s) => (s.id === renameSkillId ? { ...s, name: renameName.trim() } : s)) }
@@ -274,21 +350,25 @@ export const AdminMaster = () => {
     }
   };
 
-  const applyVideo = (video) => {
+  const applyVideo = async (video) => {
     if (!videoTarget) return;
     if (videoTarget.type === "category") {
+      const cat = masterProgram.find((c) => c.id === videoTarget.catId);
+      const newVideos = [...(cat?.videos || []), video];
+      const { error } = await supabase.from("categories").update({ videos: newVideos }).eq("id", videoTarget.catId);
+      if (error) { console.error(error); showToast("Error saving video"); return; }
       setMasterProgram(masterProgram.map((c) =>
-        c.id === videoTarget.catId ? { ...c, videos: [...(c.videos || []), video] } : c
+        c.id === videoTarget.catId ? { ...c, videos: newVideos } : c
       ));
     } else {
+      const cat = masterProgram.find((c) => c.id === videoTarget.catId);
+      const sk = cat?.skills.find((s) => s.id === videoTarget.skId);
+      const newVideos = [...(sk?.videos || []), video];
+      const { error } = await supabase.from("skills").update({ videos: newVideos }).eq("id", videoTarget.skId);
+      if (error) { console.error(error); showToast("Error saving video"); return; }
       setMasterProgram(masterProgram.map((c) =>
         c.id === videoTarget.catId
-          ? {
-              ...c,
-              skills: c.skills.map((s) =>
-                s.id === videoTarget.skId ? { ...s, videos: [...(s.videos || []), video] } : s
-              ),
-            }
+          ? { ...c, skills: c.skills.map((s) => s.id === videoTarget.skId ? { ...s, videos: newVideos } : s) }
           : c
       ));
     }
@@ -296,21 +376,25 @@ export const AdminMaster = () => {
     showToast("Video added");
   };
 
-  const removeVideo = (catId, skId, videoId) => {
+  const removeVideo = async (catId, skId, videoId) => {
     if (skId) {
+      const cat = masterProgram.find((c) => c.id === catId);
+      const sk = cat?.skills.find((s) => s.id === skId);
+      const newVideos = (sk?.videos || []).filter((v) => v.id !== videoId);
+      const { error } = await supabase.from("skills").update({ videos: newVideos }).eq("id", skId);
+      if (error) { console.error(error); showToast("Error removing video"); return; }
       setMasterProgram(masterProgram.map((c) =>
         c.id === catId
-          ? {
-              ...c,
-              skills: c.skills.map((s) =>
-                s.id === skId ? { ...s, videos: (s.videos || []).filter((v) => v.id !== videoId) } : s
-              ),
-            }
+          ? { ...c, skills: c.skills.map((s) => s.id === skId ? { ...s, videos: newVideos } : s) }
           : c
       ));
     } else {
+      const cat = masterProgram.find((c) => c.id === catId);
+      const newVideos = (cat?.videos || []).filter((v) => v.id !== videoId);
+      const { error } = await supabase.from("categories").update({ videos: newVideos }).eq("id", catId);
+      if (error) { console.error(error); showToast("Error removing video"); return; }
       setMasterProgram(masterProgram.map((c) =>
-        c.id === catId ? { ...c, videos: (c.videos || []).filter((v) => v.id !== videoId) } : c
+        c.id === catId ? { ...c, videos: newVideos } : c
       ));
     }
     showToast("Video removed");
@@ -326,28 +410,28 @@ export const AdminMaster = () => {
     setSopModal(true);
   };
 
-  const saveSop = () => {
+  const saveSop = async () => {
     const cleaned = {};
     Object.keys(sopData).forEach((k) => {
       if (sopData[k]?.trim()) cleaned[k] = sopData[k];
     });
+    const sopVal = Object.keys(cleaned).length > 0 ? cleaned : null;
+
+    const { error } = await supabase.from("skills").update({ sop: sopVal }).eq("id", sopSkillId);
+    if (error) { console.error(error); showToast("Error saving curriculum"); return; }
+
     setMasterProgram(masterProgram.map((c) =>
       c.id === sopCatId
-        ? {
-            ...c,
-            skills: c.skills.map((s) =>
-              s.id === sopSkillId
-                ? { ...s, sop: Object.keys(cleaned).length > 0 ? cleaned : undefined }
-                : s
-            ),
-          }
+        ? { ...c, skills: c.skills.map((s) => s.id === sopSkillId ? { ...s, sop: sopVal || undefined } : s) }
         : c
     ));
     setSopModal(false);
     showToast("Curriculum saved");
   };
 
-  const setCatColor = (catId, color) => {
+  const setCatColor = async (catId, color) => {
+    const { error } = await supabase.from("categories").update({ color }).eq("id", catId);
+    if (error) { console.error(error); return; }
     setMasterProgram(masterProgram.map((c) =>
       c.id === catId ? { ...c, color } : c
     ));
@@ -370,7 +454,7 @@ export const AdminMaster = () => {
     setDragOverCatId(null);
   };
 
-  const handleCatDrop = (e, targetId) => {
+  const handleCatDrop = async (e, targetId) => {
     e.preventDefault();
     if (!dragCatId || dragCatId === targetId) {
       setDragCatId(null);
@@ -383,6 +467,11 @@ export const AdminMaster = () => {
     if (fromIdx < 0 || toIdx < 0) return;
     const [moved] = items.splice(fromIdx, 1);
     items.splice(toIdx, 0, moved);
+
+    // Update sort_order in Supabase
+    const updates = items.map((c, i) => supabase.from("categories").update({ sort_order: i }).eq("id", c.id));
+    await Promise.all(updates);
+
     setMasterProgram(items);
     setDragCatId(null);
     setDragOverCatId(null);

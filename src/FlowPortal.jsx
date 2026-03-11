@@ -6751,7 +6751,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [page, setPage] = useState("dash");
-  const [masterProgram, setMasterProgram] = useState(MASTER_PROGRAM);
+  const [masterProgram, setMasterProgram] = useState([]);
   const [presets, setPresets] = useState(INIT_PRESETS);
   const [residents, setResidents] = useState(INIT_RESIDENTS);
   const [schedule, setSchedule] = useState(INIT_SCHEDULE);
@@ -6791,6 +6791,30 @@ const App = () => {
         : supabase.from("documents").select("*").eq("uploaded_by", profile.id).order("created_at", { ascending: false });
       const { data: docsData } = await docsQuery;
       setDocs(docsData || []);
+
+      // Load master program from Supabase
+      const [{ data: catsData }, { data: skillsData }] = await Promise.all([
+        supabase.from("categories").select("*").order("sort_order"),
+        supabase.from("skills").select("*").order("sort_order"),
+      ]);
+      if (catsData) {
+        const program = catsData.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          videos: c.videos || [],
+          skills: (skillsData || []).filter((s) => s.category_id === c.id).map((s) => ({
+            id: s.id,
+            name: s.name,
+            type: s.type,
+            targetMin: s.target_min,
+            maxMin: s.max_min,
+            videos: s.videos || [],
+            sop: s.sop,
+          })),
+        }));
+        setMasterProgram(program);
+      }
     } else {
       // Profile not created yet (trigger may not have fired) — use auth metadata
       const meta = authUser.user_metadata || {};
