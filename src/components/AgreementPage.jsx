@@ -468,21 +468,51 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
   const [residentProfile, setResidentProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(isCountersign);
 
-  /* load resident profile in countersign mode */
+  /* load resident profile + form data in countersign mode */
   useEffect(() => {
     if (!isCountersign || !residentId) return;
     const load = async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", residentId).single();
       if (data) {
         setResidentProfile(data);
-        setResidentName(data.name || "");
-        setResidentPrintedName(data.name || "");
-        setExhibitPrintedName(data.name || "");
+        const ad = data.agreement_data || {};
+        setResidentName(ad.residentName || data.name || "");
+        setStartDate(ad.startDate || "");
+        setEndDate(ad.endDate || "");
+        setPaymentOption(ad.paymentOption || "");
+        setPhotoConsent(ad.photoConsent || "");
+        setResidentPrintedName(ad.residentPrintedName || data.name || "");
+        setResidentDate(ad.residentDate || "");
+        setExhibitPrintedName(ad.exhibitPrintedName || data.name || "");
+        setExhibitDate(ad.exhibitDate || "");
       }
       setLoadingProfile(false);
     };
     load();
   }, [isCountersign, residentId]);
+
+  /* draw saved signatures onto canvases in countersign mode */
+  useEffect(() => {
+    if (!isCountersign || !residentProfile) return;
+    const ad = residentProfile.agreement_data || {};
+    const drawSaved = (canvasRef, padRef, dataUrl) => {
+      if (!dataUrl || !canvasRef.current) return;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+      img.onload = () => {
+        const dpr = window.devicePixelRatio || 1;
+        ctx.drawImage(img, 0, 0, canvas.width / dpr, canvas.height / dpr);
+        if (padRef.current) padRef.current.state.hasSig = true;
+      };
+      img.src = dataUrl;
+    };
+    // Small delay to ensure canvases are mounted and initialized
+    setTimeout(() => {
+      drawSaved(residentSigRef, residentPad, ad.residentSigImg);
+      drawSaved(exhibitSigRef, exhibitPad, ad.exhibitSigImg);
+    }, 200);
+  }, [isCountersign, residentProfile]);
 
   /* load html2pdf CDN */
   useEffect(() => {
@@ -584,10 +614,24 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         });
 
         /* render canvas → images */
+        const ad = residentProfile?.agreement_data || {};
         el.querySelectorAll(".ag-sig-image").forEach((img) => {
           const key = img.dataset.key;
+          if (key === "residentSig") img.src = ad.residentSigImg || "";
+          if (key === "exhibitSig") img.src = ad.exhibitSigImg || "";
           if (key === "companySig" && companySigRef.current)
             img.src = companySigRef.current.toDataURL("image/png");
+        });
+
+        /* also fill payment + photo consent values */
+        el.querySelectorAll(".ag-filled-value").forEach((fv) => {
+          const key = fv.dataset.key;
+          if (key === "paymentOption")
+            fv.textContent = ad.paymentOption === "A"
+              ? "Option A. $4,500 Paid in Full"
+              : ad.paymentOption === "B" ? "Option B. $1,650 per month (3 payments)" : "";
+          if (key === "photoConsent")
+            fv.textContent = ad.photoConsent === "yes" ? "I consent" : ad.photoConsent === "no" ? "I do not consent" : "";
         });
 
         el.classList.add("pdf-mode");
@@ -714,12 +758,28 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
 
       const now = new Date().toISOString().split("T")[0];
 
+      /* save form data so countersign can reload the full form */
+      const agreementData = {
+        residentName,
+        startDate,
+        endDate,
+        paymentOption,
+        photoConsent,
+        residentPrintedName,
+        residentDate,
+        exhibitPrintedName,
+        exhibitDate,
+        residentSigImg: residentSigRef.current ? residentSigRef.current.toDataURL("image/png") : "",
+        exhibitSigImg: exhibitSigRef.current ? exhibitSigRef.current.toDataURL("image/png") : "",
+      };
+
       const { error: profErr } = await supabase
         .from("profiles")
         .update({
           agreement_signed: true,
           agreement_date: now,
           agreement_url: publicUrl,
+          agreement_data: agreementData,
         })
         .eq("id", user.id);
       if (profErr) console.error("Profile update error:", profErr);
