@@ -91,6 +91,42 @@ function initCanvas(canvas) {
   };
 }
 
+/* ─── SigPad (defined outside so React never remounts it) ─── */
+const SigPad = ({ canvasRef, padRef, label }) => {
+  const attachRef = useCallback((el) => {
+    canvasRef.current = el;
+    if (el && !padRef.current) {
+      padRef.current = initCanvas(el);
+    }
+  }, [canvasRef, padRef]);
+
+  return (
+    <div className="sig-block" style={{ marginTop: 12 }}>
+      <span className="ag-label">{label}</span>
+      <div className="sig-canvas-wrap">
+        <canvas ref={attachRef} />
+        <div className="sig-line" />
+        <span className="sig-x">&times;</span>
+      </div>
+      <button
+        className="clear-sig-btn"
+        onClick={() => padRef.current?.clear()}
+        style={{
+          marginTop: 6,
+          background: "none",
+          border: "none",
+          color: T.textMuted,
+          fontSize: 12,
+          cursor: "pointer",
+          textDecoration: "underline",
+        }}
+      >
+        Clear signature
+      </button>
+    </div>
+  );
+};
+
 /* ─── CSS scoped to .agreement-page ─── */
 const AGREEMENT_CSS = `
 .agreement-page {
@@ -645,42 +681,6 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         img.src = exhibitSigRef.current.toDataURL("image/png");
     });
     window.print();
-  };
-
-  /* ─── render helpers ─── */
-  const SigPad = ({ canvasRef, padRef, label }) => {
-    const attachRef = useCallback((el) => {
-      canvasRef.current = el;
-      if (el && !padRef.current) {
-        padRef.current = initCanvas(el);
-      }
-    }, [canvasRef, padRef]);
-
-    return (
-      <div className="sig-block" style={{ marginTop: 12 }}>
-        <span className="ag-label">{label}</span>
-        <div className="sig-canvas-wrap">
-          <canvas ref={attachRef} />
-          <div className="sig-line" />
-          <span className="sig-x">&times;</span>
-        </div>
-        <button
-          className="clear-sig-btn"
-          onClick={() => padRef.current?.clear()}
-          style={{
-            marginTop: 6,
-            background: "none",
-            border: "none",
-            color: T.textMuted,
-            fontSize: 12,
-            cursor: "pointer",
-            textDecoration: "underline",
-          }}
-        >
-          Clear signature
-        </button>
-      </div>
-    );
   };
 
   /* ─────────────────────── JSX ─────────────────────── */
