@@ -105,17 +105,15 @@ serve(async (req) => {
       return new Response("OK", { status: 200 });
     }
 
-    const customerId = invoice.customer as string;
     const amount = (invoice.amount_paid || 0) / 100;
 
-    // Look up user by Stripe customer ID via existing payment
-    const { data: existingPayment } = await supabase
-      .from("payments")
-      .select("user_id")
-      .like("stripe_payment_id", `sub_%`)
-      .limit(1);
+    // Skip $0 invoices (fully discounted)
+    if (amount <= 0) {
+      console.log("Skipping $0 invoice");
+      return new Response("OK", { status: 200 });
+    }
 
-    // Alternative: look up by customer email
+    // Look up user by customer email
     const customerEmail = invoice.customer_email;
     let userId: string | null = null;
 
