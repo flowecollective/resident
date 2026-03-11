@@ -781,6 +781,16 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
   const { notifications } = useData();
   const isA = user?.role === "admin";
   const unreviewedCount = isA ? (notifications || []).filter((n) => !n.reviewed).length : 0;
+
+  // Check onboarding completion for residents
+  const [onboardingDone, setOnboardingDone] = useState(true);
+  useEffect(() => {
+    if (isA || !user?.id) return;
+    supabase.from("profiles").select("agreement_signed, enrollment_completed, gusto_completed").eq("id", user.id).single().then(({ data }) => {
+      if (data) setOnboardingDone(!!data.agreement_signed && !!data.enrollment_completed && !!data.gusto_completed);
+    });
+  }, [isA, user?.id, page]);
+
   const items = isA
     ? [
         { id: "a-dash", label: "Dashboard", icon: "dashboard", badge: unreviewedCount },
@@ -794,7 +804,7 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
       ]
     : [
         { id: "dash", label: "Dashboard", icon: "dashboard" },
-        { id: "onboarding", label: "Onboarding", icon: "clipboard" },
+        { id: "onboarding", label: "Onboarding", icon: "clipboard", dot: !onboardingDone },
         { id: "sched", label: "Schedule", icon: "calendar" },
         { id: "skills", label: "My Skills", icon: "check" },
         { id: "tuition", label: "My Tuition", icon: "dollar" },
@@ -887,6 +897,9 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
                     justifyContent: "center",
                     padding: "0 5px",
                   }}>{it.badge}</span>
+                )}
+                {it.dot && (
+                  <span style={{ marginLeft: "auto", width: 8, height: 8, borderRadius: "50%", background: T.warn, flexShrink: 0 }} />
                 )}
               </button>
             );
@@ -2609,9 +2622,17 @@ const HandbookPage = () => {
 //  TRAINEE: DOCS
 // ════════════════════════════════════════════
 const TraineeDocs = () => {
-  const { docs } = useData();
+  const { user, docs, setDocs } = useData();
   const [f, setF] = useState("All");
   const [viewDoc, setViewDoc] = useState(null);
+
+  // Refresh docs on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from("documents").select("*").eq("uploaded_by", user.id).order("created_at", { ascending: false }).then(({ data }) => {
+      if (data) setDocs(data);
+    });
+  }, []);
   const cats = ["All", ...new Set(docs.map((d) => d.category))];
   const fd = f === "All" ? docs : docs.filter((d) => d.category === f);
 
@@ -5719,6 +5740,13 @@ const AdminDocs = () => {
   const [fileType, setFileType] = useState("");
   const fileInputRef = useRef(null);
 
+  // Refresh docs on mount (picks up countersigned agreements, etc.)
+  useEffect(() => {
+    supabase.from("documents").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+      if (data) setDocs(data);
+    });
+  }, []);
+
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -5780,10 +5808,17 @@ const AdminDocs = () => {
   };
 
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [viewDoc, setViewDoc] = useState(null);
 
-  const rem = async (id) => {
-    await supabase.from("documents").delete().eq("id", id);
-    setDocs((p) => p.filter((d) => d.id !== id));
+  const rem = async (doc) => {
+    // Delete file from storage bucket if it has a storage_path
+    if (doc.storage_path) {
+      const bucket = doc.storage_path.split("/")[0];
+      const path = doc.storage_path.split("/").slice(1).join("/");
+      await supabase.storage.from(bucket).remove([path]);
+    }
+    await supabase.from("documents").delete().eq("id", doc.id);
+    setDocs((p) => p.filter((d) => d.id !== doc.id));
     setConfirmDelete(null);
     showToast("Document removed");
   };
@@ -5804,7 +5839,7 @@ const AdminDocs = () => {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {docs.map((doc) => (
-            <Card key={doc.id} style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, cursor: doc.url ? "pointer" : "default" }} onClick={() => doc.url && window.open(doc.url, "_blank")}>
+            <div key={doc.id} style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: T.white, borderRadius: T.radius, boxShadow: T.shadow, border: `1px solid ${T.lightLine}` }}>
               <div style={{ width: 40, height: 40, borderRadius: T.radiusSm, background: doc.url ? "#4285f415" : T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon name="file" size={18} color={doc.url ? "#4285f4" : T.gold} />
               </div>
@@ -5818,12 +5853,14 @@ const AdminDocs = () => {
               </div>
               <Badge color={T.textMuted}>{doc.category}</Badge>
               {doc.url && (
-                <button onClick={() => window.open(doc.url, "_blank")} title="View" style={{ background: T.goldMuted, border: "none", borderRadius: 4, padding: 6, cursor: "pointer" }}>
+                <button onClick={() => setViewDoc(doc)} title="View" style={{ background: T.goldMuted, border: "none", borderRadius: 4, padding: 6, cursor: "pointer", position: "relative", zIndex: 2 }}>
                   <Icon name="eye" size={14} color={T.gold} />
                 </button>
               )}
-              <button onClick={() => setConfirmDelete(doc)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
-            </Card>
+              <button onClick={() => setConfirmDelete(doc)} title="Delete" style={{ background: "#fee", border: "none", borderRadius: 4, padding: 6, cursor: "pointer", position: "relative", zIndex: 2 }}>
+                <Icon name="trash" size={16} color={T.danger} />
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -5891,14 +5928,41 @@ const AdminDocs = () => {
         </div>
       </Modal>
 
+      {/* Document Viewer Modal */}
+      <Modal open={!!viewDoc} onClose={() => setViewDoc(null)} title={viewDoc?.name || ""} width={700}>
+        {viewDoc && viewDoc.url && (
+          <div>
+            {viewDoc.url.match(/\.(png|jpg|jpeg|gif|webp)/i) ? (
+              <img src={viewDoc.url} alt={viewDoc.name} style={{ width: "100%", borderRadius: T.radiusSm }} />
+            ) : viewDoc.url.match(/\.pdf/i) || viewDoc.url.includes("/agreements/") ? (
+              <div style={{ height: 500, borderRadius: T.radiusSm, overflow: "hidden" }}>
+                <iframe src={viewDoc.url} style={{ width: "100%", height: "100%", border: "none" }} title={viewDoc.name} />
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: 32 }}>
+                <Icon name="file" size={48} color={T.gold} />
+                <p style={{ fontSize: "14px", fontWeight: 500, marginTop: 12 }}>{viewDoc.name}</p>
+                <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 4, marginBottom: 16 }}>{viewDoc.size}</p>
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+              <Btn variant="outline" onClick={() => setViewDoc(null)}>Close</Btn>
+              <Btn onClick={() => window.open(viewDoc.url, "_blank")}>
+                <Icon name="eye" size={14} color={T.cream} /> Open in New Tab
+              </Btn>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Delete confirmation */}
       <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete Document" width={400}>
         <p style={{ fontSize: 13, color: T.textMuted, marginBottom: 16 }}>
-          Are you sure you want to delete <strong>{confirmDelete?.name}</strong>? This cannot be undone.
+          Are you sure you want to delete <strong>{confirmDelete?.name}</strong>? This action is permanent and cannot be undone.
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <Btn variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Btn>
-          <Btn variant="danger" onClick={() => rem(confirmDelete.id)}>Delete</Btn>
+          <Btn variant="danger" onClick={() => rem(confirmDelete)}>Delete</Btn>
         </div>
       </Modal>
     </div>

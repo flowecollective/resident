@@ -686,6 +686,13 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
           throw profErr;
         }
 
+        // Update the document record URL so portal shows the countersigned version
+        await supabase
+          .from("documents")
+          .update({ url: publicUrl })
+          .eq("uploaded_by", residentId)
+          .eq("category", "Agreements");
+
         setSuccess({ url: publicUrl, fileName });
         return;
       }
