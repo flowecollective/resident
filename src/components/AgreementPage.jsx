@@ -832,7 +832,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
           <input
             className="ag-input"
             value={residentName}
-            onChange={(e) => setResidentName(e.target.value)}
+            onChange={(e) => { setResidentName(e.target.value); setResidentPrintedName(e.target.value); setExhibitPrintedName(e.target.value); }}
             placeholder="Full legal name"
           />
           <div className="ag-filled-value" data-key="residentName" />
