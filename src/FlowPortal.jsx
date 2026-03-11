@@ -1046,13 +1046,13 @@ const TraineeOnboarding = ({ user, onNav }) => {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("profiles")
-        .select("agreement_signed, agreement_date, agreement_url, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields")
+        .select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields")
         .eq("id", user.id).single();
       if (data) {
         setOb(data);
         setGustoFields(data.gusto_fields || {});
       } else {
-        setOb({ agreement_signed: false, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
+        setOb({ agreement_signed: false, agreement_countersigned: false, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
       }
       setLoading(false);
     };
@@ -1060,7 +1060,7 @@ const TraineeOnboarding = ({ user, onNav }) => {
   }, [user.id]);
 
   const updateOb = async (updates) => {
-    const { data } = await supabase.from("profiles").update(updates).eq("id", user.id).select("agreement_signed, agreement_date, agreement_url, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields").single();
+    const { data } = await supabase.from("profiles").update(updates).eq("id", user.id).select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields").single();
     if (data) setOb(data);
     return data;
   };
@@ -1082,7 +1082,11 @@ const TraineeOnboarding = ({ user, onNav }) => {
   const allDone = completedCount === steps.length;
 
   const handleAgreement = () => {
-    if (onNav) onNav("agreement");
+    if (ob.agreement_signed && ob.agreement_url) {
+      window.open(ob.agreement_url, "_blank");
+    } else {
+      if (onNav) onNav("agreement");
+    }
   };
 
   const handleEnroll = () => {
@@ -1141,10 +1145,17 @@ const TraineeOnboarding = ({ user, onNav }) => {
             }
           </div>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: "14px", fontWeight: 600 }}>Sign Residency Agreement</p>
+            <p style={{ fontSize: "14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+              Sign Residency Agreement
+              {ob.agreement_signed && !ob.agreement_countersigned && (
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.warn, display: "inline-block", flexShrink: 0 }} title="Pending countersign" />
+              )}
+            </p>
             <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
               {ob.agreement_signed
-                ? `Signed on ${ob.agreement_date}`
+                ? ob.agreement_countersigned
+                  ? `Signed on ${ob.agreement_date} · Countersigned ✓`
+                  : `Signed on ${ob.agreement_date} · Pending countersign`
                 : "Review and sign the Flowe Collective residency agreement"
               }
             </p>
