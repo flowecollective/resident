@@ -2799,18 +2799,24 @@ const AdminDash = ({ onNav }) => {
   const [expandedTrainee, setExpandedTrainee] = useState(null);
 
   // Fetch agreements pending countersign from Supabase
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, name, email, agreement_signed, agreement_date, agreement_countersigned")
-        .eq("role", "resident")
-        .eq("agreement_signed", true)
-        .or("agreement_countersigned.is.null,agreement_countersigned.eq.false");
-      setPendingAgreements(data || []);
-    };
-    load();
+  const loadPending = useCallback(async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, name, email, agreement_signed, agreement_date, agreement_countersigned")
+      .eq("role", "resident")
+      .eq("agreement_signed", true)
+      .or("agreement_countersigned.is.null,agreement_countersigned.eq.false");
+    setPendingAgreements(data || []);
   }, []);
+
+  useEffect(() => { loadPending(); }, [loadPending]);
+
+  // Re-fetch when window regains focus (e.g. after countersign)
+  useEffect(() => {
+    const onFocus = () => loadPending();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadPending]);
 
   const today = "2026-03-05";
   const todayEvents = schedule.filter((e) => e.date === today).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
