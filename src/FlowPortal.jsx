@@ -6058,8 +6058,45 @@ const AdminTuition = ({ onNav }) => {
 };
 
 const SettingsPage = () => {
-  const { gcalConnected, setGcalConnected, setGcalEvents, showToast } = useData();
+  const { user, setUser, gcalConnected, setGcalConnected, setGcalEvents, showToast } = useData();
   const [loading, setLoading] = useState(false);
+  const [profileName, setProfileName] = useState(user?.name || "");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [photoCropOpen, setPhotoCropOpen] = useState(false);
+
+  const saveProfile = async () => {
+    if (!profileName.trim()) return;
+    setProfileSaving(true);
+    const { error } = await supabase.from("profiles").update({ name: profileName.trim() }).eq("id", user.id);
+    if (!error) {
+      setUser((prev) => ({ ...prev, name: profileName.trim() }));
+      showToast("Profile updated!");
+    } else {
+      showToast("Error saving profile");
+    }
+    setProfileSaving(false);
+  };
+
+  const handlePhotoSave = async (dataUrl) => {
+    // Upload to Supabase Storage
+    const fileName = `avatars/${user.id}.jpg`;
+    const base64 = dataUrl.split(",")[1];
+    const blob = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const { error: uploadErr } = await supabase.storage.from("documents").upload(fileName, blob, { contentType: "image/jpeg", upsert: true });
+    if (uploadErr) { showToast("Error uploading photo"); return; }
+    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
+    const photoUrl = urlData?.publicUrl || dataUrl;
+    // Save to profile
+    const { error } = await supabase.from("profiles").update({ photo: photoUrl }).eq("id", user.id);
+    if (!error) {
+      setUser((prev) => ({ ...prev, photo: photoUrl }));
+      showToast("Photo updated!");
+    } else {
+      // Fallback: use data URL locally
+      setUser((prev) => ({ ...prev, photo: dataUrl }));
+      showToast("Photo saved locally");
+    }
+  };
 
   const handleConnect = () => {
     setLoading(true);
@@ -6081,8 +6118,42 @@ const SettingsPage = () => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub="Manage integrations and portal settings">Settings</SectionTitle>
+      <SectionTitle sub="Manage your profile, integrations, and portal settings">Settings</SectionTitle>
 
+      {/* Profile */}
+      <Card style={{ padding: 28, marginBottom: 20 }}>
+        <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 16 }}>Profile</h4>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20 }}>
+          <div style={{ position: "relative", cursor: "pointer" }} onClick={() => setPhotoCropOpen(true)}>
+            <Avatar name={user?.name} size={64} photo={user?.photo} />
+            <div style={{
+              position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%",
+              background: T.charcoal, display: "flex", alignItems: "center", justifyContent: "center",
+              border: `2px solid ${T.white}`,
+            }}>
+              <Icon name="edit" size={12} color={T.white} />
+            </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 4 }}>{user?.email}</p>
+            <Badge color={T.educator}>{user?.role === "admin" ? "Educator" : "Resident"}</Badge>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+          <div style={{ flex: 1 }}>
+            <FormField label="Display Name">
+              <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} style={iSt} onKeyDown={(e) => e.key === "Enter" && saveProfile()} />
+            </FormField>
+          </div>
+          <Btn onClick={saveProfile} style={{ marginBottom: 2, opacity: profileSaving ? 0.7 : 1 }}>
+            {profileSaving ? "Saving..." : "Save"}
+          </Btn>
+        </div>
+      </Card>
+
+      <PhotoCropModal open={photoCropOpen} onClose={() => setPhotoCropOpen(false)} onSave={handlePhotoSave} currentPhoto={user?.photo} />
+
+      {/* Google Calendar */}
       <Card style={{ padding: 28, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
           <div style={{
@@ -6421,6 +6492,7 @@ const App = () => {
         email: profile.email,
         role: profile.role,
         cohort: profile.cohort,
+        photo: profile.photo,
       });
       setPage(profile.role === "admin" ? "a-dash" : "dash");
     } else {
@@ -6467,11 +6539,10 @@ const App = () => {
 
   if (!user) return <><GlobalStyle /><AuthScreen /></>;
 
-  const data = { masterProgram, setMasterProgram, presets, setPresets, residents, setResidents, schedule, setSchedule, docs, setDocs, messages, setMessages, gcalConnected, setGcalConnected, gcalEvents, setGcalEvents, notifications, setNotifications, showToast };
+  const data = { user, setUser, masterProgram, setMasterProgram, presets, setPresets, residents, setResidents, schedule, setSchedule, docs, setDocs, messages, setMessages, gcalConnected, setGcalConnected, gcalEvents, setGcalEvents, notifications, setNotifications, showToast };
 
-  // Enrich user with photo from residents (for trainee sidebar/header)
-  const userPhoto = user.role !== "admin" ? residents.find((r) => r.id === user.id)?.photo : null;
-  const enrichedUser = userPhoto ? { ...user, photo: userPhoto } : user;
+  // User photo comes from Supabase profile now
+  const enrichedUser = user;
 
   let content;
   if (page.startsWith("a-trainees:")) {
