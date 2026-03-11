@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { T } from "../theme";
 import { supabase } from "../lib/supabase";
 import { Btn } from "./ui";
+import { localDate } from "../utils";
 import { Icon } from "./Icon";
 
 /* ─── signature‑pad helper ─── */
@@ -544,7 +545,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
     if (startDate) {
       const d = new Date(startDate + "T00:00:00");
       d.setMonth(d.getMonth() + 3);
-      setEndDate(d.toISOString().split("T")[0]);
+      setEndDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
     } else {
       setEndDate("");
     }
@@ -672,7 +673,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         const { data: urlData } = supabase.storage.from("agreements").getPublicUrl(fileName);
         const publicUrl = (urlData?.publicUrl || existingUrl).split("?")[0] + "?v=" + Date.now();
 
-        const now = new Date().toISOString().split("T")[0];
+        const now = localDate();
         const { error: profErr } = await supabase
           .from("profiles")
           .update({
@@ -768,7 +769,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
       const publicUrl = urlData?.publicUrl || "";
       console.log("PDF uploaded:", publicUrl);
 
-      const now = new Date().toISOString().split("T")[0];
+      const now = localDate();
 
       /* save form data so countersign can reload the full form */
       const agreementData = {

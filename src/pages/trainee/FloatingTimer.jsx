@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { T } from "../../theme";
 import { useData } from "../../context";
 import { Card, FormField, Icon } from "../../components/ui";
+import { localDate } from "../../utils";
 import { iSt, selSt } from "../../theme";
 
 export const FloatingTimer = ({ user, onNav }) => {
@@ -64,7 +65,7 @@ export const FloatingTimer = ({ user, onNav }) => {
       showToast("Timer must be at least 1 minute.");
       return;
     }
-    const today = new Date().toISOString().split("T")[0];
+    const today = localDate();
     setResidents((prev) =>
       prev.map((r) => {
         if (r.id !== me.id) return r;

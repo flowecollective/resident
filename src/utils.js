@@ -1,4 +1,5 @@
 export const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+export const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 export const findSkill = (masterProgram, sid) => {
   for (const cat of masterProgram) {

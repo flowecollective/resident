@@ -27,7 +27,7 @@ export const MonthGrid = ({ cal, schedule, onDayClick, gcalEvents = [] }) => {
           const gcalOnDay = cell.date ? gcalEvents.filter((e) => e.date === cell.date) : [];
           const hasConflict = eventsOnDay.length > 0 && gcalOnDay.length > 0;
           const isSelected = cell.date && cell.date === selectedDate;
-          const isToday = cell.date === "2026-03-05";
+          const td = new Date(); const isToday = cell.date === `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, "0")}-${String(td.getDate()).padStart(2, "0")}`;
           const hasEvents = eventsOnDay.length > 0;
           const hasGcal = gcalOnDay.length > 0;
 

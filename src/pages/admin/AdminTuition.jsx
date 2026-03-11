@@ -3,6 +3,7 @@ import { T, iSt } from "../../theme";
 import { supabase } from "../../lib/supabase";
 import { Card, Badge, Avatar, ProgressBar, Btn, Modal, FormField, Icon, SectionTitle } from "../../components/ui";
 import { STATUS_STYLES } from "../../components/tuition/tuitionHelpers";
+import { localDate } from "../../utils";
 
 export const AdminTuition = ({ onNav }) => {
   const [residents, setResidents] = useState([]);
@@ -75,7 +76,7 @@ export const AdminTuition = ({ onNav }) => {
     setPayTraineeId(traineeId);
     setPayAmount("");
     setPayNote("");
-    setPayDate(new Date().toISOString().split("T")[0]);
+    setPayDate(localDate());
     setPayModal(true);
   };
 
@@ -87,7 +88,7 @@ export const AdminTuition = ({ onNav }) => {
     const { error } = await supabase.from("payments").insert({
       user_id: payTraineeId,
       amount,
-      date: payDate || new Date().toISOString().split("T")[0],
+      date: payDate || localDate(),
       note: payNote.trim() || "Payment",
     });
 

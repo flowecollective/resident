@@ -2,6 +2,7 @@ import { useState } from "react";
 import { T, TC, iSt, selSt } from "../../theme";
 import { useData } from "../../context";
 import { Card, Badge, Btn, Modal, FormField, Icon, SectionTitle } from "../../components/ui";
+import { localDate } from "../../utils";
 import { useCalendar } from "../../components/calendar/useCalendar";
 import { MonthGrid } from "../../components/calendar/MonthGrid";
 import { CalendarHeader } from "../../components/calendar/CalendarHeader";
@@ -89,7 +90,7 @@ export const AdminSchedule = () => {
 
   return (
     <div>
-      <SectionTitle sub="Manage training schedule" action={<Btn onClick={() => openNew(cal.selectedDate || new Date().toISOString().slice(0, 10))}><Icon name="plus" size={16} /> Add Event</Btn>} >
+      <SectionTitle sub="Manage training schedule" action={<Btn onClick={() => openNew(cal.selectedDate || localDate())}><Icon name="plus" size={16} /> Add Event</Btn>} >
         Schedule
       </SectionTitle>
 

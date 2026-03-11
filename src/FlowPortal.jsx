@@ -7,6 +7,7 @@ import { supabase } from "./lib/supabase";
 import { AgreementPage } from "./components/AgreementPage";
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 // ════════════════════════════════════════════
 //  PHOTO CROP MODAL
@@ -1110,7 +1111,7 @@ const TraineeOnboarding = ({ user, onNav }) => {
   const markEnrolled = async () => {
     const payOpt = ob?.agreement_data?.paymentOption || "B";
     const plan = payOpt === "A" ? "full" : "monthly";
-    const now = new Date().toISOString().split("T")[0];
+    const now = localDate();
     await updateOb({ enrollment_completed: true, enrollment_date: now, enrollment_plan: plan });
     showToast("Enrollment confirmed!");
   };
@@ -2003,7 +2004,7 @@ const TraineeSkills = ({ user }) => {
     if (!logMinutes || !logSkill) return;
     const mins = parseInt(logMinutes);
     if (isNaN(mins) || mins <= 0) return;
-    const dateStr = new Date().toISOString().split("T")[0];
+    const dateStr = localDate();
     // Insert to Supabase first to get the ID
     const { data: inserted, error } = await supabase.from("timing_logs").insert({
       user_id: me.id, skill_id: logSkill.id, minutes: mins, type: logType, date: dateStr, note: logNote.trim(),
@@ -3160,7 +3161,7 @@ const AdminDash = ({ onNav }) => {
                 </div>
                 <button
                   onClick={async () => {
-                    const now = new Date().toISOString().split("T")[0];
+                    const now = localDate();
                     await supabase.from("profiles").update({ gusto_completed: true, gusto_date: now }).eq("id", r.id);
                     loadPending();
                     showToast("Marked as complete");
@@ -4052,13 +4053,13 @@ const AdminMaster = () => {
     if (!deleteTarget) return;
     if (deleteTarget.type === "cat") {
       const cat = masterProgram.find((c) => c.id === deleteTarget.catId);
-      if (cat) setArchived((p) => [...p, { ...cat, archivedAt: new Date().toISOString().split("T")[0], archiveType: "category" }]);
+      if (cat) setArchived((p) => [...p, { ...cat, archivedAt: localDate(), archiveType: "category" }]);
       setMasterProgram((p) => p.filter((c) => c.id !== deleteTarget.catId));
       showToast("Category archived");
     } else {
       const cat = masterProgram.find((c) => c.id === deleteTarget.catId);
       const sk = cat?.skills.find((s) => s.id === deleteTarget.skillId);
-      if (sk) setArchived((p) => [...p, { ...sk, fromCategory: cat?.name, archivedAt: new Date().toISOString().split("T")[0], archiveType: "skill" }]);
+      if (sk) setArchived((p) => [...p, { ...sk, fromCategory: cat?.name, archivedAt: localDate(), archiveType: "skill" }]);
       setMasterProgram((p) => p.map((c) => c.id === deleteTarget.catId ? { ...c, skills: c.skills.filter((s) => s.id !== deleteTarget.skillId) } : c));
       showToast("Skill archived");
     }
@@ -5873,7 +5874,7 @@ const AdminDocs = () => {
 
   const add = async () => {
     if (!form.name.trim()) return;
-    const now = new Date().toISOString().split("T")[0];
+    const now = localDate();
     let uploadUrl = form.url.trim() || null;
     let storagePath = null;
 
@@ -6242,12 +6243,12 @@ const AdminTuition = ({ onNav }) => {
   const totalRemaining = totalRevenue - totalPaid;
   const target = residents.find((r) => r.id === targetId);
 
-  const openPay = (r) => { setTargetId(r.id); setPayAmount(""); setPayNote(""); setPayDate(new Date().toISOString().split("T")[0]); setPayModal(true); };
+  const openPay = (r) => { setTargetId(r.id); setPayAmount(""); setPayNote(""); setPayDate(localDate()); setPayModal(true); };
   const recordPayment = async () => {
     if (!payAmount || !targetId) { showToast("Please enter an amount"); return; }
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) { showToast("Amount must be greater than 0"); return; }
-    const date = payDate || new Date().toISOString().split("T")[0];
+    const date = payDate || localDate();
 
     // Ensure tuition record exists
     const { error: tErr } = await supabase.from("tuition").upsert(
@@ -6682,7 +6683,7 @@ const FloatingTimer = ({ user, onNav }) => {
     if (!linkedSkill || seconds === 0) return;
     const mins = Math.round(seconds / 60);
     if (mins === 0) { showToast("Timer too short to log"); return; }
-    const dateStr = new Date().toISOString().split("T")[0];
+    const dateStr = localDate();
     // Insert to Supabase first
     const { data: inserted, error } = await supabase.from("timing_logs").insert({
       user_id: me.id, skill_id: linkedSkill.id, minutes: mins, type: logType, date: dateStr, note: logNote.trim(),
@@ -6922,7 +6923,7 @@ const fetchIcalEvents = async (icalUrl) => {
       const startD = parseIcalDate(dtstart);
       const endD = parseIcalDate(dtend);
       if (!startD || isNaN(startD.getTime()) || startD < minDate || startD > maxDate) continue;
-      const date = startD.toISOString().slice(0, 10);
+      const date = `${startD.getFullYear()}-${String(startD.getMonth() + 1).padStart(2, "0")}-${String(startD.getDate()).padStart(2, "0")}`;
       const fmt = (d) => d && !isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
       const isAllDay = dtstart.length === 8;
       const time = isAllDay ? "All day" : (fmt(startD) && fmt(endD) ? `${fmt(startD)} – ${fmt(endD)}` : "All day");

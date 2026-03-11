@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { T } from "../../theme";
 import { useData } from "../../context";
-import { getProgress, getSkillPct, isSkillComplete, getSkillProgress, getTraineeCats, getEmbedUrl } from "../../utils";
+import { getProgress, getSkillPct, isSkillComplete, getSkillProgress, getTraineeCats, getEmbedUrl, localDate } from "../../utils";
 import { Card, Badge, ProgressBar, SectionTitle, Btn, Modal, FormField, Icon, Avatar } from "../../components/ui";
 import { iSt } from "../../theme";
 import { SkillCard } from "../../components/skills/SkillCard";
@@ -39,7 +39,7 @@ export const TraineeSkills = ({ user }) => {
     const entry = {
       minutes: parseInt(logMinutes, 10),
       type: logType,
-      date: new Date().toISOString().slice(0, 10),
+      date: localDate(),
       note: logNote,
       comments: [],
     };

@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { T, iSt, selSt } from "../../theme";
+import { localDate } from "../../utils";
 import { useData } from "../../context";
 import { Card, Badge, Btn, Modal, FormField, Icon, SectionTitle } from "../../components/ui";
 
@@ -48,7 +49,7 @@ export const AdminDocs = () => {
       id: Date.now(),
       name: name.trim(),
       category,
-      date: new Date().toISOString().slice(0, 10),
+      date: localDate(),
       ...(fileData
         ? { fileData, fileName, size: fileSize, type: fileType }
         : { link, size: null, type: "link" }),
