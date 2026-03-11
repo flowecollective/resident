@@ -318,7 +318,9 @@ const AGREEMENT_CSS = `
 .agreement-page.pdf-mode .ag-lock-box,
 .agreement-page.pdf-mode .ag-lock-row,
 .agreement-page.pdf-mode .clear-sig-btn,
-.agreement-page.pdf-mode .ag-back-btn {
+.agreement-page.pdf-mode .ag-back-btn,
+.agreement-page.pdf-mode iframe,
+.agreement-page.pdf-mode .ag-countersign-banner {
   display: none !important;
 }
 .agreement-page.pdf-mode .ag-filled-value {
@@ -540,21 +542,56 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
     setSubmitting(true);
 
     try {
-      /* ── Countersign mode: just update profile, no new PDF ── */
+      /* ── Countersign mode: generate PDF, overwrite original in bucket ── */
       if (isCountersign) {
+        const el = wrapRef.current;
+        el.classList.add("pdf-mode");
+
+        // Extract original file name from the existing URL to overwrite it
+        const existingUrl = residentProfile?.agreement_url || "";
+        const existingPath = existingUrl.split("/agreements/").pop() || "";
+        const sanitized = residentName.trim().replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").toLowerCase();
+        const fileName = existingPath || `${sanitized}-countersigned-${Date.now()}.pdf`;
+
+        const opt = {
+          margin: [0.3, 0.3, 0.3, 0.3],
+          filename: fileName,
+          image: { type: "jpeg", quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+          jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+        };
+
+        // eslint-disable-next-line no-undef
+        const pdfBlob = await html2pdf().set(opt).from(el).outputPdf("blob");
+        el.classList.remove("pdf-mode");
+
+        const { error: uploadErr } = await supabase.storage
+          .from("agreements")
+          .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+        if (uploadErr) {
+          console.error("Countersign upload error:", uploadErr);
+          throw uploadErr;
+        }
+
+        const { data: urlData } = supabase.storage.from("agreements").getPublicUrl(fileName);
+        const publicUrl = urlData?.publicUrl || existingUrl;
+
         const now = new Date().toISOString().split("T")[0];
         const { error: profErr } = await supabase
           .from("profiles")
           .update({
             agreement_countersigned: true,
             agreement_countersigned_date: now,
+            agreement_url: publicUrl,
           })
           .eq("id", residentId);
         if (profErr) {
           console.error("Profile update error:", profErr);
           throw profErr;
         }
-        setSuccess({ url: residentProfile?.agreement_url || "", fileName: "" });
+
+        setSuccess({ url: publicUrl, fileName });
         return;
       }
 
@@ -778,8 +815,8 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
       {/* ── COUNTERSIGN MODE: show signed PDF + company sig ── */}
       {isCountersign && !loadingProfile && (
         <div className="agreement-page" ref={wrapRef}>
-          <div style={{ marginBottom: 16 }}>
-            <button onClick={() => onNav && onNav("a-dash")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: T.textMuted, fontSize: 13 }}>
+          <div className="ag-countersign-banner" style={{ marginBottom: 16 }}>
+            <button onClick={() => onNav && onNav("a-dash")} className="ag-back-btn" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: T.textMuted, fontSize: 13 }}>
               <Icon name="back" size={16} color={T.textMuted} /> Back to Dashboard
             </button>
             <div style={{ background: T.goldMuted, borderRadius: T.radiusSm, padding: "12px 16px", marginTop: 12 }}>
