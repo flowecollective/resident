@@ -1034,17 +1034,46 @@ const GUSTO_FIELDS = [
 ];
 
 const TraineeOnboarding = ({ user }) => {
-  const { residents, setResidents, docs, setDocs, showToast } = useData();
-  const me = residents.find((r) => r.id === user.id) || residents[0];
-  const ob = me.onboarding || { agreement: { signed: false }, enrollment: { completed: false }, gusto: { completed: false, fields: {} } };
-
+  const { showToast } = useData();
+  const [ob, setOb] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [gustoOpen, setGustoOpen] = useState(false);
-  const [gustoFields, setGustoFields] = useState(ob.gusto?.fields || {});
+  const [gustoFields, setGustoFields] = useState({});
+
+  // Load onboarding from Supabase
+  useEffect(() => {
+    const load = async () => {
+      const { data, error } = await supabase.from("onboarding").select("*").eq("user_id", user.id).single();
+      if (data) {
+        setOb(data);
+        setGustoFields(data.gusto_fields || {});
+      } else {
+        // No row yet — create one
+        const { data: newRow } = await supabase.from("onboarding").insert({ user_id: user.id }).select().single();
+        setOb(newRow || { agreement_signed: false, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
+      }
+      setLoading(false);
+    };
+    load();
+  }, [user.id]);
+
+  const updateOb = async (updates) => {
+    const { data } = await supabase.from("onboarding").update(updates).eq("user_id", user.id).select().single();
+    if (data) setOb(data);
+    return data;
+  };
+
+  if (loading || !ob) return (
+    <div className="fade-up">
+      <SectionTitle sub="Loading...">Onboarding</SectionTitle>
+      <Card style={{ padding: 40, textAlign: "center" }}><p style={{ color: T.textMuted, fontSize: "13px" }}>Loading your onboarding status...</p></Card>
+    </div>
+  );
 
   const steps = [
-    { id: "agreement", label: "Sign Residency Agreement", icon: "shield", done: ob.agreement?.signed },
-    { id: "enrollment", label: "Enroll & Pay Tuition", icon: "dollar", done: ob.enrollment?.completed },
-    { id: "gusto", label: "Complete Payroll Setup", icon: "clipboard", done: ob.gusto?.completed },
+    { id: "agreement", label: "Sign Residency Agreement", icon: "shield", done: ob.agreement_signed },
+    { id: "enrollment", label: "Enroll & Pay Tuition", icon: "dollar", done: ob.enrollment_completed },
+    { id: "gusto", label: "Complete Payroll Setup", icon: "clipboard", done: ob.gusto_completed },
   ];
 
   const completedCount = steps.filter((s) => s.done).length;
@@ -1054,27 +1083,18 @@ const TraineeOnboarding = ({ user }) => {
     window.open("https://www.jordanwangco.com/fc-residency-agreement", "_blank");
   };
 
-  const markAgreementSigned = () => {
+  const markAgreementSigned = async () => {
     const now = new Date().toISOString().split("T")[0];
-    setResidents((prev) =>
-      prev.map((r) =>
-        r.id === me.id
-          ? { ...r, onboarding: { ...r.onboarding, agreement: { signed: true, date: now, url: "" } } }
-          : r
-      )
-    );
-    // Add to documents
-    setDocs((prev) => [
-      ...prev,
-      {
-        id: uid(),
-        name: "Residency Agreement — Signed",
-        category: "Agreements",
-        size: "PDF",
-        date: now,
-        url: "https://www.jordanwangco.com/fc-residency-agreement",
-      },
-    ]);
+    await updateOb({ agreement_signed: true, agreement_date: now });
+    // Add to documents table
+    await supabase.from("documents").insert({
+      name: "Residency Agreement — Signed",
+      category: "Agreements",
+      size: "PDF",
+      date: now,
+      url: "https://www.jordanwangco.com/fc-residency-agreement",
+      uploaded_by: user.id,
+    });
     showToast("Agreement marked as signed!");
   };
 
@@ -1082,19 +1102,13 @@ const TraineeOnboarding = ({ user }) => {
     window.open("https://jordanwangco.com/enroll", "_blank");
   };
 
-  const markEnrolled = () => {
+  const markEnrolled = async () => {
     const now = new Date().toISOString().split("T")[0];
-    setResidents((prev) =>
-      prev.map((r) =>
-        r.id === me.id
-          ? { ...r, onboarding: { ...r.onboarding, enrollment: { completed: true, date: now, plan: r.tuition?.plan || "monthly" } } }
-          : r
-      )
-    );
+    await updateOb({ enrollment_completed: true, enrollment_date: now, enrollment_plan: "monthly" });
     showToast("Enrollment confirmed!");
   };
 
-  const saveGusto = () => {
+  const saveGusto = async () => {
     const required = ["legalName", "dob", "address", "phone", "emergencyName", "emergencyPhone"];
     const missing = required.filter((k) => !gustoFields[k]);
     if (missing.length > 0) {
@@ -1102,13 +1116,7 @@ const TraineeOnboarding = ({ user }) => {
       return;
     }
     const now = new Date().toISOString().split("T")[0];
-    setResidents((prev) =>
-      prev.map((r) =>
-        r.id === me.id
-          ? { ...r, onboarding: { ...r.onboarding, gusto: { completed: true, date: now, fields: gustoFields } } }
-          : r
-      )
-    );
+    await updateOb({ gusto_completed: true, gusto_date: now, gusto_fields: gustoFields });
     setGustoOpen(false);
     showToast("Payroll information saved!");
   };
@@ -1137,10 +1145,10 @@ const TraineeOnboarding = ({ user }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 24px" }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%",
-            background: ob.agreement?.signed ? T.successBg : T.goldMuted,
+            background: ob.agreement_signed ? T.successBg : T.goldMuted,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
-            {ob.agreement?.signed
+            {ob.agreement_signed
               ? <Icon name="check" size={20} color={T.success} />
               : <Icon name="shield" size={20} color={T.gold} />
             }
@@ -1148,13 +1156,13 @@ const TraineeOnboarding = ({ user }) => {
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: "14px", fontWeight: 600 }}>Sign Residency Agreement</p>
             <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
-              {ob.agreement?.signed
-                ? `Signed on ${ob.agreement.date}`
+              {ob.agreement_signed
+                ? `Signed on ${ob.agreement_date}`
                 : "Review and sign the Flowe Collective residency agreement"
               }
             </p>
           </div>
-          {ob.agreement?.signed ? (
+          {ob.agreement_signed ? (
             <button onClick={handleAgreement} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.textMuted }}>
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="eye" size={14} color={T.textMuted} /> View</span>
             </button>
@@ -1176,10 +1184,10 @@ const TraineeOnboarding = ({ user }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 24px" }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%",
-            background: ob.enrollment?.completed ? T.successBg : T.goldMuted,
+            background: ob.enrollment_completed ? T.successBg : T.goldMuted,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
-            {ob.enrollment?.completed
+            {ob.enrollment_completed
               ? <Icon name="check" size={20} color={T.success} />
               : <Icon name="dollar" size={20} color={T.gold} />
             }
@@ -1187,13 +1195,13 @@ const TraineeOnboarding = ({ user }) => {
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: "14px", fontWeight: 600 }}>Enroll & Pay Tuition</p>
             <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
-              {ob.enrollment?.completed
-                ? `Enrolled on ${ob.enrollment.date} · ${ob.enrollment.plan === "full" ? "Paid in Full" : "Monthly Plan"}`
+              {ob.enrollment_completed
+                ? `Enrolled on ${ob.enrollment_date} · ${ob.enrollment_plan === "full" ? "Paid in Full" : "Monthly Plan"}`
                 : "Choose your tuition plan and complete payment to secure your spot"
               }
             </p>
           </div>
-          {ob.enrollment?.completed ? (
+          {ob.enrollment_completed ? (
             <Badge color={T.success} bg={T.successBg}>Enrolled</Badge>
           ) : (
             <div style={{ display: "flex", gap: 8 }}>
@@ -1213,10 +1221,10 @@ const TraineeOnboarding = ({ user }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 24px" }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%",
-            background: ob.gusto?.completed ? T.successBg : T.goldMuted,
+            background: ob.gusto_completed ? T.successBg : T.goldMuted,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
-            {ob.gusto?.completed
+            {ob.gusto_completed
               ? <Icon name="check" size={20} color={T.success} />
               : <Icon name="clipboard" size={20} color={T.gold} />
             }
@@ -1224,14 +1232,14 @@ const TraineeOnboarding = ({ user }) => {
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: "14px", fontWeight: 600 }}>Complete Payroll Setup</p>
             <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
-              {ob.gusto?.completed
-                ? `Completed on ${ob.gusto.date}`
+              {ob.gusto_completed
+                ? `Completed on ${ob.gusto_date}`
                 : "Fill out your tax, banking, and emergency contact information"
               }
             </p>
           </div>
-          {ob.gusto?.completed ? (
-            <button onClick={() => { setGustoFields(ob.gusto.fields || {}); setGustoOpen(true); }} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.textMuted }}>
+          {ob.gusto_completed ? (
+            <button onClick={() => { setGustoFields(ob.gusto_fields || {}); setGustoOpen(true); }} style={{ padding: "8px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}`, background: T.white, fontSize: "12px", fontWeight: 500, cursor: "pointer", color: T.textMuted }}>
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="edit" size={14} color={T.textMuted} /> Edit</span>
             </button>
           ) : (
