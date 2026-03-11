@@ -6325,8 +6325,8 @@ const AdminTuition = ({ onNav }) => {
                     <button onClick={() => openPlan(r)} style={{ background: T.charcoalMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.textMuted }}>
                       Plan
                     </button>
-                    <button onClick={() => openPay(r)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
-                      <Icon name="plus" size={12} color={T.gold} /> Payment
+                    <button onClick={() => openPay(r)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold }}>
+                      + Payment
                     </button>
                   </div>
                 </div>
@@ -6358,8 +6358,8 @@ const AdminTuition = ({ onNav }) => {
               <input value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="e.g. Month 1 — manual entry" style={iSt} />
             </FormField>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
-              <Btn variant="outline" onClick={() => setPayModal(false)}>Cancel</Btn>
-              <Btn onClick={recordPayment}>Record Payment</Btn>
+              <button onClick={() => setPayModal(false)} style={{ padding: "10px 20px", borderRadius: 8, border: `1.5px solid ${T.creamDark}`, background: "transparent", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>Cancel</button>
+              <button onClick={recordPayment} style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: T.charcoal, color: T.cream, fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>Record Payment</button>
             </div>
           </>
         )}
