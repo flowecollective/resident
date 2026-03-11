@@ -6187,6 +6187,7 @@ const AdminTuition = ({ onNav }) => {
   const [payAmount, setPayAmount] = useState("");
   const [payNote, setPayNote] = useState("");
   const [payDate, setPayDate] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
 
   const loadData = async () => {
     const { data: profiles } = await supabase.from("profiles").select("id, name, email, photo, enrollment_completed").eq("role", "resident");
@@ -6312,15 +6313,23 @@ const AdminTuition = ({ onNav }) => {
                       </span>
                     </div>
                     {r.payments.length > 0 && (
-                      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-                        {r.payments.map((p) => (
-                          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "11px", padding: "4px 10px", background: T.white, borderRadius: T.radiusSm }}>
-                            <span style={{ fontWeight: 600, color: T.text, minWidth: 60 }}>${Number(p.amount).toLocaleString()}</span>
-                            <span style={{ color: T.textMuted }}>{p.date}</span>
-                            {p.note && <span style={{ color: T.textLight, fontStyle: "italic", marginLeft: 4 }}>{p.note}</span>}
+                      <>
+                        <button onClick={() => setExpandedId(expandedId === r.id ? null : r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 0 0", display: "flex", alignItems: "center", gap: 4, fontSize: "11px", color: T.textMuted }}>
+                          <span style={{ transform: expandedId === r.id ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", display: "inline-block" }}>▸</span>
+                          {r.payments.length} payment{r.payments.length !== 1 ? "s" : ""}
+                        </button>
+                        {expandedId === r.id && (
+                          <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+                            {r.payments.map((p) => (
+                              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "11px", padding: "4px 10px", background: T.white, borderRadius: T.radiusSm }}>
+                                <span style={{ fontWeight: 600, color: T.text, minWidth: 60 }}>${Number(p.amount).toLocaleString()}</span>
+                                <span style={{ color: T.textMuted }}>{p.date}</span>
+                                {p.note && <span style={{ color: T.textLight, fontStyle: "italic" }}>{p.note}</span>}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        )}
+                      </>
                     )}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
