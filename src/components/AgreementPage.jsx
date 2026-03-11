@@ -790,7 +790,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
       if (profErr) console.error("Profile update error:", profErr);
 
       const { error: docErr } = await supabase.from("documents").insert({
-        name: "Residency Agreement \u2014 Signed",
+        name: `Residency Agreement \u2014 ${residentName.trim()}`,
         category: "Agreements",
         size: "PDF",
         date: now,
