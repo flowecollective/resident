@@ -5814,6 +5814,11 @@ const AdminDocs = () => {
                 </div>
               </div>
               <Badge color={T.textMuted}>{doc.category}</Badge>
+              {doc.url && (
+                <button onClick={() => window.open(doc.url, "_blank")} title="View" style={{ background: T.goldMuted, border: "none", borderRadius: 4, padding: 6, cursor: "pointer" }}>
+                  <Icon name="eye" size={14} color={T.gold} />
+                </button>
+              )}
               <button onClick={() => rem(doc.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
             </Card>
           ))}
