@@ -5914,8 +5914,8 @@ const AdminDocs = () => {
   const [viewDoc, setViewDoc] = useState(null);
 
   const rem = async (doc) => {
-    // Soft delete — set deleted_at timestamp instead of removing
-    await supabase.from("documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id);
+    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+    if (error) { showToast("Error deleting document"); return; }
     setDocs((p) => p.filter((d) => d.id !== doc.id));
     setConfirmDelete(null);
     showToast("Document removed");
