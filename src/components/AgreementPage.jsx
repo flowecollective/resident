@@ -540,6 +540,25 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
     setSubmitting(true);
 
     try {
+      /* ── Countersign mode: just update profile, no new PDF ── */
+      if (isCountersign) {
+        const now = new Date().toISOString().split("T")[0];
+        const { error: profErr } = await supabase
+          .from("profiles")
+          .update({
+            agreement_countersigned: true,
+            agreement_countersigned_date: now,
+          })
+          .eq("id", residentId);
+        if (profErr) {
+          console.error("Profile update error:", profErr);
+          throw profErr;
+        }
+        setSuccess({ url: residentProfile?.agreement_url || "", fileName: "" });
+        return;
+      }
+
+      /* ── Sign mode: generate PDF, upload, update profile ── */
       const el = wrapRef.current;
 
       /* prepare filled values */
@@ -610,34 +629,20 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
       const publicUrl = urlData?.publicUrl || "";
       console.log("PDF uploaded:", publicUrl);
 
-      /* update profile + insert document */
-      const targetId = isCountersign ? residentId : user.id;
       const now = new Date().toISOString().split("T")[0];
 
-      if (isCountersign) {
-        const { error: profErr } = await supabase
-          .from("profiles")
-          .update({
-            agreement_countersigned: true,
-            agreement_countersigned_date: now,
-            agreement_url: publicUrl,
-          })
-          .eq("id", targetId);
-        if (profErr) console.error("Profile update error:", profErr);
-      } else {
-        const { error: profErr } = await supabase
-          .from("profiles")
-          .update({
-            agreement_signed: true,
-            agreement_date: now,
-            agreement_url: publicUrl,
-          })
-          .eq("id", targetId);
-        if (profErr) console.error("Profile update error:", profErr);
-      }
+      const { error: profErr } = await supabase
+        .from("profiles")
+        .update({
+          agreement_signed: true,
+          agreement_date: now,
+          agreement_url: publicUrl,
+        })
+        .eq("id", user.id);
+      if (profErr) console.error("Profile update error:", profErr);
 
       const { error: docErr } = await supabase.from("documents").insert({
-        name: isCountersign ? "Residency Agreement \u2014 Countersigned" : "Residency Agreement \u2014 Signed",
+        name: "Residency Agreement \u2014 Signed",
         category: "Agreements",
         size: "PDF",
         date: now,
@@ -770,11 +775,9 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         </div>
       )}
 
-      {/* main agreement */}
-      {!loadingProfile && (
-      <div className="agreement-page" ref={wrapRef}>
-        {/* back button for countersign */}
-        {isCountersign && (
+      {/* ── COUNTERSIGN MODE: show signed PDF + company sig ── */}
+      {isCountersign && !loadingProfile && (
+        <div className="agreement-page" ref={wrapRef}>
           <div style={{ marginBottom: 16 }}>
             <button onClick={() => onNav && onNav("a-dash")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: T.textMuted, fontSize: 13 }}>
               <Icon name="back" size={16} color={T.textMuted} /> Back to Dashboard
@@ -784,11 +787,70 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
                 Countersigning agreement for <strong>{residentName}</strong>
               </p>
               <p style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
-                Review the agreement and add your company signature below. All resident fields are read-only.
+                Review the signed agreement below, then add your company signature.
               </p>
             </div>
           </div>
-        )}
+
+          <h1>FLOWE COLLECTIVE</h1>
+          <p className="ag-subtitle">Stylist Residency Program Agreement</p>
+
+          {/* Embed the signed PDF */}
+          {residentProfile?.agreement_url ? (
+            <div style={{ marginBottom: 24 }}>
+              <iframe
+                src={residentProfile.agreement_url}
+                style={{ width: "100%", height: 800, border: `1px solid ${T.lightLine}`, borderRadius: T.radiusSm }}
+                title="Signed Agreement"
+              />
+              <a href={residentProfile.agreement_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.gold, marginTop: 8, display: "inline-block" }}>
+                Open PDF in new tab
+              </a>
+            </div>
+          ) : (
+            <div style={{ padding: 32, textAlign: "center", color: T.textMuted, fontSize: 13, background: T.cream, borderRadius: T.radiusSm, marginBottom: 24 }}>
+              No signed agreement PDF found for this resident.
+            </div>
+          )}
+
+          {/* errors */}
+          {errors.length > 0 && (
+            <div style={{ background: T.dangerBg, border: `1px solid ${T.danger}`, borderRadius: T.radiusSm, padding: "16px 20px", marginBottom: 20 }}>
+              <strong style={{ color: T.danger, fontSize: 13 }}>Please fix the following:</strong>
+              <ul style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+                {errors.map((e, i) => <li key={i} style={{ color: T.danger, fontSize: 13 }}>{e}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* Company signature */}
+          <div className="ag-card">
+            <h2>Company Countersignature</h2>
+            <h3>Company &mdash; Flowe Beauty Interests LLC / Jordan Wang</h3>
+            <SigPad canvasRef={companySigRef} padRef={companyPad} label="Signature" />
+            <div style={{ marginTop: 12 }}>
+              <label className="ag-label">Date</label>
+              <input
+                className="ag-input"
+                type="date"
+                value={companyDate}
+                onChange={(e) => setCompanyDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="ag-actions">
+            <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Countersigning..." : "Countersign Agreement"}
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {/* ── SIGN MODE: full agreement form ── */}
+      {!isCountersign && !loadingProfile && (
+      <div className="agreement-page" ref={wrapRef}>
         <h1>FLOWE COLLECTIVE</h1>
         <p className="ag-subtitle">Stylist Residency Program Agreement</p>
 
@@ -1358,7 +1420,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         {/* ── Actions ── */}
         <div className="ag-actions">
           <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? (isCountersign ? "Countersigning..." : "Submitting...") : (isCountersign ? "Countersign Agreement" : "Submit Agreement")}
+            {submitting ? "Submitting..." : "Submit Agreement"}
           </Btn>
           <Btn variant="outline" onClick={handlePrint}>
             Print
