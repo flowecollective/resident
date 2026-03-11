@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 import { T, TC, CAT_COLORS, TECHNIQUE_STAGES, TIMING_STAGES, TECHNIQUE_COLORS, TIMING_COLORS, iSt, selSt } from "./theme";
 import { GlobalStyle } from "./GlobalStyle";
 import { Icon } from "./components/Icon";
