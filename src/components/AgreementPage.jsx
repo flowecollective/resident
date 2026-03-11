@@ -1196,6 +1196,86 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
           </p>
         </div>
 
+        {/* ── SIGNATURES ── */}
+        <div className="ag-card">
+          <h2>Signatures</h2>
+
+          {/* Resident signature */}
+          <h3>Resident</h3>
+          <div style={{ marginTop: 8 }}>
+            <label className="ag-label">Printed Name</label>
+            <input
+              className="ag-input"
+              value={residentPrintedName}
+              onChange={(e) => setResidentPrintedName(e.target.value)}
+              placeholder="Full legal name"
+            />
+            <div className="ag-filled-value" data-key="residentPrintedName" />
+          </div>
+          <SigPad canvasRef={residentSigRef} padRef={residentPad} label="Signature" />
+          <img className="ag-sig-image" data-key="residentSig" alt="Resident Signature" />
+          <div style={{ marginTop: 12 }}>
+            <label className="ag-label">Date</label>
+            <input
+              className="ag-input"
+              type="date"
+              value={residentDate}
+              onChange={(e) => setResidentDate(e.target.value)}
+            />
+            <div className="ag-filled-value" data-key="residentDate" />
+          </div>
+
+          {/* Company signature */}
+          <h3 style={{ marginTop: 32 }}>Company &mdash; Flowe Beauty Interests LLC / Jordan Wang</h3>
+
+          {!companyUnlocked ? (
+            <div className="ag-lock-box">
+              <svg width={24} height={24} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                <rect x="3" y="11" width="18" height="11" rx="2" stroke={T.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                <path d="M7 11V7a5 5 0 0110 0v4" stroke={T.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+              <p style={{ color: T.textMuted, fontSize: 13, margin: "8px 0 0" }}>
+                Enter the company password to unlock this section.
+              </p>
+              <div className="ag-lock-row">
+                <input
+                  className="ag-input"
+                  type="password"
+                  value={companyPass}
+                  onChange={(e) => {
+                    setCompanyPass(e.target.value);
+                    setPassError(false);
+                  }}
+                  placeholder="Password"
+                  style={{ maxWidth: 220 }}
+                  onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+                />
+                <Btn variant="primary" onClick={handleUnlock} style={{ whiteSpace: "nowrap" }}>
+                  Unlock
+                </Btn>
+              </div>
+              {passError && (
+                <p style={{ color: T.danger, fontSize: 12, marginTop: 8 }}>Incorrect password.</p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <SigPad canvasRef={companySigRef} padRef={companyPad} label="Signature" />
+              <img className="ag-sig-image" data-key="companySig" alt="Company Signature" />
+              <div style={{ marginTop: 12 }}>
+                <label className="ag-label">Date</label>
+                <input
+                  className="ag-input"
+                  type="date"
+                  value={companyDate}
+                  onChange={(e) => setCompanyDate(e.target.value)}
+                />
+                <div className="ag-filled-value" data-key="companyDate" />
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* ── EXHIBIT A ── */}
         <div className="ag-card">
           <h2>Exhibit A &mdash; Residency Program Structure</h2>
@@ -1275,86 +1355,6 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
             />
             <div className="ag-filled-value" data-key="exhibitDate" />
           </div>
-        </div>
-
-        {/* ── SIGNATURES ── */}
-        <div className="ag-card">
-          <h2>Signatures</h2>
-
-          {/* Resident signature */}
-          <h3>Resident</h3>
-          <div style={{ marginTop: 8 }}>
-            <label className="ag-label">Printed Name</label>
-            <input
-              className="ag-input"
-              value={residentPrintedName}
-              onChange={(e) => setResidentPrintedName(e.target.value)}
-              placeholder="Full legal name"
-            />
-            <div className="ag-filled-value" data-key="residentPrintedName" />
-          </div>
-          <SigPad canvasRef={residentSigRef} padRef={residentPad} label="Signature" />
-          <img className="ag-sig-image" data-key="residentSig" alt="Resident Signature" />
-          <div style={{ marginTop: 12 }}>
-            <label className="ag-label">Date</label>
-            <input
-              className="ag-input"
-              type="date"
-              value={residentDate}
-              onChange={(e) => setResidentDate(e.target.value)}
-            />
-            <div className="ag-filled-value" data-key="residentDate" />
-          </div>
-
-          {/* Company signature */}
-          <h3 style={{ marginTop: 32 }}>Company &mdash; Flowe Beauty Interests LLC / Jordan Wang</h3>
-
-          {!companyUnlocked ? (
-            <div className="ag-lock-box">
-              <svg width={24} height={24} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                <rect x="3" y="11" width="18" height="11" rx="2" stroke={T.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                <path d="M7 11V7a5 5 0 0110 0v4" stroke={T.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
-              <p style={{ color: T.textMuted, fontSize: 13, margin: "8px 0 0" }}>
-                Enter the company password to unlock this section.
-              </p>
-              <div className="ag-lock-row">
-                <input
-                  className="ag-input"
-                  type="password"
-                  value={companyPass}
-                  onChange={(e) => {
-                    setCompanyPass(e.target.value);
-                    setPassError(false);
-                  }}
-                  placeholder="Password"
-                  style={{ maxWidth: 220 }}
-                  onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-                />
-                <Btn variant="primary" onClick={handleUnlock} style={{ whiteSpace: "nowrap" }}>
-                  Unlock
-                </Btn>
-              </div>
-              {passError && (
-                <p style={{ color: T.danger, fontSize: 12, marginTop: 8 }}>Incorrect password.</p>
-              )}
-            </div>
-          ) : (
-            <div>
-              <SigPad canvasRef={companySigRef} padRef={companyPad} label="Signature" />
-              <img className="ag-sig-image" data-key="companySig" alt="Company Signature" />
-              <div style={{ marginTop: 12 }}>
-                <label className="ag-label">Date</label>
-                <input
-                  className="ag-input"
-                  type="date"
-                  value={companyDate}
-                  onChange={(e) => setCompanyDate(e.target.value)}
-                />
-                <div className="ag-filled-value" data-key="companyDate" />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ── Actions ── */}
