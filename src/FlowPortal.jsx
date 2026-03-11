@@ -1034,23 +1034,23 @@ const GUSTO_FIELDS = [
 ];
 
 const TraineeOnboarding = ({ user }) => {
-  const { showToast } = useData();
+  const { showToast, setUser } = useData();
   const [ob, setOb] = useState(null);
   const [loading, setLoading] = useState(true);
   const [gustoOpen, setGustoOpen] = useState(false);
   const [gustoFields, setGustoFields] = useState({});
 
-  // Load onboarding from Supabase
+  // Load onboarding fields from profiles table
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase.from("onboarding").select("*").eq("user_id", user.id).single();
+      const { data } = await supabase.from("profiles")
+        .select("agreement_signed, agreement_date, agreement_url, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields")
+        .eq("id", user.id).single();
       if (data) {
         setOb(data);
         setGustoFields(data.gusto_fields || {});
       } else {
-        // No row yet — create one
-        const { data: newRow } = await supabase.from("onboarding").insert({ user_id: user.id }).select().single();
-        setOb(newRow || { agreement_signed: false, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
+        setOb({ agreement_signed: false, enrollment_completed: false, gusto_completed: false, gusto_fields: {} });
       }
       setLoading(false);
     };
@@ -1058,7 +1058,7 @@ const TraineeOnboarding = ({ user }) => {
   }, [user.id]);
 
   const updateOb = async (updates) => {
-    const { data } = await supabase.from("onboarding").update(updates).eq("user_id", user.id).select().single();
+    const { data } = await supabase.from("profiles").update(updates).eq("id", user.id).select("agreement_signed, agreement_date, agreement_url, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_fields").single();
     if (data) setOb(data);
     return data;
   };

@@ -11,12 +11,7 @@ create table profiles (
   role text not null default 'resident' check (role in ('resident', 'admin')),
   cohort text,
   photo text,
-  created_at timestamptz default now()
-);
-
-create table onboarding (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references profiles(id) on delete cascade unique,
+  -- Onboarding fields (live on profile, not separate table)
   agreement_signed boolean default false,
   agreement_date date,
   agreement_url text,
@@ -131,7 +126,6 @@ create table messages (
 -- ROW LEVEL SECURITY
 
 alter table profiles enable row level security;
-alter table onboarding enable row level security;
 alter table tuition enable row level security;
 alter table payments enable row level security;
 alter table categories enable row level security;
@@ -150,10 +144,6 @@ $$ language sql security definer stable;
 
 create policy "profiles_select" on profiles for select using (true);
 create policy "profiles_update_own" on profiles for update using (auth.uid() = id);
-
-create policy "onboarding_select" on onboarding for select using (auth.uid() = user_id or is_admin());
-create policy "onboarding_insert" on onboarding for insert with check (auth.uid() = user_id);
-create policy "onboarding_update" on onboarding for update using (auth.uid() = user_id or is_admin());
 
 create policy "tuition_select" on tuition for select using (auth.uid() = user_id or is_admin());
 create policy "payments_select" on payments for select using (auth.uid() = user_id or is_admin());
