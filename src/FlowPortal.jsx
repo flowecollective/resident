@@ -6312,11 +6312,13 @@ const AdminTuition = ({ onNav }) => {
                       </span>
                     </div>
                     {r.payments.length > 0 && (
-                      <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
                         {r.payments.map((p) => (
-                          <span key={p.id} style={{ fontSize: "10px", padding: "3px 8px", background: T.white, borderRadius: T.radiusSm, color: T.textMuted }}>
-                            ${Number(p.amount).toLocaleString()} &middot; {p.date} {p.note ? `— ${p.note}` : ""}
-                          </span>
+                          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "11px", padding: "4px 10px", background: T.white, borderRadius: T.radiusSm }}>
+                            <span style={{ fontWeight: 600, color: T.text, minWidth: 60 }}>${Number(p.amount).toLocaleString()}</span>
+                            <span style={{ color: T.textMuted }}>{p.date}</span>
+                            {p.note && <span style={{ color: T.textLight, fontStyle: "italic", marginLeft: 4 }}>{p.note}</span>}
+                          </div>
                         ))}
                       </div>
                     )}
