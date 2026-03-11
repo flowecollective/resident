@@ -5804,9 +5804,9 @@ const AdminDocs = () => {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {docs.map((doc) => (
-            <Card key={doc.id} style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: T.radiusSm, background: doc.dataUrl ? T.successBg : doc.url ? "#4285f415" : T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name="file" size={18} color={doc.dataUrl ? T.success : doc.url ? "#4285f4" : T.gold} />
+            <Card key={doc.id} style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, cursor: doc.url ? "pointer" : "default" }} onClick={() => doc.url && window.open(doc.url, "_blank")}>
+              <div style={{ width: 40, height: 40, borderRadius: T.radiusSm, background: doc.url ? "#4285f415" : T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="file" size={18} color={doc.url ? "#4285f4" : T.gold} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: "14px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
