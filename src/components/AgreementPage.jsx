@@ -353,10 +353,14 @@ const AGREEMENT_CSS = `
 .agreement-page.pdf-mode .ag-sig-image {
   display: block !important;
 }
-.agreement-page.pdf-mode .exhibit-a,
-.agreement-page.pdf-mode .company-sig-break {
+.agreement-page.pdf-mode .exhibit-a {
   page-break-before: always;
   break-before: page;
+  height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
 /* success overlay */
@@ -649,7 +653,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
           image: { type: "jpeg", quality: 0.92 },
           html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
           jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"], before: [".exhibit-a", ".company-sig-break"], avoid: [".sig-block", ".day"] },
+          pagebreak: { mode: ["css", "legacy"], before: [".exhibit-a"], avoid: [".sig-block", ".day", ".ag-card.company-sig"] },
         };
 
         // eslint-disable-next-line no-undef
@@ -733,7 +737,7 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         image: { type: "jpeg", quality: 0.92 },
         html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"], before: [".exhibit-a", ".company-sig-break"], avoid: [".sig-block", ".day"] },
+        pagebreak: { mode: ["css", "legacy"], before: [".exhibit-a"], avoid: [".sig-block", ".day", ".ag-card.company-sig"] },
       };
 
       /* generate PDF blob */
@@ -1376,7 +1380,6 @@ export const AgreementPage = ({ user, onNav, mode = "sign", residentId }) => {
         </div>
 
         {/* ── Company Signature (separate card so countersign CSS can target it) ── */}
-        <div className="company-sig-break" />
         <div className="ag-card company-sig">
           <h2>Company Signature</h2>
           <h3>Company &mdash; Flowe Beauty Interests LLC / Jordan Wang</h3>
