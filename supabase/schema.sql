@@ -120,6 +120,7 @@ create table messages (
   to_user uuid not null references profiles(id),
   text text not null,
   read boolean default false,
+  archived boolean default false,
   created_at timestamptz default now()
 );
 

@@ -2549,11 +2549,12 @@ const TraineeDocs = () => {
 //  MESSAGES (shared)
 // ════════════════════════════════════════════
 const MsgPage = ({ user }) => {
-  const { residents } = useData();
+  const { residents, showToast } = useData();
   const [msg, setMsg] = useState("");
   const [messages, setMessages] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [sending, setSending] = useState(false);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
   const bottomRef = useRef(null);
 
   const isAdmin = user.role === "admin";
@@ -2586,6 +2587,7 @@ const MsgPage = ({ user }) => {
         .or(
           `and(from_id.eq.${myId},to_id.eq.${partnerId}),and(from_id.eq.${partnerId},to_id.eq.${myId})`
         )
+        .eq("archived", false)
         .order("time", { ascending: true });
       if (data) setMessages(data);
     };
@@ -2669,6 +2671,16 @@ const MsgPage = ({ user }) => {
     setSending(false);
   };
 
+  const archiveConversation = async () => {
+    if (!activeChat) return;
+    const ids = messages.map((m) => m.id);
+    if (ids.length === 0) return;
+    await supabase.from("messages").update({ archived: true }).in("id", ids);
+    setMessages([]);
+    setArchiveConfirm(false);
+    showToast("Conversation archived");
+  };
+
   const getPartnerName = (id) => {
     if (id === adminId) return "Flowe Educator";
     const r = residents.find((r) => r.id === id);
@@ -2743,9 +2755,16 @@ const MsgPage = ({ user }) => {
           <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.lightLine}`, display: "flex", alignItems: "center", gap: 10 }}>
             <p style={{ fontSize: "14px", fontWeight: 600 }}>{partnerName}</p>
             {isAdmin && activeChat && (
-              <span style={{ fontSize: "10px", color: T.textMuted, background: T.cream, padding: "2px 8px", borderRadius: 8 }}>
-                SMS + Portal
-              </span>
+              <>
+                <span style={{ fontSize: "10px", color: T.textMuted, background: T.cream, padding: "2px 8px", borderRadius: 8 }}>
+                  SMS + Portal
+                </span>
+                {messages.length > 0 && (
+                  <button onClick={() => setArchiveConfirm(true)} style={{ marginLeft: "auto", background: "none", border: `1px solid ${T.creamDark}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: "10px", fontWeight: 500, color: T.textMuted, display: "flex", alignItems: "center", gap: 4 }}>
+                    <Icon name="archive" size={12} color={T.textMuted} /> Clear & Archive
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -2809,6 +2828,27 @@ const MsgPage = ({ user }) => {
           </div>
         </Card>
       </div>
+
+      {/* Archive confirmation dialog */}
+      <Modal open={archiveConfirm} onClose={() => setArchiveConfirm(false)} title="Clear & Archive Conversation">
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "8px 0 16px" }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${T.warn}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name="alert-triangle" size={18} color={T.warn} />
+          </div>
+          <div>
+            <p style={{ fontSize: "13px", lineHeight: 1.5, marginBottom: 6 }}>
+              This will clear <strong>{messages.length} message{messages.length !== 1 ? "s" : ""}</strong> from the conversation with <strong>{partnerName}</strong>.
+            </p>
+            <p style={{ fontSize: "12px", color: T.textMuted, lineHeight: 1.5 }}>
+              Messages will be archived in the database and can be retrieved if needed, but will no longer appear in the chat.
+            </p>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <Btn variant="outline" onClick={() => setArchiveConfirm(false)}>Cancel</Btn>
+          <Btn onClick={archiveConversation} style={{ background: T.warn, borderColor: T.warn }}>Clear & Archive</Btn>
+        </div>
+      </Modal>
     </div>
   );
 };
