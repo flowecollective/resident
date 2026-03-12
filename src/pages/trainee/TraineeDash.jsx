@@ -1,13 +1,29 @@
+import { useState, useEffect } from "react";
 import { T, TC } from "../../theme";
 import { useData } from "../../context";
 import { getProgress, getSkillPct, isSkillComplete, getTraineeCats } from "../../utils";
 import { Card, Badge, ProgressBar, SectionTitle } from "../../components/ui";
+import { supabase } from "../../lib/supabase";
 
 export const TraineeDash = ({ user }) => {
-  const { schedule, residents, messages, masterProgram } = useData();
+  const { schedule, residents, masterProgram } = useData();
   const me = residents.find((r) => r.id === user.id) || residents[0];
   const progress = getProgress(me, masterProgram);
   const categories = getTraineeCats(me, masterProgram);
+
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    const loadUnread = async () => {
+      const { count } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("to_id", me.id)
+        .eq("read", false);
+      setUnread(count || 0);
+    };
+    loadUnread();
+  }, [me.id]);
 
   const today = "2026-03-05";
   const todayEvents = schedule.filter(
@@ -17,7 +33,6 @@ export const TraineeDash = ({ user }) => {
     .filter((e) => e.date > today && (e.assignTo === "all" || e.assignTo === me.id))
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
     .slice(0, 5);
-  const unread = messages.filter((m) => m.to === me.id && !m.read).length;
   const firstName = me.name.split(" ")[0];
 
   return (

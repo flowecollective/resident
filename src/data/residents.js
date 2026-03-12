@@ -6,6 +6,7 @@ export const INIT_RESIDENTS = [
     name: "Cheyenne Rollins",
     cohort: "Spring 2026",
     email: "cheyenne@flowecollective.com",
+    phone: "+15125550147",
     onboarding: {
       agreement: { signed: true, date: "2026-01-05", url: "" },
       enrollment: { completed: true, date: "2026-01-10", plan: "monthly" },
@@ -48,6 +49,7 @@ export const INIT_RESIDENTS = [
     name: "Aisha Williams",
     cohort: "Spring 2026",
     email: "aisha@flowecollective.com",
+    phone: "+15125550283",
     onboarding: {
       agreement: { signed: true, date: "2026-01-03", url: "" },
       enrollment: { completed: true, date: "2026-01-10", plan: "full" },
@@ -80,6 +82,7 @@ export const INIT_RESIDENTS = [
     name: "Jasmine Reyes",
     cohort: "Spring 2026",
     email: "jasmine@flowecollective.com",
+    phone: "+15125550000",
     onboarding: {
       agreement: { signed: true, date: "2026-01-12", url: "" },
       enrollment: { completed: true, date: "2026-01-15", plan: "monthly" },
@@ -120,6 +123,7 @@ export const INIT_RESIDENTS = [
     name: "Zara Mitchell",
     cohort: "Spring 2026",
     email: "zara@flowecollective.com",
+    phone: "+15125550344",
     onboarding: {
       agreement: { signed: true, date: "2026-01-08", url: "" },
       enrollment: { completed: true, date: "2026-01-15", plan: "monthly" },
