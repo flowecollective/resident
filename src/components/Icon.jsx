@@ -169,6 +169,13 @@ export const Icon = ({ name, size = 20, color = "currentColor" }) => {
         <path d="M8.5 12c2 0 2.5-1.5 3.5-1.5s1.5 1.5 3.5 1.5" {...p} />
       </>
     ),
+    target: (
+      <>
+        <circle cx="12" cy="12" r="10" {...p} />
+        <circle cx="12" cy="12" r="6" {...p} />
+        <circle cx="12" cy="12" r="2" {...p} />
+      </>
+    ),
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, pointerEvents: "none" }}>

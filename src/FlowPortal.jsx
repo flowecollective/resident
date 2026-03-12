@@ -3314,7 +3314,7 @@ const AdminDash = ({ onNav }) => {
                       const p = getSkillProgress(r, sid);
                       return (
                         <div key={sid} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: T.radiusSm, background: `${cc}08`, borderLeft: `2px solid ${cc}` }}>
-                          <Icon name="brain" size={10} color={T.gold} />
+                          <Icon name="target" size={10} color={T.gold} />
                           <span style={{ fontSize: "11px", fontWeight: 500, flex: 1 }}>{sk.name}</span>
                           <span style={{ fontSize: "9px", color: T.textMuted }}>{TECHNIQUE_STAGES[p.technique]}</span>
                         </div>
@@ -3439,7 +3439,7 @@ const AdminDash = ({ onNav }) => {
         <Card style={{ padding: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="brain" size={18} color={T.gold} /> Active Focus
+              <Icon name="target" size={18} color={T.gold} /> Active Focus
             </h3>
             <Badge color={T.gold}>{allFocus.length} skills</Badge>
           </div>
@@ -3685,7 +3685,7 @@ const AdminDash = ({ onNav }) => {
                           display: "flex", alignItems: "center", gap: 4,
                           cursor: "pointer",
                         }}>
-                          {isFocus && <Icon name="brain" size={9} color={T.gold} />}
+                          {isFocus && <Icon name="target" size={9} color={T.gold} />}
                           {sk.name}
                           <span style={{ color: T.textMuted, fontWeight: 400 }}>{TECHNIQUE_STAGES[p.technique].split(" ").slice(-1)[0]}</span>
                         </span>
@@ -5702,12 +5702,12 @@ const TraineeProfile = ({ traineeId, onNav }) => {
           <Card style={{ padding: 20, marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h4 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-                <Icon name="brain" size={16} color={T.gold} /> Current Focus
+                <Icon name="target" size={16} color={T.gold} /> Current Focus
               </h4>
               <span style={{ fontSize: "10px", color: T.textMuted }}>{(r.focusSkills || []).length}/3 pinned</span>
             </div>
             {(r.focusSkills || []).length === 0 ? (
-              <p style={{ fontSize: "12px", color: T.textMuted }}>No focus skills pinned. Use the <Icon name="brain" size={11} color={T.textMuted} /> icon on skills below to pin up to 3.</p>
+              <p style={{ fontSize: "12px", color: T.textMuted }}>No focus skills pinned. Use the <Icon name="target" size={11} color={T.textMuted} /> icon on skills below to pin up to 3.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {(r.focusSkills || []).map((fsId) => {
@@ -5836,7 +5836,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                       opacity: focusCount >= 3 && !isFocus ? 0.3 : 1,
                                     }}
                                   >
-                                    <Icon name="brain" size={14} color={isFocus ? T.gold : T.textMuted} />
+                                    <Icon name="target" size={14} color={isFocus ? T.gold : T.textMuted} />
                                   </button>
                                 )}
                                 {isService && !complete && (
