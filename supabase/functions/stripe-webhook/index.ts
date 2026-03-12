@@ -43,6 +43,11 @@ serve(async (req) => {
       return new Response("No user ID", { status: 200 });
     }
 
+    // Look up user's tenant_id
+    const { data: userProfile } = await supabase
+      .from("profiles").select("tenant_id").eq("id", userId).single();
+    const tenantId = userProfile?.tenant_id;
+
     const amount = (session.amount_total || 0) / 100;
     const discount = ((session as any).total_details?.amount_discount || 0) / 100;
     const plan = session.mode === "subscription" ? "monthly" : "full";
@@ -62,7 +67,7 @@ serve(async (req) => {
 
     // Upsert tuition record
     await supabase.from("tuition").upsert(
-      { user_id: userId, plan, total },
+      { user_id: userId, plan, total, tenant_id: tenantId },
       { onConflict: "user_id" }
     );
 
@@ -83,6 +88,7 @@ serve(async (req) => {
 
       await supabase.from("payments").insert({
         user_id: userId,
+        tenant_id: tenantId,
         amount,
         date: new Date().toISOString().split("T")[0],
         note: discount > 0
@@ -94,7 +100,7 @@ serve(async (req) => {
     } else {
       // 100% discount — mark as fully paid with $0 tuition
       await supabase.from("tuition").upsert(
-        { user_id: userId, plan, total: 0 },
+        { user_id: userId, plan, total: 0, tenant_id: tenantId },
         { onConflict: "user_id" }
       );
     }
@@ -131,13 +137,15 @@ serve(async (req) => {
     const customerEmail = invoice.customer_email;
     let userId: string | null = null;
 
+    let invTenantId: string | null = null;
     if (customerEmail) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, tenant_id")
         .eq("email", customerEmail)
         .single();
       userId = profile?.id || null;
+      invTenantId = profile?.tenant_id || null;
     }
 
     if (!userId) {
@@ -168,6 +176,7 @@ serve(async (req) => {
 
     await supabase.from("payments").insert({
       user_id: userId,
+      tenant_id: invTenantId,
       amount,
       date: new Date().toISOString().split("T")[0],
       note: `Month ${monthNum}`,

@@ -7463,6 +7463,7 @@ const App = () => {
         role: profile.role,
         cohort: profile.cohort,
         photo: profile.photo,
+        tenant_id: profile.tenant_id,
       });
       setPage(profile.role === "admin" ? "a-dash" : "dash");
       // Fetch documents from Supabase
