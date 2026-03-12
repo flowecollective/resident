@@ -2753,13 +2753,13 @@ const MsgPage = ({ user }) => {
 
       <div style={{ display: "flex", gap: 16 }}>
         {isAdmin && (
-          <Card style={{ width: 220, padding: 0, flexShrink: 0, overflow: "hidden" }}>
+          <Card style={{ width: 220, padding: 0, flexShrink: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.lightLine}` }}>
               <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.8px", color: T.textMuted, textTransform: "uppercase" }}>
                 Residents
               </p>
             </div>
-            <div style={{ maxHeight: 440, overflowY: "auto" }}>
+            <div style={{ flex: 1, overflowY: "auto" }}>
               {residents.map((r) => (
                 <div
                   key={r.id}
