@@ -116,12 +116,13 @@ create table documents (
 
 create table messages (
   id uuid primary key default gen_random_uuid(),
-  from_user uuid not null references profiles(id),
-  to_user uuid not null references profiles(id),
+  from_id uuid not null references profiles(id),
+  to_id uuid not null references profiles(id),
   text text not null,
+  channel text default 'portal',
   read boolean default false,
   archived boolean default false,
-  created_at timestamptz default now()
+  time timestamptz default now()
 );
 
 create table notifications (
@@ -191,9 +192,9 @@ create policy "schedule_delete_admin" on schedule for delete using (is_admin());
 create policy "documents_select" on documents for select using (true);
 create policy "documents_admin_insert" on documents for insert with check (is_admin());
 
-create policy "messages_select" on messages for select using (auth.uid() = from_user or auth.uid() = to_user);
-create policy "messages_insert" on messages for insert with check (auth.uid() = from_user);
-create policy "messages_update_read" on messages for update using (auth.uid() = to_user);
+create policy "messages_select" on messages for select using (auth.uid() = from_id or auth.uid() = to_id);
+create policy "messages_insert" on messages for insert with check (auth.uid() = from_id);
+create policy "messages_update" on messages for update using (auth.uid() = from_id or auth.uid() = to_id);
 
 create policy "notifications_select" on notifications for select using (is_admin());
 create policy "notifications_insert" on notifications for insert with check (true);

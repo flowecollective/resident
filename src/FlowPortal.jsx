@@ -2587,7 +2587,7 @@ const MsgPage = ({ user }) => {
         .or(
           `and(from_id.eq.${myId},to_id.eq.${partnerId}),and(from_id.eq.${partnerId},to_id.eq.${myId})`
         )
-        .eq("archived", false)
+        .neq("archived", true)
         .order("time", { ascending: true });
       if (data) setMessages(data);
     };
