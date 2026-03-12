@@ -2865,11 +2865,16 @@ const MsgPage = ({ user }) => {
 
     if (!error) {
       if (isAdmin) {
-        fetch("/api/sms/send", {
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
           body: JSON.stringify({ to_user_id: activeChat, text: msg.trim() }),
-        }).catch(() => {});
+        }).then(async (res) => {
+          if (!res.ok) console.error("SMS send failed:", await res.text());
+        }).catch((err) => console.error("SMS send error:", err));
       }
       setMsg("");
     }
