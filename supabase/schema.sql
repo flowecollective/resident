@@ -40,6 +40,7 @@ create table payments (
   date date not null default current_date,
   note text,
   stripe_payment_id text,
+  receipt_url text,
   created_at timestamptz default now()
 );
 

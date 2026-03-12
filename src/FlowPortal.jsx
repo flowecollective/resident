@@ -6564,6 +6564,11 @@ const TraineeTuition = ({ user }) => {
                   <p style={{ fontSize: "11px", color: T.textMuted }}>{pay.date}{pay.method ? ` · ${pay.method}` : ""}</p>
                 </div>
                 <p style={{ fontSize: "15px", fontWeight: 600, color: T.success }}>+${Number(pay.amount).toLocaleString()}</p>
+                {pay.receipt_url && (
+                  <a href={pay.receipt_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "11px", color: T.gold, fontWeight: 500, textDecoration: "none" }} onClick={(e) => e.stopPropagation()}>
+                    Receipt
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -6724,6 +6729,7 @@ const AdminTuition = ({ onNav }) => {
                                 <span style={{ fontWeight: 600, color: T.text, minWidth: 60 }}>${Number(p.amount).toLocaleString()}</span>
                                 <span style={{ color: T.textMuted }}>{p.date}</span>
                                 {p.note && <span style={{ color: T.textLight, fontStyle: "italic" }}>{p.note}</span>}
+                                {p.receipt_url && <a href={p.receipt_url} target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 500, textDecoration: "none", marginLeft: "auto" }} onClick={(e) => e.stopPropagation()}>Receipt</a>}
                               </div>
                             ))}
                           </div>

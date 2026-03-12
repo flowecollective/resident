@@ -68,6 +68,19 @@ serve(async (req) => {
 
     // Insert payment record (only if amount > 0)
     if (amount > 0) {
+      // Fetch receipt URL from the charge
+      let receiptUrl: string | null = null;
+      const piId = session.payment_intent as string;
+      if (piId) {
+        try {
+          const pi = await stripe.paymentIntents.retrieve(piId);
+          if (pi.latest_charge) {
+            const charge = await stripe.charges.retrieve(pi.latest_charge as string);
+            receiptUrl = charge.receipt_url || null;
+          }
+        } catch (e) { console.error("Receipt fetch error:", e); }
+      }
+
       await supabase.from("payments").insert({
         user_id: userId,
         amount,
@@ -75,7 +88,8 @@ serve(async (req) => {
         note: discount > 0
           ? `${plan === "full" ? "Paid in full" : "Month 1"} (promo: -$${discount.toLocaleString()})`
           : (plan === "full" ? "Paid in full" : "Month 1"),
-        stripe_payment_id: session.payment_intent as string || session.subscription as string,
+        stripe_payment_id: piId || session.subscription as string,
+        receipt_url: receiptUrl,
       });
     } else {
       // 100% discount — mark as fully paid with $0 tuition
@@ -139,12 +153,26 @@ serve(async (req) => {
 
     const monthNum = (count || 0) + 1;
 
+    // Fetch receipt URL from the charge
+    let receiptUrl: string | null = null;
+    const invPiId = invoice.payment_intent as string;
+    if (invPiId) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(invPiId);
+        if (pi.latest_charge) {
+          const charge = await stripe.charges.retrieve(pi.latest_charge as string);
+          receiptUrl = charge.receipt_url || null;
+        }
+      } catch (e) { console.error("Receipt fetch error:", e); }
+    }
+
     await supabase.from("payments").insert({
       user_id: userId,
       amount,
       date: new Date().toISOString().split("T")[0],
       note: `Month ${monthNum}`,
-      stripe_payment_id: invoice.payment_intent as string || invoice.id,
+      stripe_payment_id: invPiId || invoice.id,
+      receipt_url: receiptUrl,
     });
 
     console.log(`Invoice paid for user ${userId}: $${amount} (Month ${monthNum})`);
