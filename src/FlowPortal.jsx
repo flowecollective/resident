@@ -5450,65 +5450,105 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 
   return (
     <div className="fade-up">
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button onClick={() => onNav("a-trainees")} style={{ background: T.goldMuted, border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <Icon name="back" size={18} color={T.gold} />
-        </button>
-        <div style={{ cursor: "pointer" }} onClick={() => setPhotoModal(true)}>
-          <Avatar name={r.name} size={48} photo={r.photo} />
+      {/* Back button */}
+      <button onClick={() => onNav("a-trainees")} style={{ background: T.goldMuted, border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginBottom: 16 }}>
+        <Icon name="back" size={18} color={T.gold} />
+      </button>
+
+      {/* Profile Card */}
+      <Card style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
+        <div style={{ background: `linear-gradient(135deg, ${T.charcoal}, ${T.charcoal}ee)`, padding: "28px 28px 20px", display: "flex", gap: 20, alignItems: "flex-start" }}>
+          <div style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => setPhotoModal(true)}>
+            <Avatar name={r.name} size={72} photo={r.photo} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontFamily: T.fontD, fontSize: "26px", fontWeight: 600, color: T.cream, marginBottom: 4 }}>{r.name}</h2>
+            <p style={{ fontSize: "12px", color: "rgba(250,246,240,0.5)", marginBottom: 12 }}>Resident</p>
+            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Progress</span>
+                <span style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 600, color: T.gold, lineHeight: 1 }}>{pct}%</span>
+                <span style={{ fontSize: "10px", color: "rgba(250,246,240,0.5)" }}>{done}/{total} skills</span>
+              </div>
+              <div style={{ width: 1, background: "rgba(250,246,240,0.1)", alignSelf: "stretch" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Services</span>
+                <span style={{ fontSize: "15px", fontWeight: 600, color: T.cream }}>{completedServices}/{serviceSkills.length}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Knowledge</span>
+                <span style={{ fontSize: "15px", fontWeight: 600, color: T.cream }}>{completedKnowledge}/{knowledgeSkills.length}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Time Logs</span>
+                <span style={{ fontSize: "15px", fontWeight: 600, color: T.cream }}>{totalLogEntries}</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <h2 style={{ fontFamily: T.fontD, fontSize: "28px", fontWeight: 600 }}>{r.name}</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "13px", color: T.textMuted }}>
-            <span>{r.email} · </span>
-            {editCohort ? (
-              <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-                <input value={cohortVal} onChange={(e) => setCohortVal(e.target.value)} list="cohort-options" style={{ ...iSt, fontSize: "12px", padding: "2px 8px", width: 140 }} autoFocus onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+        <div style={{ padding: "16px 28px", display: "flex", gap: 20, flexWrap: "wrap", background: T.white, borderTop: `1px solid ${T.lightLine}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 180 }}>
+            <Icon name="mail" size={14} color={T.textMuted} />
+            <div>
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted }}>Email</p>
+              <p style={{ fontSize: "13px" }}>{r.email}</p>
+            </div>
+          </div>
+          <div style={{ width: 1, background: T.lightLine, alignSelf: "stretch" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 140 }}>
+            <Icon name="calendar" size={14} color={T.textMuted} />
+            <div>
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted }}>Cohort</p>
+              {editCohort ? (
+                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  <input value={cohortVal} onChange={(e) => setCohortVal(e.target.value)} list="cohort-options" style={{ ...iSt, fontSize: "12px", padding: "2px 6px", width: 120 }} autoFocus onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const v = cohortVal.trim() || r.cohort;
+                      setResidents((p) => p.map((x) => x.id === r.id ? { ...x, cohort: v } : x));
+                      supabase.from("profiles").update({ cohort: v }).eq("id", r.id);
+                      setEditCohort(false);
+                      showToast("Cohort updated");
+                    }
+                    if (e.key === "Escape") setEditCohort(false);
+                  }} />
+                  <datalist id="cohort-options">
+                    {[...new Set(residents.map((x) => x.cohort).filter(Boolean))].map((c) => <option key={c} value={c} />)}
+                  </datalist>
+                  <button onClick={() => {
                     const v = cohortVal.trim() || r.cohort;
                     setResidents((p) => p.map((x) => x.id === r.id ? { ...x, cohort: v } : x));
                     supabase.from("profiles").update({ cohort: v }).eq("id", r.id);
                     setEditCohort(false);
                     showToast("Cohort updated");
-                  }
-                  if (e.key === "Escape") setEditCohort(false);
-                }} />
-                <datalist id="cohort-options">
-                  {[...new Set(residents.map((x) => x.cohort).filter(Boolean))].map((c) => <option key={c} value={c} />)}
-                </datalist>
-                <button onClick={() => {
-                  const v = cohortVal.trim() || r.cohort;
-                  setResidents((p) => p.map((x) => x.id === r.id ? { ...x, cohort: v } : x));
-                  supabase.from("profiles").update({ cohort: v }).eq("id", r.id);
-                  setEditCohort(false);
-                  showToast("Cohort updated");
-                }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
-                <button onClick={() => setEditCohort(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
-              </span>
-            ) : (
-              <span onClick={() => { setCohortVal(r.cohort || ""); setEditCohort(true); }} style={{ cursor: "pointer", borderBottom: "1px dashed " + T.textMuted }}>{r.cohort || "No cohort"}</span>
-            )}
-            <span> · </span>
-            {editPhone ? (
-              <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-                <input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} placeholder="+1XXXXXXXXXX" style={{ ...iSt, fontSize: "12px", padding: "2px 8px", width: 140 }} autoFocus onKeyDown={(e) => {
-                  if (e.key === "Enter") savePhone();
-                  if (e.key === "Escape") setEditPhone(false);
-                }} />
-                <button onClick={savePhone} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
-                <button onClick={() => setEditPhone(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
-              </span>
-            ) : (
-              <span onClick={() => { setPhoneVal(savedPhone); setEditPhone(true); }} style={{ cursor: "pointer", borderBottom: "1px dashed " + T.textMuted }}>{savedPhone || "Add phone"}</span>
-            )}
+                  }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
+                  <button onClick={() => setEditCohort(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
+                </span>
+              ) : (
+                <p onClick={() => { setCohortVal(r.cohort || ""); setEditCohort(true); }} style={{ fontSize: "13px", cursor: "pointer", borderBottom: "1px dashed " + T.textMuted, display: "inline" }}>{r.cohort || "No cohort"}</p>
+              )}
+            </div>
+          </div>
+          <div style={{ width: 1, background: T.lightLine, alignSelf: "stretch" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 140 }}>
+            <Icon name="send" size={14} color={T.textMuted} />
+            <div>
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted }}>Phone</p>
+              {editPhone ? (
+                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  <input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} placeholder="(XXX) XXX-XXXX" style={{ ...iSt, fontSize: "12px", padding: "2px 6px", width: 130 }} autoFocus onKeyDown={(e) => {
+                    if (e.key === "Enter") savePhone();
+                    if (e.key === "Escape") setEditPhone(false);
+                  }} />
+                  <button onClick={savePhone} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
+                  <button onClick={() => setEditPhone(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
+                </span>
+              ) : (
+                <p onClick={() => { setPhoneVal(savedPhone); setEditPhone(true); }} style={{ fontSize: "13px", cursor: "pointer", borderBottom: "1px dashed " + T.textMuted, display: "inline" }}>{savedPhone || "Add phone"}</p>
+              )}
+            </div>
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ fontFamily: T.fontD, fontSize: "32px", fontWeight: 600, color: T.gold, lineHeight: 1 }}>{pct}%</p>
-          <p style={{ fontSize: "11px", color: T.textMuted }}>{done}/{total} complete</p>
-        </div>
-      </div>
+      </Card>
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 24, background: T.white, borderRadius: T.radiusSm, padding: 4, border: "1px solid " + T.charcoalMuted, width: "fit-content" }}>
@@ -5524,30 +5564,6 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 
       {tab === "overview" && (
         <div className="fade-up">
-          {/* Stat Cards */}
-          <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
-            <Card style={{ padding: 18, textAlign: "center" }}>
-              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted, marginBottom: 6 }}>Overall</p>
-              <p style={{ fontFamily: T.fontD, fontSize: "28px", fontWeight: 600, color: T.gold, lineHeight: 1 }}>{pct}%</p>
-              <div style={{ marginTop: 8 }}><ProgressBar value={pct} height={6} /></div>
-            </Card>
-            <Card style={{ padding: 18, textAlign: "center" }}>
-              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted, marginBottom: 6 }}>Services</p>
-              <p style={{ fontFamily: T.fontD, fontSize: "28px", fontWeight: 600, color: T.success, lineHeight: 1 }}>{completedServices}/{serviceSkills.length}</p>
-              <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>mastered</p>
-            </Card>
-            <Card style={{ padding: 18, textAlign: "center" }}>
-              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted, marginBottom: 6 }}>Knowledge</p>
-              <p style={{ fontFamily: T.fontD, fontSize: "28px", fontWeight: 600, color: completedKnowledge === knowledgeSkills.length ? T.success : T.warn, lineHeight: 1 }}>{completedKnowledge}/{knowledgeSkills.length}</p>
-              <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>complete</p>
-            </Card>
-            <Card style={{ padding: 18, textAlign: "center" }}>
-              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted, marginBottom: 6 }}>Time Logs</p>
-              <p style={{ fontFamily: T.fontD, fontSize: "28px", fontWeight: 600, color: T.charcoal, lineHeight: 1 }}>{totalLogEntries}</p>
-              <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>{modelEntries} on models</p>
-            </Card>
-          </div>
-
           {/* Current Focus */}
           <Card style={{ padding: 20, marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
