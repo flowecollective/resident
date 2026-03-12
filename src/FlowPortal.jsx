@@ -9,6 +9,14 @@ import { AgreementPage } from "./components/AgreementPage";
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
+const COHORT_RING_COLORS = ["#6B8E9B", "#B07D62", "#7B6B8D", "#5E8C6A", "#C2785C", "#5B7FA5", "#9B6B6B", "#6A8F7B"];
+const cohortColor = (cohort) => {
+  if (!cohort) return undefined;
+  let h = 0;
+  for (let i = 0; i < cohort.length; i++) h = ((h << 5) - h + cohort.charCodeAt(i)) | 0;
+  return COHORT_RING_COLORS[Math.abs(h) % COHORT_RING_COLORS.length];
+};
+
 // ════════════════════════════════════════════
 //  PHOTO CROP MODAL
 //  Shows the full image scaled to fit a box.
@@ -3101,7 +3109,7 @@ const AdminDash = ({ onNav }) => {
           return (
             <Card key={r.id} style={{ padding: 18, cursor: "pointer", border: isExpanded ? `1.5px solid ${T.gold}` : undefined, transition: "border .2s" }} onClick={() => setExpandedTrainee(isExpanded ? null : r.id)}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <Avatar name={r.name} size={32} photo={r.photo} />
+                <Avatar name={r.name} size={32} photo={r.photo} ringColor={cohortColor(r.cohort)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: "13px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</p>
                   <p style={{ fontSize: "10px", color: T.textMuted }}>{r.done}/{r.total} skills</p>
@@ -3137,7 +3145,7 @@ const AdminDash = ({ onNav }) => {
           <Card className="fade-up" style={{ padding: 22, marginBottom: 24 }}>
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-              <Avatar name={r.name} size={48} photo={r.photo} />
+              <Avatar name={r.name} size={48} photo={r.photo} ringColor={cohortColor(r.cohort)} />
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 600 }}>{r.name}</h3>
                 <p style={{ fontSize: "12px", color: T.textMuted }}>{r.cohort} · {r.email}</p>
@@ -3431,7 +3439,7 @@ const AdminDash = ({ onNav }) => {
                   border: `1px solid ${notif.read ? T.lightLine : T.danger + "20"}`,
                   cursor: "pointer",
                 }} onClick={() => openReview(notif)}>
-                  <Avatar name={r?.name} size={28} photo={r?.photo} />
+                  <Avatar name={r?.name} size={28} photo={r?.photo} ringColor={cohortColor(r?.cohort)} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: "12px", fontWeight: 500 }}>
                       <span style={{ fontWeight: 600 }}>{r?.name?.split(" ")[0]}</span> logged practice
@@ -3494,7 +3502,7 @@ const AdminDash = ({ onNav }) => {
                       {/* Header */}
                       <div style={{ padding: "8px 14px", background: t.needsEducator ? `${T.warn}08` : `${cc}08`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <Avatar name={t.resident.name} size={22} photo={t.resident.photo} />
+                          <Avatar name={t.resident.name} size={22} photo={t.resident.photo} ringColor={cohortColor(t.resident.cohort)} />
                           <span style={{ fontSize: "12px", fontWeight: 600 }}>{t.resident.name.split(" ")[0]}</span>
                           <span style={{ fontSize: "11px", color: cc, fontWeight: 500 }}>{t.skill.name}</span>
                           <span style={{ fontSize: "10px", color: T.textMuted }}>{t.log.minutes}min {t.log.type} · {t.log.date}</span>
@@ -3540,7 +3548,7 @@ const AdminDash = ({ onNav }) => {
             return (
               <div key={r.id} style={{ padding: "14px 0", borderBottom: i < traineeStatus.length - 1 ? `1px solid ${T.lightLine}` : "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <Avatar name={r.name} size={36} photo={r.photo} />
+                  <Avatar name={r.name} size={36} photo={r.photo} ringColor={cohortColor(r.cohort)} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: "14px", fontWeight: 500 }}>{r.name}</p>
                     <p style={{ fontSize: "11px", color: T.textMuted }}>{r.done}/{r.total} skills · {r.cohort}</p>
@@ -3625,7 +3633,7 @@ const AdminDash = ({ onNav }) => {
           return (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "10px 12px", borderRadius: T.radiusSm, background: T.cream }}>
-                <Avatar name={r?.name} size={28} photo={r?.photo} />
+                <Avatar name={r?.name} size={28} photo={r?.photo} ringColor={cohortColor(r?.cohort)} />
                 <div>
                   <p style={{ fontSize: "13px", fontWeight: 500 }}>{r?.name}</p>
                   {sk && <p style={{ fontSize: "11px", color: T.gold }}>{sk.name}</p>}
@@ -3662,7 +3670,7 @@ const AdminDash = ({ onNav }) => {
             <>
               {/* Trainee + Skill header */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "12px 14px", borderRadius: T.radiusSm, background: `${cc}08`, borderLeft: `3px solid ${cc}` }}>
-                <Avatar name={r?.name} size={32} photo={r?.photo} />
+                <Avatar name={r?.name} size={32} photo={r?.photo} ringColor={cohortColor(r?.cohort)} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: "14px", fontWeight: 600 }}>{r?.name}</p>
                   <p style={{ fontSize: "12px", color: cc, fontWeight: 500 }}>{sk?.name || "Unknown skill"}</p>
@@ -5204,7 +5212,7 @@ const AdminTrainees = ({ onNav }) => {
                     const { pct, done, total } = getProgress(r, masterProgram);
                     return (
                       <div key={r.id} style={{ padding: "14px 22px", display: "flex", alignItems: "center", gap: 14, borderBottom: i < members.length - 1 ? `1px solid ${T.lightLine}` : "none" }}>
-                        <Avatar name={r.name} size={36} photo={r.photo} />
+                        <Avatar name={r.name} size={36} photo={r.photo} ringColor={cohortColor(r.cohort)} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.name}</p>
                           <p style={{ fontSize: "11px", color: T.textMuted }}>{r.email}</p>
@@ -5529,7 +5537,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
         {/* Identity row */}
         <div style={{ padding: "20px 28px", display: "flex", gap: 16, alignItems: "center", borderBottom: `1px solid ${T.lightLine}` }}>
           <div style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => setPhotoModal(true)}>
-            <Avatar name={r.name} size={48} photo={r.photo} />
+            <Avatar name={r.name} size={48} photo={r.photo} ringColor={cohortColor(r.cohort)} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 600 }}>{r.name}</h2>
@@ -6050,7 +6058,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
           <button onClick={() => onNav("a-trainees")} style={{ background: T.goldMuted, border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <Icon name="back" size={18} color={T.gold} />
           </button>
-          <Avatar name={r.name} size={44} photo={r.photo} />
+          <Avatar name={r.name} size={44} photo={r.photo} ringColor={cohortColor(r.cohort)} />
           <div style={{ flex: 1 }}>
             <h2 style={{ fontFamily: T.fontD, fontSize: "26px", fontWeight: 600 }}>Build Track — {r.name}</h2>
             <p style={{ color: T.textMuted, fontSize: "13px" }}>{total} skills assigned · {pct}% complete</p>
@@ -6690,7 +6698,7 @@ const AdminTuition = ({ onNav }) => {
               const st = STATUS_STYLES[r.status];
               return (
                 <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: T.radiusSm, background: T.cream }}>
-                  <Avatar name={r.name} size={40} photo={r.photo} />
+                  <Avatar name={r.name} size={40} photo={r.photo} ringColor={cohortColor(r.cohort)} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <p style={{ fontSize: "14px", fontWeight: 500 }}>{r.name}</p>

@@ -45,8 +45,9 @@ export const ProgressBar = ({ value, height = 6, color = T.gold }) => (
   </div>
 );
 
-export const Avatar = ({ name, size = 36, photo }) => {
+export const Avatar = ({ name, size = 36, photo, ringColor }) => {
   const initials = name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "?";
+  const ring = ringColor ? { boxShadow: `0 0 0 2.5px ${ringColor}`, border: `2px solid ${T.white}` } : {};
   if (photo) {
     return (
       <img
@@ -58,6 +59,7 @@ export const Avatar = ({ name, size = 36, photo }) => {
           borderRadius: "50%",
           objectFit: "cover",
           flexShrink: 0,
+          ...ring,
         }}
       />
     );
@@ -77,6 +79,7 @@ export const Avatar = ({ name, size = 36, photo }) => {
         color: T.white,
         fontFamily: T.fontD,
         flexShrink: 0,
+        ...ring,
       }}
     >
       {initials}
