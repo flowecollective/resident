@@ -5115,10 +5115,6 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 
   const { total, done, pct } = getProgress(r, masterProgram);
   const cats = getTraineeCats(r, masterProgram);
-  const tuition = r.tuition || { plan: "monthly", total: 4950, payments: [] };
-  const tuitionPaid = tuition.payments.reduce((a, p) => a + p.amount, 0);
-  const tuitionRemaining = Math.max(0, tuition.total - tuitionPaid);
-
   const allLogs = Object.entries(r.timingLogs || {});
   const totalLogEntries = allLogs.reduce((a, [, logs]) => a + logs.length, 0);
   const modelEntries = allLogs.reduce((a, [, logs]) => a + logs.filter((l) => l.type === "model").length, 0);
@@ -5324,18 +5320,6 @@ const TraineeProfile = ({ traineeId, onNav }) => {
               <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>{modelEntries} on models</p>
             </Card>
           </div>
-
-          {/* Tuition Summary */}
-          <Card style={{ padding: 20, marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <h4 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600 }}>Tuition</h4>
-              <Badge color={tuitionRemaining <= 0 ? T.success : T.warn}>{tuitionRemaining <= 0 ? "Paid in Full" : "Balance Due"}</Badge>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ flex: 1 }}><ProgressBar value={tuition.total ? Math.round((tuitionPaid / tuition.total) * 100) : 0} height={8} color={tuitionRemaining <= 0 ? T.success : T.gold} /></div>
-              <span style={{ fontSize: "12px", fontWeight: 600, color: T.textMuted }}>${tuitionPaid.toLocaleString()} / ${tuition.total.toLocaleString()}</span>
-            </div>
-          </Card>
 
           {/* Current Focus */}
           <Card style={{ padding: 20, marginBottom: 20 }}>
