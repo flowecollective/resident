@@ -7425,19 +7425,16 @@ const App = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [page, setPage] = useState("dash");
   const [masterProgram, setMasterProgram] = useState([]);
-  const [presets, setPresets] = useState(INIT_PRESETS);
+  const [presets, setPresets] = useState([]);
   const [residents, setResidents] = useState([]);
-  const [schedule, setSchedule] = useState(INIT_SCHEDULE);
+  const [schedule, setSchedule] = useState([]);
   const [docs, setDocs] = useState([]);
-  const [messages, setMessages] = useState(INIT_MESSAGES);
+  const [messages, setMessages] = useState([]);
   const [gcalConnected, setGcalConnected] = useState(!!localStorage.getItem("gcal_token"));
   const [gcalEvents, setGcalEvents] = useState([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState({ message: "", visible: false });
-  const [notifications, setNotifications] = useState([
-    { id: "n1", type: "practice", residentId: "r1", skillId: "sk1", logIdx: 3, read: false, reviewed: false, ts: "2026-03-03T14:30:00" },
-    { id: "n2", type: "practice", residentId: "r1", skillId: "sk2", logIdx: 1, read: false, reviewed: false, ts: "2026-03-04T11:00:00" },
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   const showToast = (msg) => {
     setToast({ message: msg, visible: true });
