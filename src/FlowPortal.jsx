@@ -5200,10 +5200,35 @@ const AdminMaster = () => {
 const AdminTrainees = ({ onNav }) => {
   const { residents, setResidents, masterProgram, showToast } = useData();
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", cohort: "Spring 2026", photo: null });
+  const [form, setForm] = useState({ name: "", email: "", cohort: "", photo: null });
   const [photoCropOpen, setPhotoCropOpen] = useState(false);
+  const [cohortModal, setCohortModal] = useState(false);
+  const [newCohort, setNewCohort] = useState("");
+  const [cohorts, setCohorts] = useState([]);
 
-  const openNew = () => { setForm({ name: "", email: "", cohort: "Spring 2026", photo: null }); setModal(true); };
+  // Derive cohorts from residents + any manually created empty ones
+  useEffect(() => {
+    const fromResidents = [...new Set(residents.map((r) => r.cohort).filter(Boolean))];
+    setCohorts((prev) => [...new Set([...prev, ...fromResidents])].sort());
+  }, [residents]);
+
+  const addCohort = () => {
+    const name = newCohort.trim();
+    if (!name || cohorts.includes(name)) return;
+    setCohorts((p) => [...p, name].sort());
+    setNewCohort("");
+    setCohortModal(false);
+    showToast(`Cohort "${name}" created`);
+  };
+
+  const removeCohort = (name) => {
+    const inUse = residents.some((r) => r.cohort === name);
+    if (inUse) { showToast("Remove all trainees from this cohort first"); return; }
+    setCohorts((p) => p.filter((c) => c !== name));
+    showToast("Cohort removed");
+  };
+
+  const openNew = (cohort) => { setForm({ name: "", email: "", cohort: cohort || "", photo: null }); setModal(true); };
   const save = () => {
     if (!form.name.trim()) return;
     setResidents((p) => [...p, { id: `r_${uid()}`, name: form.name, email: form.email, cohort: form.cohort, photo: form.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
@@ -5212,34 +5237,145 @@ const AdminTrainees = ({ onNav }) => {
   };
   const rem = (id) => { setResidents((p) => p.filter((r) => r.id !== id)); showToast("Trainee removed"); };
 
+  const changeCohort = async (residentId, newCohortName) => {
+    setResidents((p) => p.map((r) => r.id === residentId ? { ...r, cohort: newCohortName } : r));
+    await supabase.from("profiles").update({ cohort: newCohortName }).eq("id", residentId);
+    showToast("Moved to " + newCohortName);
+  };
+
+  const unassigned = residents.filter((r) => !r.cohort || !cohorts.includes(r.cohort));
+
   return (
     <div className="fade-up">
-      <SectionTitle sub="Add trainees, then build their custom track" action={<Btn onClick={openNew}><Icon name="plus" size={16} color={T.cream} /> Add Trainee</Btn>}>
+      <SectionTitle sub="Organize trainees by cohort" action={
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn variant="outline" onClick={() => setCohortModal(true)}><Icon name="plus" size={16} color={T.charcoal} /> New Cohort</Btn>
+          <Btn onClick={() => openNew("")}><Icon name="plus" size={16} color={T.cream} /> Add Trainee</Btn>
+        </div>
+      }>
         Trainee Manager
       </SectionTitle>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {residents.map((r) => {
-          const { pct, done, total } = getProgress(r, masterProgram);
+
+      {/* Cohort groups */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {cohorts.map((cohort) => {
+          const members = residents.filter((r) => r.cohort === cohort);
           return (
-            <Card key={r.id} style={{ padding: "18px 22px", display: "flex", alignItems: "center", gap: 14 }}>
-              <Avatar name={r.name} size={40} photo={r.photo} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: "14px", fontWeight: 500 }}>{r.name}</p>
-                <p style={{ fontSize: "12px", color: T.textMuted }}>{r.email} · {r.cohort}</p>
-                <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 2 }}>{total} skills assigned · {done} done</p>
+            <Card key={cohort} style={{ padding: 0, overflow: "hidden" }}>
+              <div style={{ padding: "14px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.lightLine}`, background: T.cream }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <h3 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600 }}>{cohort}</h3>
+                  <span style={{ fontSize: "11px", color: T.textMuted, background: T.white, padding: "2px 8px", borderRadius: 10 }}>{members.length} trainee{members.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => openNew(cohort)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
+                    <Icon name="plus" size={12} color={T.gold} /> Add
+                  </button>
+                  {members.length === 0 && (
+                    <button onClick={() => removeCohort(cohort)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                      <Icon name="trash" size={14} color={T.danger} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <div style={{ width: 80 }}><ProgressBar value={pct} /></div>
-              <span style={{ fontSize: "12px", fontWeight: 600, color: T.gold, minWidth: 36, textAlign: "right" }}>{pct}%</span>
-              <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
-                <Icon name="eye" size={12} color={T.gold} /> View
-              </button>
-              <button onClick={() => rem(r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Icon name="trash" size={16} color={T.danger} /></button>
+              {members.length === 0 ? (
+                <div style={{ padding: "20px 22px", textAlign: "center" }}>
+                  <p style={{ fontSize: "12px", color: T.textMuted }}>No trainees in this cohort yet</p>
+                </div>
+              ) : (
+                <div>
+                  {members.map((r, i) => {
+                    const { pct, done, total } = getProgress(r, masterProgram);
+                    return (
+                      <div key={r.id} style={{ padding: "14px 22px", display: "flex", alignItems: "center", gap: 14, borderBottom: i < members.length - 1 ? `1px solid ${T.lightLine}` : "none" }}>
+                        <Avatar name={r.name} size={36} photo={r.photo} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.name}</p>
+                          <p style={{ fontSize: "11px", color: T.textMuted }}>{r.email}</p>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 60 }}><ProgressBar value={pct} height={5} /></div>
+                          <span style={{ fontSize: "11px", fontWeight: 600, color: T.gold, minWidth: 30, textAlign: "right" }}>{pct}%</span>
+                        </div>
+                        <select
+                          value={cohort}
+                          onChange={(e) => changeCohort(r.id, e.target.value)}
+                          style={{ fontSize: "11px", border: `1px solid ${T.creamDark}`, borderRadius: 4, padding: "3px 6px", background: T.cream, color: T.textMuted, cursor: "pointer" }}
+                        >
+                          {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
+                          <Icon name="eye" size={12} color={T.gold} /> View
+                        </button>
+                        <button onClick={() => rem(r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           );
         })}
+
+        {/* Unassigned trainees */}
+        {unassigned.length > 0 && (
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "14px 22px", borderBottom: `1px solid ${T.lightLine}`, background: T.cream }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h3 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600, color: T.textMuted }}>Unassigned</h3>
+                <span style={{ fontSize: "11px", color: T.textMuted, background: T.white, padding: "2px 8px", borderRadius: 10 }}>{unassigned.length}</span>
+              </div>
+            </div>
+            <div>
+              {unassigned.map((r, i) => {
+                const { pct, done, total } = getProgress(r, masterProgram);
+                return (
+                  <div key={r.id} style={{ padding: "14px 22px", display: "flex", alignItems: "center", gap: 14, borderBottom: i < unassigned.length - 1 ? `1px solid ${T.lightLine}` : "none" }}>
+                    <Avatar name={r.name} size={36} photo={r.photo} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.name}</p>
+                      <p style={{ fontSize: "11px", color: T.textMuted }}>{r.email}</p>
+                    </div>
+                    <select
+                      value=""
+                      onChange={(e) => changeCohort(r.id, e.target.value)}
+                      style={{ fontSize: "11px", border: `1px solid ${T.creamDark}`, borderRadius: 4, padding: "3px 6px", background: T.cream, color: T.textMuted, cursor: "pointer" }}
+                    >
+                      <option value="" disabled>Assign cohort</option>
+                      {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="eye" size={12} color={T.gold} /> View
+                    </button>
+                    <button onClick={() => rem(r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {cohorts.length === 0 && unassigned.length === 0 && (
+          <Card style={{ padding: 48, textAlign: "center" }}>
+            <p style={{ color: T.textMuted, marginBottom: 12 }}>No cohorts yet. Create one to get started.</p>
+            <Btn onClick={() => setCohortModal(true)}><Icon name="plus" size={16} color={T.cream} /> Create Cohort</Btn>
+          </Card>
+        )}
       </div>
+
+      {/* New Cohort Modal */}
+      <Modal open={cohortModal} onClose={() => setCohortModal(false)} title="Create Cohort">
+        <FormField label="Cohort Name">
+          <input value={newCohort} onChange={(e) => setNewCohort(e.target.value)} placeholder="e.g. Fall 2026" style={iSt} autoFocus onKeyDown={(e) => { if (e.key === "Enter") addCohort(); }} />
+        </FormField>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+          <Btn variant="outline" onClick={() => setCohortModal(false)}>Cancel</Btn>
+          <Btn onClick={addCohort}>Create</Btn>
+        </div>
+      </Modal>
+
+      {/* Add Trainee Modal */}
       <Modal open={modal} onClose={() => setModal(false)} title="Add Trainee">
-        {/* Photo */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
           <div style={{ cursor: "pointer" }} onClick={() => setPhotoCropOpen(true)}>
             {form.photo ? (
@@ -5255,7 +5391,12 @@ const AdminTrainees = ({ onNav }) => {
         <FormField label="Full Name"><input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Kayla Thompson" style={iSt} /></FormField>
         <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <FormField label="Email"><input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="kayla@flowecollective.com" style={iSt} /></FormField>
-          <FormField label="Cohort"><input value={form.cohort} onChange={(e) => setForm((f) => ({ ...f, cohort: e.target.value }))} placeholder="Spring 2026" style={iSt} /></FormField>
+          <FormField label="Cohort">
+            <select value={form.cohort} onChange={(e) => setForm((f) => ({ ...f, cohort: e.target.value }))} style={iSt}>
+              <option value="">Select cohort</option>
+              {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </FormField>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save}>Add Trainee</Btn></div>
       </Modal>
