@@ -5261,6 +5261,9 @@ const TraineeProfile = ({ traineeId, onNav }) => {
   const { residents, setResidents, masterProgram, schedule, setSchedule, showToast } = useData();
   const [editCohort, setEditCohort] = useState(false);
   const [cohortVal, setCohortVal] = useState("");
+  const [editPhone, setEditPhone] = useState(false);
+  const [phoneVal, setPhoneVal] = useState("");
+  const [savedPhone, setSavedPhone] = useState("");
   const [tab, setTab] = useState("overview");
   const [schedModal, setSchedModal] = useState(false);
   const [schedForm, setSchedForm] = useState({ skillId: "", title: "", date: "2026-03-05", time: "9:00 AM", type: "skill" });
@@ -5274,6 +5277,28 @@ const TraineeProfile = ({ traineeId, onNav }) => {
   const [editLogNote, setEditLogNote] = useState("");
   const [editLogCritique, setEditLogCritique] = useState("");
   const [photoModal, setPhotoModal] = useState(false);
+
+  // Load phone from contacts table
+  useEffect(() => {
+    supabase.from("contacts").select("phone").eq("user_id", traineeId).single()
+      .then(({ data }) => {
+        if (data?.phone) { setSavedPhone(data.phone); setPhoneVal(data.phone); }
+      });
+  }, [traineeId]);
+
+  const savePhone = async () => {
+    const phone = phoneVal.trim();
+    if (!phone) return;
+    if (savedPhone) {
+      await supabase.from("contacts").update({ phone }).eq("user_id", traineeId);
+    } else {
+      const r2 = residents.find((x) => x.id === traineeId);
+      await supabase.from("contacts").insert({ user_id: traineeId, name: r2?.name || "", phone });
+    }
+    setSavedPhone(phone);
+    setEditPhone(false);
+    showToast("Phone updated");
+  };
 
   const r = residents.find((x) => x.id === traineeId);
 
@@ -5447,6 +5472,19 @@ const TraineeProfile = ({ traineeId, onNav }) => {
               </span>
             ) : (
               <span onClick={() => { setCohortVal(r.cohort || ""); setEditCohort(true); }} style={{ cursor: "pointer", borderBottom: "1px dashed " + T.textMuted }}>{r.cohort || "No cohort"}</span>
+            )}
+            <span> · </span>
+            {editPhone ? (
+              <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                <input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} placeholder="+1XXXXXXXXXX" style={{ ...iSt, fontSize: "12px", padding: "2px 8px", width: 140 }} autoFocus onKeyDown={(e) => {
+                  if (e.key === "Enter") savePhone();
+                  if (e.key === "Escape") setEditPhone(false);
+                }} />
+                <button onClick={savePhone} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
+                <button onClick={() => setEditPhone(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
+              </span>
+            ) : (
+              <span onClick={() => { setPhoneVal(savedPhone); setEditPhone(true); }} style={{ cursor: "pointer", borderBottom: "1px dashed " + T.textMuted }}>{savedPhone || "Add phone"}</span>
             )}
           </div>
         </div>
