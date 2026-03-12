@@ -5086,6 +5086,8 @@ const AdminTrainees = ({ onNav }) => {
 // ════════════════════════════════════════════
 const TraineeProfile = ({ traineeId, onNav }) => {
   const { residents, setResidents, masterProgram, schedule, setSchedule, showToast } = useData();
+  const [editCohort, setEditCohort] = useState(false);
+  const [cohortVal, setCohortVal] = useState("");
   const [tab, setTab] = useState("overview");
   const [schedModal, setSchedModal] = useState(false);
   const [schedForm, setSchedForm] = useState({ skillId: "", title: "", date: "2026-03-05", time: "9:00 AM", type: "skill" });
@@ -5248,7 +5250,36 @@ const TraineeProfile = ({ traineeId, onNav }) => {
         </div>
         <div style={{ flex: 1 }}>
           <h2 style={{ fontFamily: T.fontD, fontSize: "28px", fontWeight: 600 }}>{r.name}</h2>
-          <p style={{ color: T.textMuted, fontSize: "13px" }}>{r.email} · {r.cohort}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "13px", color: T.textMuted }}>
+            <span>{r.email} · </span>
+            {editCohort ? (
+              <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                <input value={cohortVal} onChange={(e) => setCohortVal(e.target.value)} list="cohort-options" style={{ ...iSt, fontSize: "12px", padding: "2px 8px", width: 140 }} autoFocus onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const v = cohortVal.trim() || r.cohort;
+                    setResidents((p) => p.map((x) => x.id === r.id ? { ...x, cohort: v } : x));
+                    supabase.from("profiles").update({ cohort: v }).eq("id", r.id);
+                    setEditCohort(false);
+                    showToast("Cohort updated");
+                  }
+                  if (e.key === "Escape") setEditCohort(false);
+                }} />
+                <datalist id="cohort-options">
+                  {[...new Set(residents.map((x) => x.cohort).filter(Boolean))].map((c) => <option key={c} value={c} />)}
+                </datalist>
+                <button onClick={() => {
+                  const v = cohortVal.trim() || r.cohort;
+                  setResidents((p) => p.map((x) => x.id === r.id ? { ...x, cohort: v } : x));
+                  supabase.from("profiles").update({ cohort: v }).eq("id", r.id);
+                  setEditCohort(false);
+                  showToast("Cohort updated");
+                }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
+                <button onClick={() => setEditCohort(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
+              </span>
+            ) : (
+              <span onClick={() => { setCohortVal(r.cohort || ""); setEditCohort(true); }} style={{ cursor: "pointer", borderBottom: "1px dashed " + T.textMuted }}>{r.cohort || "No cohort"}</span>
+            )}
+          </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <p style={{ fontFamily: T.fontD, fontSize: "32px", fontWeight: 600, color: T.gold, lineHeight: 1 }}>{pct}%</p>
