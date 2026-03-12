@@ -4360,14 +4360,25 @@ const AdminMaster = () => {
     const allIn = ids.every((id) => presetSelIds.has(id));
     setPresetSelIds((p) => { const n = new Set(p); ids.forEach((id) => (allIn ? n.delete(id) : n.add(id))); return n; });
   };
-  const savePreset = () => {
+  const savePreset = async () => {
     if (!presetName.trim()) return;
     const sids = [...presetSelIds];
-    if (presetEditId) { setPresets((p) => p.map((pr) => (pr.id === presetEditId ? { ...pr, name: presetName.trim(), skillIds: sids } : pr))); showToast("Preset updated"); }
-    else { setPresets((p) => [...p, { id: `p_${uid()}`, name: presetName.trim(), skillIds: sids }]); showToast("Preset created"); }
+    if (presetEditId) {
+      await supabase.from("presets").update({ name: presetName.trim(), skill_ids: sids }).eq("id", presetEditId);
+      setPresets((p) => p.map((pr) => (pr.id === presetEditId ? { ...pr, name: presetName.trim(), skillIds: sids } : pr)));
+      showToast("Preset updated");
+    } else {
+      const { data } = await supabase.from("presets").insert({ name: presetName.trim(), skill_ids: sids }).select().single();
+      if (data) setPresets((p) => [...p, { id: data.id, name: data.name, skillIds: data.skill_ids || [] }]);
+      showToast("Preset created");
+    }
     setPresetModal(false);
   };
-  const removePreset = (id) => { setPresets((p) => p.filter((pr) => pr.id !== id)); showToast("Preset removed"); };
+  const removePreset = async (id) => {
+    await supabase.from("presets").delete().eq("id", id);
+    setPresets((p) => p.filter((pr) => pr.id !== id));
+    showToast("Preset removed");
+  };
 
   return (
     <div className="fade-up">
@@ -7269,6 +7280,12 @@ const App = () => {
           })),
         }));
         setMasterProgram(program);
+      }
+
+      // Load presets from Supabase
+      const { data: presetData } = await supabase.from("presets").select("*").order("created_at");
+      if (presetData) {
+        setPresets(presetData.map((p) => ({ id: p.id, name: p.name, skillIds: p.skill_ids || [] })));
       }
 
       // Load schedule from Supabase
