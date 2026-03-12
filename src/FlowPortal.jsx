@@ -2760,8 +2760,8 @@ const MsgPage = ({ user }) => {
                   SMS + Portal
                 </span>
                 {messages.length > 0 && (
-                  <button onClick={() => setArchiveConfirm(true)} style={{ marginLeft: "auto", background: "none", border: `1px solid ${T.creamDark}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: "10px", fontWeight: 500, color: T.textMuted, display: "flex", alignItems: "center", gap: 4 }}>
-                    <Icon name="archive" size={12} color={T.textMuted} /> Clear & Archive
+                  <button onClick={() => setArchiveConfirm(true)} title="Clear & Archive" style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, opacity: 0.4, transition: "opacity .15s" }} onMouseEnter={(e) => e.currentTarget.style.opacity = 1} onMouseLeave={(e) => e.currentTarget.style.opacity = 0.4}>
+                    <Icon name="trash" size={14} color={T.textMuted} />
                   </button>
                 )}
               </>
