@@ -6812,81 +6812,53 @@ const SettingsPage = () => {
 
       {/* Calendar Sync */}
       <Card style={{ padding: 28, marginBottom: 20 }}>
-        <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 4 }}>Calendar Sync</h4>
-        <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.5, marginBottom: 16 }}>
-          Connect calendars to see salon bookings alongside training events and detect scheduling conflicts.
-        </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 2 }}>Calendar Sync</h4>
+            <p style={{ fontSize: "12px", color: T.textMuted }}>Detect scheduling conflicts with external calendars</p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleConnect} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: T.white, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+              <Icon name="link" size={12} color={T.white} /> Google
+            </button>
+            <button onClick={() => setIcalUrl(icalUrl || " ")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: "#d93025", color: T.white, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+              <Icon name="link" size={12} color={T.white} /> iCal
+            </button>
+          </div>
+        </div>
 
-        {/* Connected calendars list */}
-        {calSources.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+        {/* iCal URL input — shown when iCal button clicked */}
+        {icalUrl && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <input value={icalLabel} onChange={(e) => setIcalLabel(e.target.value)} placeholder="Label" style={{ ...iSt, width: 130, fontSize: "12px" }} />
+            <input value={icalUrl === " " ? "" : icalUrl} onChange={(e) => setIcalUrl(e.target.value || " ")} placeholder="Paste iCal URL..." style={{ ...iSt, flex: 1, fontSize: "12px" }} autoFocus />
+            <Btn onClick={handleIcalConnect} style={{ opacity: icalLoading ? 0.7 : 1, whiteSpace: "nowrap", fontSize: "12px" }}>
+              {icalLoading ? "..." : "Add"}
+            </Btn>
+            <button onClick={() => { setIcalUrl(""); setIcalLabel(""); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+              <Icon name="x" size={14} color={T.textMuted} />
+            </button>
+          </div>
+        )}
+
+        {/* Connected calendars */}
+        {calSources.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {calSources.map((src) => (
-              <div key={src.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: T.radiusSm, background: T.cream }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: src.type === "google" ? "#4285f4" : T.gold }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: "13px", fontWeight: 500 }}>{src.label}</p>
-                  <p style={{ fontSize: "11px", color: T.textMuted }}>{src.type === "google" ? "Google Calendar" : "iCal Feed"}</p>
-                </div>
-                <Badge color={T.success}>Connected</Badge>
-                <button onClick={() => removeCalSource(src.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                  <Icon name="x" size={14} color={T.danger} />
+              <div key={src.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: T.radiusSm, background: T.cream }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: src.type === "google" ? "#4285f4" : "#d93025" }} />
+                <span style={{ fontSize: "13px", fontWeight: 500, flex: 1 }}>{src.label}</span>
+                <span style={{ fontSize: "10px", color: T.textMuted }}>{src.type === "google" ? "Google" : "iCal"}</span>
+                <button onClick={() => removeCalSource(src.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                  <Icon name="x" size={12} color={T.danger} />
                 </button>
               </div>
             ))}
           </div>
+        ) : (
+          <p style={{ fontSize: "12px", color: T.textMuted, textAlign: "center", padding: "8px 0" }}>No calendars connected</p>
         )}
-
-        {/* Add calendar */}
-        <div style={{ padding: 16, borderRadius: T.radiusSm, border: `1px dashed ${T.lightLine}` }}>
-          <p style={{ fontSize: "12px", fontWeight: 600, marginBottom: 12 }}>Add a Calendar</p>
-          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-            <Btn onClick={handleConnect} style={{ fontSize: "12px" }}>
-              <Icon name="link" size={14} /> Google Account
-            </Btn>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-            <div style={{ flex: 1, height: 1, background: T.lightLine }} />
-            <span style={{ fontSize: "10px", color: T.textMuted, textTransform: "uppercase" }}>or paste iCal URL</span>
-            <div style={{ flex: 1, height: 1, background: T.lightLine }} />
-          </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input value={icalLabel} onChange={(e) => setIcalLabel(e.target.value)} placeholder="Label (e.g. Salon, Personal)" style={{ ...iSt, width: 160, fontSize: "12px" }} />
-            <input value={icalUrl} onChange={(e) => setIcalUrl(e.target.value)} placeholder="https://..." style={{ ...iSt, flex: 1, fontSize: "12px" }} />
-            <Btn onClick={handleIcalConnect} style={{ opacity: icalLoading ? 0.7 : 1, whiteSpace: "nowrap" }}>
-              {icalLoading ? "Syncing..." : "Add"}
-            </Btn>
-          </div>
-        </div>
       </Card>
-
-      {calSources.length > 0 && (
-        <Card className="fade-up" style={{ padding: 24, marginBottom: 20 }}>
-          <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 4 }}>How Conflict Detection Works</h4>
-          <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.6, marginBottom: 16 }}>
-            When your connected calendars have events on the same day as a training session, you'll see:
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: T.radiusSm, background: T.cream }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: T.warn, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ color: T.white, fontSize: "11px", fontWeight: 800 }}>!</span>
-              </div>
-              <div>
-                <p style={{ fontSize: "13px", fontWeight: 500 }}>Orange conflict badge on calendar days</p>
-                <p style={{ fontSize: "11px", color: T.textMuted }}>Days with both salon and training events get flagged</p>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: T.radiusSm, background: T.cream }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#4285f4", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="white" strokeWidth="2" /></svg>
-              </div>
-              <div>
-                <p style={{ fontSize: "13px", fontWeight: 500 }}>Blue salon events in day detail</p>
-                <p style={{ fontSize: "11px", color: T.textMuted }}>Click any day to see salon bookings alongside training sessions</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
 
       <Card style={{ padding: 24, marginTop: 20 }}>
         <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Portal Info</h4>
