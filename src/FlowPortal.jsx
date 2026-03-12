@@ -5267,16 +5267,11 @@ const AdminTrainees = ({ onNav }) => {
                   <h3 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600 }}>{cohort}</h3>
                   <span style={{ fontSize: "11px", color: T.textMuted, background: T.white, padding: "2px 8px", borderRadius: 10 }}>{members.length} trainee{members.length !== 1 ? "s" : ""}</span>
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => openNew(cohort)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
-                    <Icon name="plus" size={12} color={T.gold} /> Add
+                {members.length === 0 && (
+                  <button onClick={() => removeCohort(cohort)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                    <Icon name="trash" size={14} color={T.danger} />
                   </button>
-                  {members.length === 0 && (
-                    <button onClick={() => removeCohort(cohort)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                      <Icon name="trash" size={14} color={T.danger} />
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
               {members.length === 0 ? (
                 <div style={{ padding: "20px 22px", textAlign: "center" }}>
