@@ -2788,8 +2788,8 @@ const MsgPage = ({ user }) => {
             </div>
             {activeChat && (
               <div style={{ padding: "10px 16px", borderTop: `1px solid ${T.lightLine}` }}>
-                <button onClick={loadArchived} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: T.textMuted, padding: "6px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: 0.6, transition: "opacity .15s" }} onMouseEnter={(e) => e.currentTarget.style.opacity = 1} onMouseLeave={(e) => e.currentTarget.style.opacity = 0.6}>
-                  <Icon name="archive" size={12} color={T.textMuted} /> View Archived
+                <button onClick={loadArchived} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: T.textMuted, padding: "6px 0", textAlign: "center", opacity: 0.6, transition: "opacity .15s" }} onMouseEnter={(e) => e.currentTarget.style.opacity = 1} onMouseLeave={(e) => e.currentTarget.style.opacity = 0.6}>
+                  View Archived
                 </button>
               </div>
             )}
