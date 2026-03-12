@@ -5274,11 +5274,11 @@ const AdminTrainees = ({ onNav }) => {
 // ════════════════════════════════════════════
 const TraineeProfile = ({ traineeId, onNav }) => {
   const { residents, setResidents, masterProgram, schedule, setSchedule, showToast } = useData();
-  const [editCohort, setEditCohort] = useState(false);
+  const [editField, setEditField] = useState(null); // "cohort" | "phone" | "email" | null
   const [cohortVal, setCohortVal] = useState("");
-  const [editPhone, setEditPhone] = useState(false);
   const [phoneVal, setPhoneVal] = useState("");
   const [savedPhone, setSavedPhone] = useState("");
+  const [emailVal, setEmailVal] = useState("");
   const [tab, setTab] = useState("overview");
   const [schedModal, setSchedModal] = useState(false);
   const [schedForm, setSchedForm] = useState({ skillId: "", title: "", date: "2026-03-05", time: "9:00 AM", type: "skill" });
@@ -5312,8 +5312,32 @@ const TraineeProfile = ({ traineeId, onNav }) => {
       await supabase.from("contacts").insert({ user_id: traineeId, name: r2?.name || "", phone });
     }
     setSavedPhone(phone);
-    setEditPhone(false);
+    setEditField(null);
     showToast("Phone updated");
+  };
+
+  const saveCohort = async () => {
+    const v = cohortVal.trim() || r?.cohort;
+    setResidents((p) => p.map((x) => x.id === traineeId ? { ...x, cohort: v } : x));
+    await supabase.from("profiles").update({ cohort: v }).eq("id", traineeId);
+    setEditField(null);
+    showToast("Cohort updated");
+  };
+
+  const saveEmail = async () => {
+    const v = emailVal.trim();
+    if (!v) return;
+    setResidents((p) => p.map((x) => x.id === traineeId ? { ...x, email: v } : x));
+    await supabase.from("profiles").update({ email: v }).eq("id", traineeId);
+    setEditField(null);
+    showToast("Email updated");
+  };
+
+  const formatPhone = (p) => {
+    if (!p) return "---";
+    const digits = p.replace(/\D/g, "").replace(/^1/, "");
+    if (digits.length === 10) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+    return p;
   };
 
   const r = residents.find((x) => x.id === traineeId);
@@ -5457,96 +5481,80 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 
       {/* Profile Card */}
       <Card style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
-        <div style={{ background: `linear-gradient(135deg, ${T.charcoal}, ${T.charcoal}ee)`, padding: "28px 28px 20px", display: "flex", gap: 20, alignItems: "flex-start" }}>
+        <div style={{ padding: "24px 28px", display: "flex", gap: 20, alignItems: "center" }}>
           <div style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => setPhotoModal(true)}>
-            <Avatar name={r.name} size={72} photo={r.photo} />
+            <Avatar name={r.name} size={64} photo={r.photo} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ fontFamily: T.fontD, fontSize: "26px", fontWeight: 600, color: T.cream, marginBottom: 4 }}>{r.name}</h2>
-            <p style={{ fontSize: "12px", color: "rgba(250,246,240,0.5)", marginBottom: 12 }}>Resident</p>
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Progress</span>
-                <span style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 600, color: T.gold, lineHeight: 1 }}>{pct}%</span>
-                <span style={{ fontSize: "10px", color: "rgba(250,246,240,0.5)" }}>{done}/{total} skills</span>
+            <h2 style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600, marginBottom: 2 }}>{r.name}</h2>
+            <p style={{ fontSize: "12px", color: T.textMuted }}>Resident</p>
+          </div>
+          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+            {[
+              { label: "Progress", value: `${pct}%`, color: T.gold },
+              { label: "Services", value: `${completedServices}/${serviceSkills.length}`, color: T.text },
+              { label: "Knowledge", value: `${completedKnowledge}/${knowledgeSkills.length}`, color: T.text },
+              { label: "Logs", value: `${totalLogEntries}`, color: T.text },
+            ].map((s) => (
+              <div key={s.label} style={{ textAlign: "center", minWidth: 52 }}>
+                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 2 }}>{s.label}</p>
+                <p style={{ fontFamily: T.fontD, fontSize: "20px", fontWeight: 600, color: s.color, lineHeight: 1 }}>{s.value}</p>
               </div>
-              <div style={{ width: 1, background: "rgba(250,246,240,0.1)", alignSelf: "stretch" }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Services</span>
-                <span style={{ fontSize: "15px", fontWeight: 600, color: T.cream }}>{completedServices}/{serviceSkills.length}</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Knowledge</span>
-                <span style={{ fontSize: "15px", fontWeight: 600, color: T.cream }}>{completedKnowledge}/{knowledgeSkills.length}</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "rgba(250,246,240,0.4)" }}>Time Logs</span>
-                <span style={{ fontSize: "15px", fontWeight: 600, color: T.cream }}>{totalLogEntries}</span>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
-        <div style={{ padding: "16px 28px", display: "flex", gap: 20, flexWrap: "wrap", background: T.white, borderTop: `1px solid ${T.lightLine}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 180 }}>
-            <Icon name="mail" size={14} color={T.textMuted} />
-            <div>
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted }}>Email</p>
-              <p style={{ fontSize: "13px" }}>{r.email}</p>
-            </div>
-          </div>
-          <div style={{ width: 1, background: T.lightLine, alignSelf: "stretch" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 140 }}>
-            <Icon name="calendar" size={14} color={T.textMuted} />
-            <div>
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted }}>Cohort</p>
-              {editCohort ? (
-                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-                  <input value={cohortVal} onChange={(e) => setCohortVal(e.target.value)} list="cohort-options" style={{ ...iSt, fontSize: "12px", padding: "2px 6px", width: 120 }} autoFocus onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const v = cohortVal.trim() || r.cohort;
-                      setResidents((p) => p.map((x) => x.id === r.id ? { ...x, cohort: v } : x));
-                      supabase.from("profiles").update({ cohort: v }).eq("id", r.id);
-                      setEditCohort(false);
-                      showToast("Cohort updated");
-                    }
-                    if (e.key === "Escape") setEditCohort(false);
-                  }} />
-                  <datalist id="cohort-options">
-                    {[...new Set(residents.map((x) => x.cohort).filter(Boolean))].map((c) => <option key={c} value={c} />)}
-                  </datalist>
-                  <button onClick={() => {
-                    const v = cohortVal.trim() || r.cohort;
-                    setResidents((p) => p.map((x) => x.id === r.id ? { ...x, cohort: v } : x));
-                    supabase.from("profiles").update({ cohort: v }).eq("id", r.id);
-                    setEditCohort(false);
-                    showToast("Cohort updated");
-                  }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
-                  <button onClick={() => setEditCohort(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
-                </span>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `1px solid ${T.lightLine}` }}>
+          {[
+            { label: "Email", icon: "mail", value: r.email, field: "email" },
+            { label: "Cohort", icon: "calendar", value: r.cohort || "---", field: "cohort" },
+            { label: "Phone", icon: "send", value: formatPhone(savedPhone), field: "phone" },
+          ].map((item, i) => (
+            <div
+              key={item.field}
+              onClick={() => {
+                if (item.field === "email") { setEmailVal(r.email || ""); setEditField("email"); }
+                if (item.field === "cohort") { setCohortVal(r.cohort || ""); setEditField("cohort"); }
+                if (item.field === "phone") { setPhoneVal(savedPhone); setEditField("phone"); }
+              }}
+              style={{
+                padding: "14px 24px",
+                cursor: "pointer",
+                borderRight: i < 2 ? `1px solid ${T.lightLine}` : "none",
+                background: editField === item.field ? T.cream : T.white,
+                transition: "background 0.15s",
+              }}
+            >
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>{item.label}</p>
+              {editField === item.field ? (
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <input
+                    value={item.field === "email" ? emailVal : item.field === "cohort" ? cohortVal : phoneVal}
+                    onChange={(e) => {
+                      if (item.field === "email") setEmailVal(e.target.value);
+                      if (item.field === "cohort") setCohortVal(e.target.value);
+                      if (item.field === "phone") setPhoneVal(e.target.value);
+                    }}
+                    list={item.field === "cohort" ? "cohort-options" : undefined}
+                    placeholder={item.field === "phone" ? "(XXX) XXX-XXXX" : ""}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { item.field === "email" ? saveEmail() : item.field === "cohort" ? saveCohort() : savePhone(); }
+                      if (e.key === "Escape") setEditField(null);
+                    }}
+                    style={{ ...iSt, fontSize: "13px", padding: "4px 8px", width: "100%" }}
+                  />
+                  {item.field === "cohort" && (
+                    <datalist id="cohort-options">
+                      {[...new Set(residents.map((x) => x.cohort).filter(Boolean))].map((c) => <option key={c} value={c} />)}
+                    </datalist>
+                  )}
+                </div>
               ) : (
-                <p onClick={() => { setCohortVal(r.cohort || ""); setEditCohort(true); }} style={{ fontSize: "13px", cursor: "pointer", borderBottom: "1px dashed " + T.textMuted, display: "inline" }}>{r.cohort || "No cohort"}</p>
+                <p style={{ fontSize: "13px", fontWeight: 500 }}>{item.value}</p>
               )}
             </div>
-          </div>
-          <div style={{ width: 1, background: T.lightLine, alignSelf: "stretch" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 140 }}>
-            <Icon name="send" size={14} color={T.textMuted} />
-            <div>
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted }}>Phone</p>
-              {editPhone ? (
-                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-                  <input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} placeholder="(XXX) XXX-XXXX" style={{ ...iSt, fontSize: "12px", padding: "2px 6px", width: 130 }} autoFocus onKeyDown={(e) => {
-                    if (e.key === "Enter") savePhone();
-                    if (e.key === "Escape") setEditPhone(false);
-                  }} />
-                  <button onClick={savePhone} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="check" size={14} color={T.success} /></button>
-                  <button onClick={() => setEditPhone(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><Icon name="x" size={14} color={T.textMuted} /></button>
-                </span>
-              ) : (
-                <p onClick={() => { setPhoneVal(savedPhone); setEditPhone(true); }} style={{ fontSize: "13px", cursor: "pointer", borderBottom: "1px dashed " + T.textMuted, display: "inline" }}>{savedPhone || "Add phone"}</p>
-              )}
-            </div>
-          </div>
+          ))}
         </div>
       </Card>
 
