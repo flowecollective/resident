@@ -1864,6 +1864,10 @@ const TraineeSkills = ({ user }) => {
       }];
       return { ...r, timingLogs: logs };
     }));
+    // Create notification for admin
+    await supabase.from("notifications").insert({
+      resident_id: me.id, skill_id: logSkill.id, log_id: inserted.id,
+    });
     showToast("Practice logged — " + logMinutes + " min");
     setLogModal(false);
   };
@@ -2928,6 +2932,8 @@ const AdminDash = ({ onNav }) => {
     setAdvanceTiming(false);
     // Mark as read
     setNotifications((prev) => prev.map((n) => n.id === notif.id ? { ...n, read: true } : n));
+    // Persist to Supabase
+    if (notif.id) supabase.from("notifications").update({ read: true }).eq("id", notif.id).then();
   };
 
   const submitReview = async () => {
@@ -2955,6 +2961,8 @@ const AdminDash = ({ onNav }) => {
       return { ...r, timingLogs: logs, progress: prog };
     }));
     setNotifications((prev) => prev.map((n) => n.id === reviewModal.id ? { ...n, reviewed: true } : n));
+    // Persist to Supabase
+    if (reviewModal.id) supabase.from("notifications").update({ reviewed: true }).eq("id", reviewModal.id).then();
     showToast("Review submitted");
     setReviewModal(null);
     // Persist to Supabase
@@ -5085,13 +5093,6 @@ const AdminTrainees = ({ onNav }) => {
                           <div style={{ width: 60 }}><ProgressBar value={pct} height={5} /></div>
                           <span style={{ fontSize: "11px", fontWeight: 600, color: T.gold, minWidth: 30, textAlign: "right" }}>{pct}%</span>
                         </div>
-                        <select
-                          value={cohort}
-                          onChange={(e) => changeCohort(r.id, e.target.value)}
-                          style={{ fontSize: "11px", border: `1px solid ${T.creamDark}`, borderRadius: 4, padding: "3px 6px", background: T.cream, color: T.textMuted, cursor: "pointer" }}
-                        >
-                          {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
                         <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
                           <Icon name="eye" size={12} color={T.gold} /> View
                         </button>
@@ -6961,6 +6962,10 @@ const FloatingTimer = ({ user, onNav }) => {
       }];
       return { ...r, timingLogs: logs };
     }));
+    // Create notification for admin
+    await supabase.from("notifications").insert({
+      resident_id: me.id, skill_id: linkedSkill.id, log_id: inserted.id,
+    });
     showToast("Logged " + mins + "min to " + linkedSkill.name);
     handleReset();
     setExpanded(false);
@@ -7339,6 +7344,27 @@ const App = () => {
           };
         });
         setResidents(resList);
+
+        // Load notifications from Supabase
+        const { data: notifData } = await supabase.from("notifications").select("*").order("created_at", { ascending: false });
+        if (notifData) {
+          setNotifications(notifData.map((n) => {
+            // Find the log index for this notification
+            const r = resList.find((x) => x.id === n.resident_id);
+            const entries = (r?.timingLogs || {})[n.skill_id] || [];
+            const logIdx = entries.findIndex((e) => e.id === n.log_id);
+            return {
+              id: n.id,
+              residentId: n.resident_id,
+              skillId: n.skill_id,
+              logId: n.log_id,
+              logIdx: logIdx >= 0 ? logIdx : 0,
+              ts: n.created_at,
+              read: n.read,
+              reviewed: n.reviewed,
+            };
+          }));
+        }
       } else {
         // Resident: load own skills + logs
         const [{ data: rSkills }, { data: tLogs }, { data: tComments }] = await Promise.all([
