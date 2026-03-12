@@ -6539,9 +6539,32 @@ const SettingsPage = () => {
     }
   };
 
-  const [icalUrl, setIcalUrl] = useState(localStorage.getItem("ical_url") || "");
+  const [calSources, setCalSources] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("cal_sources") || "[]"); } catch { return []; }
+  });
+  const [icalUrl, setIcalUrl] = useState("");
+  const [icalLabel, setIcalLabel] = useState("");
   const [icalLoading, setIcalLoading] = useState(false);
-  const calSource = localStorage.getItem("cal_source"); // "google" | "ical"
+
+  const saveCalSources = (sources) => {
+    setCalSources(sources);
+    localStorage.setItem("cal_sources", JSON.stringify(sources));
+  };
+
+  const refreshAllCalendars = async (sources) => {
+    const all = [];
+    for (const src of sources) {
+      if (src.type === "google" && src.token) {
+        const events = await fetchGcalEvents(src.token);
+        if (events) all.push(...events.map((e) => ({ ...e, _source: src.label })));
+      } else if (src.type === "ical" && src.url) {
+        const events = await fetchIcalEvents(src.url);
+        if (events) all.push(...events.map((e) => ({ ...e, _source: src.label })));
+      }
+    }
+    setGcalConnected(all.length > 0 || sources.length > 0);
+    setGcalEvents(all);
+  };
 
   const handleConnect = () => {
     startGcalOAuth();
@@ -6552,26 +6575,27 @@ const SettingsPage = () => {
     setIcalLoading(true);
     const events = await fetchIcalEvents(icalUrl.trim());
     if (events) {
-      localStorage.setItem("ical_url", icalUrl.trim());
-      localStorage.setItem("cal_source", "ical");
-      setGcalConnected(true);
-      setGcalEvents(events);
-      showToast(`Synced ${events.length} events`);
+      const label = icalLabel.trim() || `Calendar ${calSources.length + 1}`;
+      const newSrc = { id: uid(), type: "ical", label, url: icalUrl.trim() };
+      const updated = [...calSources, newSrc];
+      saveCalSources(updated);
+      setIcalUrl(""); setIcalLabel("");
+      await refreshAllCalendars(updated);
+      showToast(`Added "${label}" — ${events.length} events`);
     } else {
       showToast("Could not fetch calendar — check the URL");
     }
     setIcalLoading(false);
   };
 
-  const handleDisconnect = () => {
-    localStorage.removeItem("gcal_token");
-    localStorage.removeItem("gcal_expiry");
-    localStorage.removeItem("ical_url");
-    localStorage.removeItem("cal_source");
-    setGcalConnected(false);
-    setGcalEvents([]);
-    setIcalUrl("");
-    showToast("Calendar disconnected");
+  const removeCalSource = async (id) => {
+    const updated = calSources.filter((s) => s.id !== id);
+    // Also clean up google token if removing a google source
+    const removing = calSources.find((s) => s.id === id);
+    if (removing?.type === "google") { localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); }
+    saveCalSources(updated);
+    await refreshAllCalendars(updated);
+    showToast("Calendar removed");
   };
 
   return (
@@ -6597,86 +6621,72 @@ const SettingsPage = () => {
             <Badge color={T.educator}>{user?.role === "admin" ? "Educator" : "Resident"}</Badge>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-          <div style={{ flex: 1 }}>
-            <FormField label="Display Name">
-              <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} style={iSt} onKeyDown={(e) => e.key === "Enter" && saveProfile()} />
-            </FormField>
+        <FormField label="Display Name">
+          <div style={{ display: "flex", gap: 12 }}>
+            <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} style={{ ...iSt, flex: 1 }} onKeyDown={(e) => e.key === "Enter" && saveProfile()} />
+            <Btn onClick={saveProfile} style={{ opacity: profileSaving ? 0.7 : 1 }}>
+              {profileSaving ? "Saving..." : "Save"}
+            </Btn>
           </div>
-          <Btn onClick={saveProfile} style={{ marginBottom: 2, opacity: profileSaving ? 0.7 : 1 }}>
-            {profileSaving ? "Saving..." : "Save"}
-          </Btn>
-        </div>
+        </FormField>
       </Card>
 
       <PhotoCropModal open={photoCropOpen} onClose={() => setPhotoCropOpen(false)} onSave={handlePhotoSave} currentPhoto={user?.photo} />
 
       {/* Calendar Sync */}
       <Card style={{ padding: 28, marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: T.radius,
-            background: gcalConnected ? "#4285f415" : T.cream,
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="18" height="18" rx="3" stroke={gcalConnected ? "#4285f4" : T.textMuted} strokeWidth="1.5" />
-              <line x1="3" y1="9" x2="21" y2="9" stroke={gcalConnected ? "#4285f4" : T.textMuted} strokeWidth="1.5" />
-              <line x1="8" y1="3" x2="8" y2="6" stroke={gcalConnected ? "#4285f4" : T.textMuted} strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="16" y1="3" x2="16" y2="6" stroke={gcalConnected ? "#4285f4" : T.textMuted} strokeWidth="1.5" strokeLinecap="round" />
-              {gcalConnected && <circle cx="12" cy="15" r="2" fill="#4285f4" />}
-            </svg>
+        <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 4 }}>Calendar Sync</h4>
+        <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.5, marginBottom: 16 }}>
+          Connect calendars to see salon bookings alongside training events and detect scheduling conflicts.
+        </p>
+
+        {/* Connected calendars list */}
+        {calSources.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+            {calSources.map((src) => (
+              <div key={src.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: T.radiusSm, background: T.cream }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: src.type === "google" ? "#4285f4" : T.gold }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: "13px", fontWeight: 500 }}>{src.label}</p>
+                  <p style={{ fontSize: "11px", color: T.textMuted }}>{src.type === "google" ? "Google Calendar" : "iCal Feed"}</p>
+                </div>
+                <Badge color={T.success}>Connected</Badge>
+                <button onClick={() => removeCalSource(src.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                  <Icon name="x" size={14} color={T.danger} />
+                </button>
+              </div>
+            ))}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-              <h3 style={{ fontFamily: T.fontD, fontSize: "20px", fontWeight: 600 }}>Calendar Sync</h3>
-              {gcalConnected && <Badge color={T.success}>Connected{calSource === "ical" ? " (iCal)" : " (Google)"}</Badge>}
-            </div>
-            <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.5, marginBottom: 16 }}>
-              {gcalConnected
-                ? "Your salon calendar is synced. Training schedule pages now show conflict badges when salon bookings overlap with training events."
-                : "Connect your calendar to see salon bookings alongside training events and detect scheduling conflicts."
-              }
-            </p>
-            {gcalConnected ? (
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <Btn variant="danger" onClick={handleDisconnect}>
-                  <Icon name="x" size={14} color={T.danger} /> Disconnect
-                </Btn>
-                <p style={{ fontSize: "12px", color: T.textMuted }}>Last synced just now</p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div>
-                  <p style={{ fontSize: "12px", fontWeight: 600, marginBottom: 8 }}>Option 1 — Google Sign-In</p>
-                  <Btn onClick={handleConnect}>Connect Google Calendar</Btn>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ flex: 1, height: 1, background: T.lightLine }} />
-                  <span style={{ fontSize: "11px", color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>or</span>
-                  <div style={{ flex: 1, height: 1, background: T.lightLine }} />
-                </div>
-                <div>
-                  <p style={{ fontSize: "12px", fontWeight: 600, marginBottom: 8 }}>Option 2 — iCal URL</p>
-                  <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 8 }}>Paste a calendar subscription URL (.ics) from Google Calendar, Apple Calendar, Outlook, or your salon software.</p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input value={icalUrl} onChange={(e) => setIcalUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/..." style={{ ...iSt, flex: 1, fontSize: "12px" }} />
-                    <Btn onClick={handleIcalConnect} style={{ opacity: icalLoading ? 0.7 : 1, whiteSpace: "nowrap" }}>
-                      {icalLoading ? "Syncing..." : "Sync"}
-                    </Btn>
-                  </div>
-                </div>
-              </div>
-            )}
+        )}
+
+        {/* Add calendar */}
+        <div style={{ padding: 16, borderRadius: T.radiusSm, border: `1px dashed ${T.lightLine}` }}>
+          <p style={{ fontSize: "12px", fontWeight: 600, marginBottom: 12 }}>Add a Calendar</p>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+            <Btn onClick={handleConnect} style={{ fontSize: "12px" }}>
+              <Icon name="link" size={14} /> Google Account
+            </Btn>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div style={{ flex: 1, height: 1, background: T.lightLine }} />
+            <span style={{ fontSize: "10px", color: T.textMuted, textTransform: "uppercase" }}>or paste iCal URL</span>
+            <div style={{ flex: 1, height: 1, background: T.lightLine }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input value={icalLabel} onChange={(e) => setIcalLabel(e.target.value)} placeholder="Label (e.g. Salon, Personal)" style={{ ...iSt, width: 160, fontSize: "12px" }} />
+            <input value={icalUrl} onChange={(e) => setIcalUrl(e.target.value)} placeholder="https://..." style={{ ...iSt, flex: 1, fontSize: "12px" }} />
+            <Btn onClick={handleIcalConnect} style={{ opacity: icalLoading ? 0.7 : 1, whiteSpace: "nowrap" }}>
+              {icalLoading ? "Syncing..." : "Add"}
+            </Btn>
           </div>
         </div>
       </Card>
 
-      {gcalConnected && (
-        <Card className="fade-up" style={{ padding: 24 }}>
+      {calSources.length > 0 && (
+        <Card className="fade-up" style={{ padding: 24, marginBottom: 20 }}>
           <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 4 }}>How Conflict Detection Works</h4>
           <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.6, marginBottom: 16 }}>
-            When your Google Calendar has events on the same day as a training session, you'll see:
+            When your connected calendars have events on the same day as a training session, you'll see:
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: T.radiusSm, background: T.cream }}>
@@ -7191,24 +7201,49 @@ const App = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Handle calendar restore: Google OAuth callback, saved Google token, or saved iCal URL
+  // Handle calendar restore: Google OAuth callback + load all saved sources
   useEffect(() => {
-    const loadGcal = async (token) => {
-      const events = await fetchGcalEvents(token);
-      if (events) { localStorage.setItem("cal_source", "google"); setGcalConnected(true); setGcalEvents(events); }
-      else { setGcalConnected(false); setGcalEvents([]); }
+    const loadAll = async () => {
+      let sources = [];
+      try { sources = JSON.parse(localStorage.getItem("cal_sources") || "[]"); } catch {}
+
+      // Handle Google OAuth callback — add as a new source
+      if (_gcalCallbackToken) {
+        const exists = sources.some((s) => s.type === "google");
+        if (!exists) {
+          sources = [...sources, { id: `g_${Date.now()}`, type: "google", label: "Google Calendar", token: _gcalCallbackToken }];
+        } else {
+          sources = sources.map((s) => s.type === "google" ? { ...s, token: _gcalCallbackToken } : s);
+        }
+        localStorage.setItem("cal_sources", JSON.stringify(sources));
+      }
+
+      // Also check for legacy single-source tokens
+      const savedToken = localStorage.getItem("gcal_token");
+      const expiry = parseInt(localStorage.getItem("gcal_expiry") || "0", 10);
+      if (savedToken && Date.now() < expiry && !sources.some((s) => s.type === "google")) {
+        sources = [...sources, { id: `g_${Date.now()}`, type: "google", label: "Google Calendar", token: savedToken }];
+        localStorage.setItem("cal_sources", JSON.stringify(sources));
+      }
+
+      // Fetch all events from all sources
+      if (sources.length === 0) { setGcalConnected(false); return; }
+      const all = [];
+      for (const src of sources) {
+        if (src.type === "google") {
+          const token = src.token || savedToken;
+          if (!token) continue;
+          const events = await fetchGcalEvents(token);
+          if (events) all.push(...events.map((e) => ({ ...e, _source: src.label })));
+        } else if (src.type === "ical" && src.url) {
+          const events = await fetchIcalEvents(src.url);
+          if (events) all.push(...events.map((e) => ({ ...e, _source: src.label })));
+        }
+      }
+      setGcalConnected(sources.length > 0);
+      setGcalEvents(all);
     };
-    if (_gcalCallbackToken) { loadGcal(_gcalCallbackToken); return; }
-    const source = localStorage.getItem("cal_source");
-    if (source === "ical") {
-      const url = localStorage.getItem("ical_url");
-      if (url) fetchIcalEvents(url).then((events) => { if (events) { setGcalConnected(true); setGcalEvents(events); } else { setGcalConnected(false); } });
-      return;
-    }
-    const saved = localStorage.getItem("gcal_token");
-    const expiry = parseInt(localStorage.getItem("gcal_expiry") || "0", 10);
-    if (saved && Date.now() < expiry) loadGcal(saved);
-    else if (saved) { localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); setGcalConnected(false); }
+    loadAll();
   }, []);
 
   const logout = async () => {
