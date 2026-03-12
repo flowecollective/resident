@@ -2865,16 +2865,26 @@ const MsgPage = ({ user }) => {
 
     if (!error) {
       if (isAdmin) {
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ to_user_id: activeChat, text: msg.trim() }),
-        }).then(async (res) => {
-          if (!res.ok) console.error("SMS send failed:", await res.text());
-        }).catch((err) => console.error("SMS send error:", err));
+        const smsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`;
+        console.log("Sending SMS via:", smsUrl, "to_user_id:", activeChat);
+        try {
+          const res = await fetch(smsUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ to_user_id: activeChat, text: msg.trim() }),
+          });
+          const result = await res.text();
+          console.log("SMS response:", res.status, result);
+          if (!res.ok) alert("SMS failed: " + result);
+        } catch (err) {
+          console.error("SMS send error:", err);
+          alert("SMS error: " + err.message);
+        }
+      } else {
+        console.log("Not admin, skipping SMS. role:", user.role);
       }
       setMsg("");
     }
