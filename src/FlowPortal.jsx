@@ -5287,8 +5287,9 @@ const TraineeProfile = ({ traineeId, onNav }) => {
   }, [traineeId]);
 
   const savePhone = async () => {
-    const phone = phoneVal.trim();
-    if (!phone) return;
+    const raw = phoneVal.trim().replace(/\D/g, "").replace(/^1/, "");
+    if (!raw || raw.length !== 10) { showToast("Enter a valid 10-digit number"); return; }
+    const phone = `+1${raw}`;
     if (savedPhone) {
       await supabase.from("contacts").update({ phone }).eq("user_id", traineeId);
     } else {
