@@ -7276,22 +7276,65 @@ const FloatingTimer = ({ user, onNav }) => {
 // ════════════════════════════════════════════
 const GCAL_CLIENT_ID = "469032916510-oj46e6opk4emi6n15vvedg8ghiahlsnb.apps.googleusercontent.com";
 const GCAL_SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+const GCAL_AUTH_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gcal-auth`;
 
 const startGcalOAuth = () => {
   const redirect = window.location.origin + window.location.pathname;
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GCAL_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent(GCAL_SCOPES)}&prompt=select_account`;
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GCAL_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=${encodeURIComponent(GCAL_SCOPES)}&access_type=offline&prompt=consent`;
   window.location.href = url;
+};
+
+const exchangeGcalCode = async (code) => {
+  const redirect = window.location.origin + window.location.pathname;
+  const res = await fetch(GCAL_AUTH_FN, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({ code, redirect_uri: redirect }),
+  });
+  if (!res.ok) { console.error("Code exchange failed:", res.status); return null; }
+  return res.json();
+};
+
+const refreshGcalToken = async (refreshToken) => {
+  const res = await fetch(GCAL_AUTH_FN, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!res.ok) { console.error("Token refresh failed:", res.status); return null; }
+  return res.json();
 };
 
 const fetchGcalEvents = async (token) => {
   const now = new Date();
   const min = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const max = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString();
-  const res = await fetch(
+  let res = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${min}&timeMax=${max}&singleEvents=true&orderBy=startTime&maxResults=250`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  if (!res.ok) { console.log("GCal fetch failed:", res.status); localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); return null; }
+  // If 401, try refreshing the token
+  if (res.status === 401) {
+    const rt = localStorage.getItem("gcal_refresh_token");
+    if (rt) {
+      const refreshed = await refreshGcalToken(rt);
+      if (refreshed?.access_token) {
+        localStorage.setItem("gcal_token", refreshed.access_token);
+        localStorage.setItem("gcal_expiry", String(Date.now() + (refreshed.expires_in || 3600) * 1000));
+        // Update the token in cal_sources too
+        try {
+          const sources = JSON.parse(localStorage.getItem("cal_sources") || "[]");
+          const updated = sources.map((s) => s.type === "google" ? { ...s, token: refreshed.access_token } : s);
+          localStorage.setItem("cal_sources", JSON.stringify(updated));
+        } catch {}
+        res = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${min}&timeMax=${max}&singleEvents=true&orderBy=startTime&maxResults=250`,
+          { headers: { Authorization: `Bearer ${refreshed.access_token}` } }
+        );
+      }
+    }
+  }
+  if (!res.ok) { console.log("GCal fetch failed:", res.status); return null; }
   const data = await res.json();
   console.log("GCal events fetched:", data.items?.length || 0);
   return (data.items || []).map((ev) => {
@@ -7353,21 +7396,35 @@ const fetchIcalEvents = async (icalUrl) => {
   } catch { return null; }
 };
 
-// Parse Google OAuth callback IMMEDIATELY (before Supabase can consume the hash)
+// Parse Google OAuth callback — now uses code flow (query param, not hash)
 const _gcalCallbackToken = (() => {
-  const hash = window.location.hash;
-  if (!hash.includes("access_token") || hash.includes("type=recovery") || hash.includes("type=signup")) return null;
-  const params = new URLSearchParams(hash.slice(1));
-  const token = params.get("access_token");
-  // Only treat as gcal callback if there's a token_type (Google sends this, Supabase doesn't in hash)
-  if (!token || !params.get("token_type")) return null;
-  const expiresIn = parseInt(params.get("expires_in") || "3600", 10);
-  localStorage.setItem("gcal_token", token);
-  localStorage.setItem("gcal_expiry", String(Date.now() + expiresIn * 1000));
-  localStorage.setItem("cal_source", "google");
-  // Clean the hash from URL
-  window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  return token;
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (!code) return null;
+  // Don't block — exchange async and store
+  (async () => {
+    const data = await exchangeGcalCode(code);
+    if (data?.access_token) {
+      localStorage.setItem("gcal_token", data.access_token);
+      localStorage.setItem("gcal_expiry", String(Date.now() + (data.expires_in || 3600) * 1000));
+      if (data.refresh_token) localStorage.setItem("gcal_refresh_token", data.refresh_token);
+      localStorage.setItem("cal_source", "google");
+      // Update cal_sources
+      try {
+        const sources = JSON.parse(localStorage.getItem("cal_sources") || "[]");
+        const exists = sources.some((s) => s.type === "google");
+        if (!exists) {
+          sources.push({ id: `g_${Date.now()}`, type: "google", label: "Google Calendar", token: data.access_token });
+        } else {
+          sources.forEach((s) => { if (s.type === "google") s.token = data.access_token; });
+        }
+        localStorage.setItem("cal_sources", JSON.stringify(sources));
+      } catch {}
+    }
+  })();
+  // Clean the code from URL
+  window.history.replaceState(null, "", window.location.pathname);
+  return true;
 })();
 
 // ════════════════════════════════════════════
@@ -7574,21 +7631,15 @@ const App = () => {
       let sources = [];
       try { sources = JSON.parse(localStorage.getItem("cal_sources") || "[]"); } catch {}
 
-      // Handle Google OAuth callback — add as a new source
+      // If returning from Google OAuth code flow, wait a moment for async exchange to finish
       if (_gcalCallbackToken) {
-        const exists = sources.some((s) => s.type === "google");
-        if (!exists) {
-          sources = [...sources, { id: `g_${Date.now()}`, type: "google", label: "Google Calendar", token: _gcalCallbackToken }];
-        } else {
-          sources = sources.map((s) => s.type === "google" ? { ...s, token: _gcalCallbackToken } : s);
-        }
-        localStorage.setItem("cal_sources", JSON.stringify(sources));
+        await new Promise((r) => setTimeout(r, 1500));
+        try { sources = JSON.parse(localStorage.getItem("cal_sources") || "[]"); } catch {}
       }
 
-      // Also check for legacy single-source tokens
+      // Also check for legacy/current single-source token
       const savedToken = localStorage.getItem("gcal_token");
-      const expiry = parseInt(localStorage.getItem("gcal_expiry") || "0", 10);
-      if (savedToken && Date.now() < expiry && !sources.some((s) => s.type === "google")) {
+      if (savedToken && !sources.some((s) => s.type === "google")) {
         sources = [...sources, { id: `g_${Date.now()}`, type: "google", label: "Google Calendar", token: savedToken }];
         localStorage.setItem("cal_sources", JSON.stringify(sources));
       }
