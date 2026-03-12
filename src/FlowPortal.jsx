@@ -9,7 +9,7 @@ import { AgreementPage } from "./components/AgreementPage";
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
-const COHORT_RING_COLORS = ["#6B8E9B", "#B07D62", "#7B6B8D", "#5E8C6A", "#C2785C", "#5B7FA5", "#9B6B6B", "#6A8F7B"];
+const COHORT_RING_COLORS = CAT_COLORS;
 let _cohortColorMap = {};
 try { _cohortColorMap = JSON.parse(localStorage.getItem("cohort_colors") || "{}"); } catch {}
 const setCohortColorMap = (map) => { _cohortColorMap = map; localStorage.setItem("cohort_colors", JSON.stringify(map)); };
@@ -5138,6 +5138,8 @@ const AdminTrainees = ({ onNav }) => {
   const [cohortModal, setCohortModal] = useState(false);
   const [newCohort, setNewCohort] = useState("");
   const [newCohortColor, setNewCohortColor] = useState(null);
+  const [editingCohortColor, setEditingCohortColor] = useState(null);
+  const [, forceUpdate] = useState(0);
   const [cohorts, setCohorts] = useState([]);
 
   // Derive cohorts from residents + any manually created empty ones
@@ -5200,7 +5202,26 @@ const AdminTrainees = ({ onNav }) => {
             <Card key={cohort} style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ padding: "14px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.lightLine}`, background: T.cream }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: cohortColor(cohort), flexShrink: 0 }} />
+                  <div style={{ position: "relative" }}>
+                    <button onClick={(e) => { e.stopPropagation(); setEditingCohortColor(editingCohortColor === cohort ? null : cohort); }} style={{ width: 14, height: 14, borderRadius: "50%", background: cohortColor(cohort), border: "2px solid " + T.white, boxShadow: "0 0 0 1px " + T.creamDark, cursor: "pointer", padding: 0 }} title="Change color" />
+                    {editingCohortColor === cohort && (
+                      <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 22, left: 0, zIndex: 50, background: T.white, borderRadius: T.radiusSm, boxShadow: T.shadowLg, padding: 10, display: "flex", gap: 5, flexWrap: "wrap", width: 180 }}>
+                        {CAT_COLORS.map((c) => (
+                          <button key={c} onClick={() => { setCohortColorMap({ ..._cohortColorMap, [cohort]: c }); setEditingCohortColor(null); forceUpdate((n) => n + 1); }} style={{
+                            width: 24, height: 24, borderRadius: "50%", border: cohortColor(cohort) === c ? "2.5px solid " + T.charcoal : "2.5px solid transparent",
+                            background: c, cursor: "pointer", transition: "border .15s",
+                          }} />
+                        ))}
+                        <label style={{
+                          width: 24, height: 24, borderRadius: "50%", border: !CAT_COLORS.includes(cohortColor(cohort)) ? "2.5px solid " + T.charcoal : "2.5px solid " + T.lightLine,
+                          background: `conic-gradient(#C26A6A, #C9A96E, #3D6B5E, #4A6FA5, #6B4D94, #C26A6A)`,
+                          cursor: "pointer", position: "relative", overflow: "hidden",
+                        }}>
+                          <input type="color" value={cohortColor(cohort) || "#C9A96E"} onChange={(e) => { setCohortColorMap({ ..._cohortColorMap, [cohort]: e.target.value }); forceUpdate((n) => n + 1); }} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
+                        </label>
+                      </div>
+                    )}
+                  </div>
                   <h3 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600 }}>{cohort}</h3>
                   <span style={{ fontSize: "11px", color: T.textMuted, background: T.white, padding: "2px 8px", borderRadius: 10 }}>{members.length} trainee{members.length !== 1 ? "s" : ""}</span>
                 </div>
@@ -5293,20 +5314,20 @@ const AdminTrainees = ({ onNav }) => {
         <FormField label="Cohort Name">
           <input value={newCohort} onChange={(e) => setNewCohort(e.target.value)} placeholder="e.g. Fall 2026" style={iSt} autoFocus onKeyDown={(e) => { if (e.key === "Enter") addCohort(); }} />
         </FormField>
-        <FormField label="Ring Color">
+        <FormField label="Color">
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {COHORT_RING_COLORS.map((c) => (
+            {CAT_COLORS.map((c) => (
               <button key={c} onClick={() => setNewCohortColor(c)} style={{
                 width: 28, height: 28, borderRadius: "50%", border: newCohortColor === c ? "2.5px solid " + T.charcoal : "2.5px solid transparent",
                 background: c, cursor: "pointer", transition: "border .15s",
               }} />
             ))}
             <label style={{
-              width: 28, height: 28, borderRadius: "50%", border: newCohortColor && !COHORT_RING_COLORS.includes(newCohortColor) ? "2.5px solid " + T.charcoal : "2.5px solid " + T.lightLine,
-              background: `conic-gradient(#6B8E9B, #B07D62, #7B6B8D, #5E8C6A, #C2785C, #6B8E9B)`,
+              width: 28, height: 28, borderRadius: "50%", border: newCohortColor && !CAT_COLORS.includes(newCohortColor) ? "2.5px solid " + T.charcoal : "2.5px solid " + T.lightLine,
+              background: `conic-gradient(#C26A6A, #C9A96E, #3D6B5E, #4A6FA5, #6B4D94, #C26A6A)`,
               cursor: "pointer", position: "relative", overflow: "hidden",
             }} title="Custom color">
-              <input type="color" value={newCohortColor || "#6B8E9B"} onChange={(e) => setNewCohortColor(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
+              <input type="color" value={newCohortColor || "#C9A96E"} onChange={(e) => setNewCohortColor(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
             </label>
           </div>
         </FormField>
