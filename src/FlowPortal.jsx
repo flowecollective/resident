@@ -2781,13 +2781,21 @@ const MsgPage = ({ user }) => {
 
   const isAdmin = user.role === "admin";
 
+  // Look up the admin's UUID for resident-side chat
+  const [adminId, setAdminId] = useState(null);
+  useEffect(() => {
+    if (isAdmin) return;
+    supabase.from("profiles").select("id").eq("role", "admin").limit(1).single()
+      .then(({ data }) => { if (data) setAdminId(data.id); });
+  }, [isAdmin]);
+
   useEffect(() => {
     if (isAdmin && residents.length > 0 && !activeChat) {
       setActiveChat(residents[0].id);
-    } else if (!isAdmin && !activeChat) {
-      setActiveChat("a1");
+    } else if (!isAdmin && adminId && !activeChat) {
+      setActiveChat(adminId);
     }
-  }, [isAdmin, residents, activeChat]);
+  }, [isAdmin, residents, activeChat, adminId]);
 
   useEffect(() => {
     if (!activeChat) return;
@@ -2870,7 +2878,7 @@ const MsgPage = ({ user }) => {
   };
 
   const getPartnerName = (id) => {
-    if (id === "a1") return "Flowe Educator";
+    if (id === adminId) return "Flowe Educator";
     const r = residents.find((r) => r.id === id);
     return r?.name || id;
   };
@@ -2882,7 +2890,7 @@ const MsgPage = ({ user }) => {
       const { data } = await supabase
         .from("messages")
         .select("from_id")
-        .eq("to_id", "a1")
+        .eq("to_id", user.id)
         .eq("read", false);
       if (data) {
         const counts = {};
@@ -2957,7 +2965,7 @@ const MsgPage = ({ user }) => {
             )}
             {messages.map((m) => {
               const isSelf = m.from_id === user.id;
-              const isEducator = m.from_id === "a1";
+              const isEducator = isAdmin ? false : m.from_id === adminId;
               return (
                 <div key={m.id} style={{ display: "flex", justifyContent: isSelf ? "flex-end" : "flex-start" }}>
                   <div

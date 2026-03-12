@@ -34,10 +34,20 @@ export default async function handler(req, res) {
 
   const senderId = contact?.user_id || "unknown";
 
+  // Look up admin user
+  const { data: admin } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin")
+    .limit(1)
+    .single();
+
+  const adminId = admin?.id || "unknown";
+
   // Store the message
   await supabase.from("messages").insert({
     from_id: senderId,
-    to_id: "a1",
+    to_id: adminId,
     text: text.trim(),
     channel: "sms",
     read: false,
