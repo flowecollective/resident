@@ -201,8 +201,13 @@ create policy "notifications_delete_admin" on notifications for delete using (is
 
 -- STORAGE
 
-insert into storage.buckets (id, name, public) values ('documents', 'documents', false)
+insert into storage.buckets (id, name, public) values ('documents', 'documents', true)
 on conflict do nothing;
+
+create policy "storage_read_all" on storage.objects for select using (bucket_id = 'documents');
+create policy "storage_upload_auth" on storage.objects for insert with check (bucket_id = 'documents' and auth.role() = 'authenticated');
+create policy "storage_update_auth" on storage.objects for update using (bucket_id = 'documents' and auth.role() = 'authenticated');
+create policy "storage_delete_admin" on storage.objects for delete using (bucket_id = 'documents' and (select is_admin()));
 
 -- AUTO-CREATE PROFILE ON SIGNUP
 

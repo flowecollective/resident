@@ -6701,7 +6701,7 @@ const SettingsPage = () => {
     const base64 = dataUrl.split(",")[1];
     const blob = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
     const { error: uploadErr } = await supabase.storage.from("documents").upload(fileName, blob, { contentType: "image/jpeg", upsert: true });
-    if (uploadErr) { showToast("Error uploading photo"); return; }
+    if (uploadErr) { console.error("Photo upload error:", uploadErr); showToast("Error uploading photo"); return; }
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
     const photoUrl = urlData?.publicUrl || dataUrl;
     // Save to profile
