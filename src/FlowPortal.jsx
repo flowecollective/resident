@@ -5473,80 +5473,66 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 
       {/* Profile Card */}
       <Card style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
-        <div style={{ padding: "24px 28px", display: "flex", gap: 20, alignItems: "center" }}>
+        {/* Identity row */}
+        <div style={{ padding: "20px 28px", display: "flex", gap: 16, alignItems: "center", borderBottom: `1px solid ${T.lightLine}` }}>
           <div style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => setPhotoModal(true)}>
-            <Avatar name={r.name} size={64} photo={r.photo} />
+            <Avatar name={r.name} size={48} photo={r.photo} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600, marginBottom: 2 }}>{r.name}</h2>
-            <p style={{ fontSize: "12px", color: T.textMuted }}>Resident</p>
-          </div>
-          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            {[
-              { label: "Progress", value: `${pct}%`, color: T.gold },
-              { label: "Services", value: `${completedServices}/${serviceSkills.length}`, color: T.text },
-              { label: "Knowledge", value: `${completedKnowledge}/${knowledgeSkills.length}`, color: T.text },
-              { label: "Logs", value: `${totalLogEntries}`, color: T.text },
-            ].map((s) => (
-              <div key={s.label} style={{ textAlign: "center", minWidth: 52 }}>
-                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 2 }}>{s.label}</p>
-                <p style={{ fontFamily: T.fontD, fontSize: "20px", fontWeight: 600, color: s.color, lineHeight: 1 }}>{s.value}</p>
-              </div>
-            ))}
+            <h2 style={{ fontFamily: T.fontD, fontSize: "22px", fontWeight: 600 }}>{r.name}</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12px", color: T.textMuted, marginTop: 2 }}>
+              <span>{r.email}</span>
+              <span style={{ opacity: 0.3 }}>|</span>
+              {editField === "cohort" ? (
+                <select
+                  value={cohortVal}
+                  onChange={(e) => setCohortVal(e.target.value)}
+                  onBlur={() => { if (cohortVal) saveCohort(); else setEditField(null); }}
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ fontSize: "12px", border: `1px solid ${T.creamDark}`, borderRadius: 4, padding: "1px 4px", background: T.cream }}
+                >
+                  <option value="">Select</option>
+                  {cohortOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              ) : (
+                <span onClick={() => { setCohortVal(r.cohort || ""); setEditField("cohort"); }} style={{ cursor: "pointer" }}>{r.cohort || "No cohort"}</span>
+              )}
+              <span style={{ opacity: 0.3 }}>|</span>
+              {editField === "phone" ? (
+                <input
+                  value={phoneVal}
+                  onChange={(e) => setPhoneVal(e.target.value)}
+                  placeholder="(XXX) XXX-XXXX"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") savePhone();
+                    if (e.key === "Escape") setEditField(null);
+                  }}
+                  onBlur={() => { if (phoneVal.trim()) savePhone(); else setEditField(null); }}
+                  style={{ fontSize: "12px", border: `1px solid ${T.creamDark}`, borderRadius: 4, padding: "1px 6px", width: 120, background: T.cream }}
+                />
+              ) : (
+                <span onClick={() => { setPhoneVal(savedPhone); setEditField("phone"); }} style={{ cursor: "pointer" }}>{formatPhone(savedPhone)}</span>
+              )}
+            </div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `1px solid ${T.lightLine}` }}>
-          {/* Email — read only */}
-          <div style={{ padding: "14px 24px", borderRight: `1px solid ${T.lightLine}` }}>
-            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>Email</p>
-            <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.email}</p>
-          </div>
-          {/* Cohort — select dropdown */}
-          <div
-            onClick={() => { if (editField !== "cohort") { setCohortVal(r.cohort || ""); setEditField("cohort"); } }}
-            style={{ padding: "14px 24px", cursor: "pointer", borderRight: `1px solid ${T.lightLine}`, background: editField === "cohort" ? T.cream : T.white, transition: "background 0.15s" }}
-          >
-            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>Cohort</p>
-            {editField === "cohort" ? (
-              <select
-                value={cohortVal}
-                onChange={(e) => { setCohortVal(e.target.value); }}
-                onBlur={() => { if (cohortVal) saveCohort(); else setEditField(null); }}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-                style={{ ...iSt, fontSize: "13px", padding: "4px 8px", width: "100%" }}
-              >
-                <option value="">Select cohort</option>
-                {cohortOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            ) : (
-              <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.cohort || "---"}</p>
-            )}
-          </div>
-          {/* Phone — text input */}
-          <div
-            onClick={() => { if (editField !== "phone") { setPhoneVal(savedPhone); setEditField("phone"); } }}
-            style={{ padding: "14px 24px", cursor: "pointer", background: editField === "phone" ? T.cream : T.white, transition: "background 0.15s" }}
-          >
-            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>Phone</p>
-            {editField === "phone" ? (
-              <input
-                value={phoneVal}
-                onChange={(e) => setPhoneVal(e.target.value)}
-                placeholder="(XXX) XXX-XXXX"
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") savePhone();
-                  if (e.key === "Escape") setEditField(null);
-                }}
-                onBlur={() => { if (phoneVal.trim()) savePhone(); else setEditField(null); }}
-                style={{ ...iSt, fontSize: "13px", padding: "4px 8px", width: "100%" }}
-              />
-            ) : (
-              <p style={{ fontSize: "13px", fontWeight: 500 }}>{formatPhone(savedPhone)}</p>
-            )}
-          </div>
+        {/* Progress stats — prominent */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
+          {[
+            { label: "Overall Progress", value: `${pct}%`, sub: `${done}/${total} skills`, color: T.gold },
+            { label: "Services", value: `${completedServices}/${serviceSkills.length}`, sub: "mastered", color: T.success },
+            { label: "Knowledge", value: `${completedKnowledge}/${knowledgeSkills.length}`, sub: "complete", color: completedKnowledge === knowledgeSkills.length ? T.success : T.warn },
+            { label: "Time Logs", value: `${totalLogEntries}`, sub: `${modelEntries} on models`, color: T.charcoal },
+          ].map((s, i) => (
+            <div key={s.label} style={{ padding: "18px 24px", textAlign: "center", borderRight: i < 3 ? `1px solid ${T.lightLine}` : "none" }}>
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 6 }}>{s.label}</p>
+              <p style={{ fontFamily: T.fontD, fontSize: "26px", fontWeight: 600, color: s.color, lineHeight: 1 }}>{s.value}</p>
+              <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>{s.sub}</p>
+            </div>
+          ))}
         </div>
       </Card>
 
