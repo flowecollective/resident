@@ -3907,21 +3907,30 @@ const AdminSchedule = () => {
     return `${fmt(startH)} – ${fmt(endH)}`;
   };
 
-  const save = () => {
+  const save = async () => {
     if (!form.title.trim()) return;
     const event = { ...form, time: buildTimeRange(form.time, parseInt(form.duration, 10) || 60) };
     delete event.duration;
     if (event.type !== "skill") event.skillId = null;
+    const row = { title: event.title, date: event.date, time: event.time, type: event.type, assign_to: event.assignTo, skill_id: event.skillId || null, notes: event.notes || null };
     if (editId) {
+      await supabase.from("schedule").update(row).eq("id", editId);
       setSchedule((p) => p.map((e) => (e.id === editId ? { ...e, ...event } : e)));
       showToast("Event updated");
     } else {
-      setSchedule((p) => [...p, { id: Date.now(), ...event }]);
+      const { data } = await supabase.from("schedule").insert(row).select().single();
+      if (data) {
+        setSchedule((p) => [...p, { id: data.id, title: data.title, date: data.date, time: data.time, type: data.type || "general", assignTo: data.assign_to || "all", skillId: data.skill_id }]);
+      }
       showToast("Event added");
     }
     setModal(false);
   };
-  const rem = (id) => { setSchedule((p) => p.filter((e) => e.id !== id)); showToast("Event removed"); };
+  const rem = async (id) => {
+    await supabase.from("schedule").delete().eq("id", id);
+    setSchedule((p) => p.filter((e) => e.id !== id));
+    showToast("Event removed");
+  };
   const handleDayClick = (date) => { cal.setSelectedDate(date); };
   const selectedEvents = cal.selectedDate ? schedule.filter((e) => e.date === cal.selectedDate) : [];
 
@@ -5503,17 +5512,20 @@ const TraineeProfile = ({ traineeId, onNav }) => {
     setSchedForm({ skillId: "", title: titles[type] || "", date: "2026-03-05", time: "9:00 AM", type });
     setSchedModal(true);
   };
-  const saveSchedule = () => {
+  const saveSchedule = async () => {
     if (!schedForm.title.trim()) return;
-    setSchedule((p) => [...p, {
-      id: Date.now(),
-      title: schedForm.title,
-      date: schedForm.date,
-      time: schedForm.time,
-      type: schedForm.type,
-      assignTo: traineeId,
-      skillId: schedForm.type === "skill" ? schedForm.skillId : null,
-    }]);
+    const row = {
+      title: schedForm.title, date: schedForm.date, time: schedForm.time,
+      type: schedForm.type, assign_to: traineeId,
+      skill_id: schedForm.type === "skill" ? schedForm.skillId : null,
+    };
+    const { data } = await supabase.from("schedule").insert(row).select().single();
+    if (data) {
+      setSchedule((p) => [...p, {
+        id: data.id, title: data.title, date: data.date, time: data.time,
+        type: data.type || "general", assignTo: data.assign_to || "all", skillId: data.skill_id,
+      }]);
+    }
     showToast("Scheduled for " + r.name.split(" ")[0]);
     setSchedModal(false);
   };
@@ -7484,6 +7496,16 @@ const App = () => {
           })),
         }));
         setMasterProgram(program);
+      }
+
+      // Load schedule from Supabase
+      const { data: schedData } = await supabase.from("schedule").select("*").order("date");
+      if (schedData) {
+        setSchedule(schedData.map((s) => ({
+          id: s.id, title: s.title, date: s.date, time: s.time,
+          type: s.type || "general", assignTo: s.assign_to || "all",
+          skillId: s.skill_id, notes: s.notes,
+        })));
       }
 
       // Load residents (profiles + skill assignments + timing logs)
