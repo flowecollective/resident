@@ -5274,11 +5274,10 @@ const AdminTrainees = ({ onNav }) => {
 // ════════════════════════════════════════════
 const TraineeProfile = ({ traineeId, onNav }) => {
   const { residents, setResidents, masterProgram, schedule, setSchedule, showToast } = useData();
-  const [editField, setEditField] = useState(null); // "cohort" | "phone" | "email" | null
+  const [editField, setEditField] = useState(null); // "cohort" | "phone" | null
   const [cohortVal, setCohortVal] = useState("");
   const [phoneVal, setPhoneVal] = useState("");
   const [savedPhone, setSavedPhone] = useState("");
-  const [emailVal, setEmailVal] = useState("");
   const [tab, setTab] = useState("overview");
   const [schedModal, setSchedModal] = useState(false);
   const [schedForm, setSchedForm] = useState({ skillId: "", title: "", date: "2026-03-05", time: "9:00 AM", type: "skill" });
@@ -5324,14 +5323,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
     showToast("Cohort updated");
   };
 
-  const saveEmail = async () => {
-    const v = emailVal.trim();
-    if (!v) return;
-    setResidents((p) => p.map((x) => x.id === traineeId ? { ...x, email: v } : x));
-    await supabase.from("profiles").update({ email: v }).eq("id", traineeId);
-    setEditField(null);
-    showToast("Email updated");
-  };
+  const cohortOptions = [...new Set(residents.map((x) => x.cohort).filter(Boolean))];
 
   const formatPhone = (p) => {
     if (!p) return "---";
@@ -5504,57 +5496,57 @@ const TraineeProfile = ({ traineeId, onNav }) => {
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `1px solid ${T.lightLine}` }}>
-          {[
-            { label: "Email", icon: "mail", value: r.email, field: "email" },
-            { label: "Cohort", icon: "calendar", value: r.cohort || "---", field: "cohort" },
-            { label: "Phone", icon: "send", value: formatPhone(savedPhone), field: "phone" },
-          ].map((item, i) => (
-            <div
-              key={item.field}
-              onClick={() => {
-                if (item.field === "email") { setEmailVal(r.email || ""); setEditField("email"); }
-                if (item.field === "cohort") { setCohortVal(r.cohort || ""); setEditField("cohort"); }
-                if (item.field === "phone") { setPhoneVal(savedPhone); setEditField("phone"); }
-              }}
-              style={{
-                padding: "14px 24px",
-                cursor: "pointer",
-                borderRight: i < 2 ? `1px solid ${T.lightLine}` : "none",
-                background: editField === item.field ? T.cream : T.white,
-                transition: "background 0.15s",
-              }}
-            >
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>{item.label}</p>
-              {editField === item.field ? (
-                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <input
-                    value={item.field === "email" ? emailVal : item.field === "cohort" ? cohortVal : phoneVal}
-                    onChange={(e) => {
-                      if (item.field === "email") setEmailVal(e.target.value);
-                      if (item.field === "cohort") setCohortVal(e.target.value);
-                      if (item.field === "phone") setPhoneVal(e.target.value);
-                    }}
-                    list={item.field === "cohort" ? "cohort-options" : undefined}
-                    placeholder={item.field === "phone" ? "(XXX) XXX-XXXX" : ""}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") { item.field === "email" ? saveEmail() : item.field === "cohort" ? saveCohort() : savePhone(); }
-                      if (e.key === "Escape") setEditField(null);
-                    }}
-                    style={{ ...iSt, fontSize: "13px", padding: "4px 8px", width: "100%" }}
-                  />
-                  {item.field === "cohort" && (
-                    <datalist id="cohort-options">
-                      {[...new Set(residents.map((x) => x.cohort).filter(Boolean))].map((c) => <option key={c} value={c} />)}
-                    </datalist>
-                  )}
-                </div>
-              ) : (
-                <p style={{ fontSize: "13px", fontWeight: 500 }}>{item.value}</p>
-              )}
-            </div>
-          ))}
+          {/* Email — read only */}
+          <div style={{ padding: "14px 24px", borderRight: `1px solid ${T.lightLine}` }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>Email</p>
+            <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.email}</p>
+          </div>
+          {/* Cohort — select dropdown */}
+          <div
+            onClick={() => { if (editField !== "cohort") { setCohortVal(r.cohort || ""); setEditField("cohort"); } }}
+            style={{ padding: "14px 24px", cursor: "pointer", borderRight: `1px solid ${T.lightLine}`, background: editField === "cohort" ? T.cream : T.white, transition: "background 0.15s" }}
+          >
+            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>Cohort</p>
+            {editField === "cohort" ? (
+              <select
+                value={cohortVal}
+                onChange={(e) => { setCohortVal(e.target.value); }}
+                onBlur={() => { if (cohortVal) saveCohort(); else setEditField(null); }}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                style={{ ...iSt, fontSize: "13px", padding: "4px 8px", width: "100%" }}
+              >
+                <option value="">Select cohort</option>
+                {cohortOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            ) : (
+              <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.cohort || "---"}</p>
+            )}
+          </div>
+          {/* Phone — text input */}
+          <div
+            onClick={() => { if (editField !== "phone") { setPhoneVal(savedPhone); setEditField("phone"); } }}
+            style={{ padding: "14px 24px", cursor: "pointer", background: editField === "phone" ? T.cream : T.white, transition: "background 0.15s" }}
+          >
+            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: T.textMuted, marginBottom: 4 }}>Phone</p>
+            {editField === "phone" ? (
+              <input
+                value={phoneVal}
+                onChange={(e) => setPhoneVal(e.target.value)}
+                placeholder="(XXX) XXX-XXXX"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") savePhone();
+                  if (e.key === "Escape") setEditField(null);
+                }}
+                onBlur={() => { if (phoneVal.trim()) savePhone(); else setEditField(null); }}
+                style={{ ...iSt, fontSize: "13px", padding: "4px 8px", width: "100%" }}
+              />
+            ) : (
+              <p style={{ fontSize: "13px", fontWeight: 500 }}>{formatPhone(savedPhone)}</p>
+            )}
+          </div>
         </div>
       </Card>
 
