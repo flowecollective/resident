@@ -2555,6 +2555,8 @@ const MsgPage = ({ user }) => {
   const [activeChat, setActiveChat] = useState(null);
   const [sending, setSending] = useState(false);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [archivedMessages, setArchivedMessages] = useState([]);
   const bottomRef = useRef(null);
 
   const isAdmin = user.role === "admin";
@@ -2681,6 +2683,30 @@ const MsgPage = ({ user }) => {
     showToast("Conversation archived");
   };
 
+  const loadArchived = async () => {
+    if (!activeChat) return;
+    const myId = user.id;
+    const partnerId = activeChat;
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .or(`and(from_id.eq.${myId},to_id.eq.${partnerId}),and(from_id.eq.${partnerId},to_id.eq.${myId})`)
+      .eq("archived", true)
+      .order("time", { ascending: true });
+    setArchivedMessages(data || []);
+    setShowArchive(true);
+  };
+
+  const unarchiveConversation = async () => {
+    const ids = archivedMessages.map((m) => m.id);
+    if (ids.length === 0) return;
+    await supabase.from("messages").update({ archived: false }).in("id", ids);
+    setMessages((prev) => [...prev, ...archivedMessages].sort((a, b) => a.time.localeCompare(b.time)));
+    setArchivedMessages([]);
+    setShowArchive(false);
+    showToast("Messages restored");
+  };
+
   const getPartnerName = (id) => {
     if (id === adminId) return "Flowe Educator";
     const r = residents.find((r) => r.id === id);
@@ -2748,6 +2774,13 @@ const MsgPage = ({ user }) => {
                 </div>
               ))}
             </div>
+            {activeChat && (
+              <div style={{ padding: "10px 16px", borderTop: `1px solid ${T.lightLine}` }}>
+                <button onClick={loadArchived} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: T.textMuted, padding: "6px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: 0.6, transition: "opacity .15s" }} onMouseEnter={(e) => e.currentTarget.style.opacity = 1} onMouseLeave={(e) => e.currentTarget.style.opacity = 0.6}>
+                  <Icon name="archive" size={12} color={T.textMuted} /> View Archived
+                </button>
+              </div>
+            )}
           </Card>
         )}
 
@@ -2828,6 +2861,35 @@ const MsgPage = ({ user }) => {
           </div>
         </Card>
       </div>
+
+      {/* Archived messages viewer */}
+      <Modal open={showArchive} onClose={() => setShowArchive(false)} title={`Archived — ${partnerName}`}>
+        {archivedMessages.length === 0 ? (
+          <p style={{ fontSize: "13px", color: T.textMuted, textAlign: "center", padding: "20px 0" }}>No archived messages with this resident.</p>
+        ) : (
+          <>
+            <div style={{ maxHeight: 350, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+              {archivedMessages.map((m) => {
+                const isSelf = m.from_id === user.id;
+                return (
+                  <div key={m.id} style={{ display: "flex", justifyContent: isSelf ? "flex-end" : "flex-start" }}>
+                    <div style={{ maxWidth: "75%", padding: "8px 12px", borderRadius: T.radiusSm, background: isSelf ? T.charcoalMuted : T.cream, opacity: 0.8 }}>
+                      <p style={{ fontSize: "12px", lineHeight: 1.5 }}>{m.text}</p>
+                      <p style={{ fontSize: "10px", color: T.textMuted, textAlign: "right", marginTop: 2 }}>
+                        {new Date(m.time).toLocaleDateString()} {new Date(m.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p style={{ fontSize: "11px", color: T.textMuted }}>{archivedMessages.length} message{archivedMessages.length !== 1 ? "s" : ""}</p>
+              <Btn onClick={unarchiveConversation}>Restore Messages</Btn>
+            </div>
+          </>
+        )}
+      </Modal>
 
       {/* Archive confirmation dialog */}
       <Modal open={archiveConfirm} onClose={() => setArchiveConfirm(false)} title="Clear & Archive Conversation">
