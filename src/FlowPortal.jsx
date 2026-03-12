@@ -3958,6 +3958,7 @@ const AdminMaster = () => {
   const [catModal, setCatModal] = useState(false);
   const [skModal, setSkModal] = useState(false);
   const [newCat, setNewCat] = useState("");
+  const [newCatColor, setNewCatColor] = useState(null);
   const [newSk, setNewSk] = useState("");
   const [newSkType, setNewSkType] = useState("service");
   const [newSkSop, setNewSkSop] = useState({ steps: "", mistakes: "", consultation: "", tips: "", tools: "" });
@@ -4179,7 +4180,7 @@ const AdminMaster = () => {
     setCsvImportModal(false); setCsvPreview(null); setCsvError("");
   };
 
-  const addCat = () => { if (!newCat.trim()) return; const nextColor = CAT_COLORS[masterProgram.length % CAT_COLORS.length]; setMasterProgram((p) => [...p, { id: `c_${uid()}`, name: newCat.trim(), color: nextColor, videos: [], skills: [] }]); setNewCat(""); setCatModal(false); showToast("Category added"); };
+  const addCat = () => { if (!newCat.trim()) return; const color = newCatColor || CAT_COLORS[masterProgram.length % CAT_COLORS.length]; setMasterProgram((p) => [...p, { id: `c_${uid()}`, name: newCat.trim(), color, videos: [], skills: [] }]); setNewCat(""); setNewCatColor(null); setCatModal(false); showToast("Category added"); };
 
   // Delete confirmation + archive
   const [deleteModal, setDeleteModal] = useState(false);
@@ -4743,7 +4744,24 @@ const AdminMaster = () => {
       </>}
 
       <Modal open={catModal} onClose={() => setCatModal(false)} title="New Category" width={400}>
-        <FormField label="Category Name"><input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="e.g. Texture & Perming" style={iSt} onKeyDown={(e) => e.key === "Enter" && addCat()} /></FormField>
+        <FormField label="Category Name"><input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="e.g. Texture & Perming" style={iSt} onKeyDown={(e) => e.key === "Enter" && addCat()} autoFocus /></FormField>
+        <FormField label="Color">
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {CAT_COLORS.map((c) => (
+              <button key={c} onClick={() => setNewCatColor(c)} style={{
+                width: 28, height: 28, borderRadius: "50%", border: newCatColor === c ? "2.5px solid " + T.charcoal : "2.5px solid transparent",
+                background: c, cursor: "pointer", transition: "border .15s",
+              }} />
+            ))}
+            <label style={{
+              width: 28, height: 28, borderRadius: "50%", border: newCatColor && !CAT_COLORS.includes(newCatColor) ? "2.5px solid " + T.charcoal : "2.5px solid " + T.lightLine,
+              background: `conic-gradient(#C26A6A, #C9A96E, #3D6B5E, #4A6FA5, #6B4D94, #C26A6A)`,
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden",
+            }} title="Custom color">
+              <input type="color" value={newCatColor || "#C9A96E"} onChange={(e) => setNewCatColor(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
+            </label>
+          </div>
+        </FormField>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setCatModal(false)}>Cancel</Btn><Btn onClick={addCat}>Add Category</Btn></div>
       </Modal>
       <Modal open={skModal} onClose={() => setSkModal(false)} title="Add Skill" width={680}>
