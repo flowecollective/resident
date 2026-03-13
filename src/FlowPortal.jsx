@@ -4551,8 +4551,8 @@ const AdminMaster = () => {
       ? { ...c, skills: c.skills.map((s) => s.id === editSkillData.id ? { ...s, targetMin: t, maxMin: m, sop: hasSop ? { ...sopData } : s.sop } : s) }
       : c
     ));
-    const { data: skUpdData, error: skUpdErr, count: skUpdCount } = await supabase.from("skills").update(updates).eq("id", editSkillData.id).select();
-    console.log("Skill update:", { error: skUpdErr, data: skUpdData, id: editSkillData.id, updates });
+    const { data: skUpdData, error: skUpdErr } = await supabase.from("skills").update(updates).eq("id", editSkillData.id).select();
+    console.log("Skill update — rows returned:", skUpdData?.length, "sop in response:", JSON.stringify(skUpdData?.[0]?.sop)?.substring(0, 100), "videos:", skUpdData?.[0]?.videos?.length);
     if (skUpdErr) showToast("Failed to save: " + skUpdErr.message);
     setEditSkillModal(false);
     showToast("Skill updated");
@@ -8241,7 +8241,11 @@ const App = () => {
         supabase.from("categories").select("*").not("archived_at", "is", null),
         supabase.from("skills").select("*").not("archived_at", "is", null),
       ]);
-      console.log("DB load — cats:", catsData?.length, catsErr, "skills:", skillsData?.length, skillsErr, "sample skill:", skillsData?.[0]);
+      console.log("DB load — cats:", catsData?.length, "skills:", skillsData?.length);
+      const withSop = (skillsData || []).filter((s) => s.sop);
+      const withVids = (skillsData || []).filter((s) => s.videos && s.videos.length > 0);
+      console.log("Skills with SOP:", withSop.length, "with videos:", withVids.length);
+      if (skillsData?.[0]) console.log("Sample skill keys:", Object.keys(skillsData[0]).join(", "));
       if (catsData) {
         const mapSkill = (s, archived) => ({
           id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop,
