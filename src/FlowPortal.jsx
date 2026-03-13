@@ -308,6 +308,7 @@ const getProgress = (trainee, masterProgram) => {
 //  AUTH SCREEN
 // ════════════════════════════════════════════
 // ── SOP Section Labels ──
+const sopHasContent = (sop) => sop && Object.values(sop).some((v) => v && v.replace(/<[^>]*>/g, "").trim());
 const SOP_SECTIONS = [
   { key: "steps", label: "Key Steps", icon: "check", color: T.gold },
   { key: "mistakes", label: "Common Mistakes", icon: "alert", color: T.danger },
@@ -440,7 +441,7 @@ const RichEditor = ({ value, onChange }) => {
 const SOPViewer = ({ sop }) => {
   const [activeTab, setActiveTab] = useState(null);
   if (!sop) return null;
-  const sections = SOP_SECTIONS.filter((s) => sop[s.key]);
+  const sections = SOP_SECTIONS.filter((s) => sop[s.key] && sop[s.key].replace(/<[^>]*>/g, "").trim());
   if (sections.length === 0) return null;
 
   return (
@@ -1652,7 +1653,7 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
   const complete = isService ? (p.technique >= 3 && p.timing >= 3) : p.done;
   const skPct = getSkillPct(trainee, skill.id, masterProgram);
   const hasStandard = isService && skill.targetMin;
-  const hasSop = skill.sop && Object.values(skill.sop).some((v) => v);
+  const hasSop = sopHasContent(skill.sop);
   const hasVids = (skill.videos || []).length > 0;
   const logs = timingLogs || [];
   const avgTime = logs.length ? Math.round(logs.reduce((a, l) => a + l.minutes, 0) / logs.length) : null;
@@ -4439,7 +4440,7 @@ const AdminMaster = () => {
   }, []);
 
   const confirmDeleteCat = (cat) => {
-    const sopCount = cat.skills.filter((s) => s.sop && Object.values(s.sop).some((v) => v)).length;
+    const sopCount = cat.skills.filter((s) => sopHasContent(s.sop)).length;
     const videoCount = (cat.videos || []).length + cat.skills.reduce((a, s) => a + (s.videos || []).length, 0);
     setDeleteTarget({
       type: "cat", catId: cat.id, name: cat.name,
@@ -4448,7 +4449,7 @@ const AdminMaster = () => {
     setDeleteModal(true);
   };
   const confirmDeleteSk = (catId, sk) => {
-    const hasSop = sk.sop && Object.values(sk.sop).some((v) => v);
+    const hasSop = sopHasContent(sk.sop);
     const videoCount = (sk.videos || []).length;
     setDeleteTarget({
       type: "skill", catId, skillId: sk.id, name: sk.name,
@@ -4998,7 +4999,7 @@ const AdminMaster = () => {
                   onDrop={(e) => { if (dragSkId) handleSkDropOnCat(e, cat.id); }}
                   style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 32, padding: dragOverDropCatId === cat.id && dragSkCatId !== cat.id ? 8 : 0, border: dragOverDropCatId === cat.id && dragSkCatId !== cat.id ? `2px dashed ${T.gold}` : "2px dashed transparent", borderRadius: 8, transition: "all .15s" }}>
                   {cat.skills.map((sk) => {
-                    const hasSop = sk.sop && Object.values(sk.sop).some((v) => v);
+                    const hasSop = sopHasContent(sk.sop);
                     const hasVids = (sk.videos || []).length > 0;
                     return (
                       <div key={sk.id} draggable
@@ -5181,7 +5182,7 @@ const AdminMaster = () => {
               }}>
                 <Icon name={sec.icon} size={10} color={newSkSopTab === sec.key ? sec.color : T.textMuted} />
                 {sec.label}
-                {newSkSop[sec.key] && <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.success }} />}
+                {newSkSop[sec.key] && newSkSop[sec.key].replace(/<[^>]*>/g, "").trim() && <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.success }} />}
               </button>
             ))}
           </div>
@@ -5233,7 +5234,7 @@ const AdminMaster = () => {
             }}>
               <Icon name={sec.icon} size={12} color={sopTab === sec.key ? sec.color : T.textMuted} />
               {sec.label}
-              {sopData[sec.key] && <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.success }} />}
+              {sopData[sec.key] && sopData[sec.key].replace(/<[^>]*>/g, "").trim() && <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.success }} />}
             </button>
           ))}
         </div>
