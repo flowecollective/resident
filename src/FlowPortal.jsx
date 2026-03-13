@@ -5283,7 +5283,7 @@ const AdminMaster = () => {
 const AdminTrainees = ({ onNav }) => {
   const { residents, setResidents, masterProgram, showToast } = useData();
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", cohort: "", photo: null });
+  const [form, setForm] = useState({ name: "", email: "", cohort: "", phone: "", photo: null });
   const [photoCropOpen, setPhotoCropOpen] = useState(false);
   const [cohortModal, setCohortModal] = useState(false);
   const [newCohort, setNewCohort] = useState("");
@@ -5317,7 +5317,7 @@ const AdminTrainees = ({ onNav }) => {
   };
 
   const [saving, setSaving] = useState(false);
-  const openNew = (cohort) => { setForm({ name: "", email: "", cohort: cohort || "", photo: null }); setModal(true); };
+  const openNew = (cohort) => { setForm({ name: "", email: "", cohort: cohort || "", phone: "", photo: null }); setModal(true); };
   const save = async () => {
     if (!form.name.trim() || !form.email.trim()) return;
     setSaving(true);
@@ -5333,6 +5333,13 @@ const AdminTrainees = ({ onNav }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to invite trainee");
       const p = data.profile;
+      // Save phone number to contacts if provided
+      if (form.phone.trim()) {
+        const raw = form.phone.trim().replace(/\D/g, "").replace(/^1/, "");
+        if (raw.length === 10) {
+          await supabase.from("contacts").insert({ user_id: p.id, name: p.name, phone: `+1${raw}` });
+        }
+      }
       setResidents((prev) => [...prev, { id: p.id, name: p.name, email: p.email, cohort: p.cohort || "", photo: p.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
       showToast("Trainee invited — they'll receive an email to set their password");
       setModal(false);
@@ -5526,13 +5533,14 @@ const AdminTrainees = ({ onNav }) => {
         <FormField label="Full Name"><input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Kayla Thompson" style={iSt} /></FormField>
         <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <FormField label="Email"><input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="kayla@flowecollective.com" style={iSt} /></FormField>
-          <FormField label="Cohort">
-            <select value={form.cohort} onChange={(e) => setForm((f) => ({ ...f, cohort: e.target.value }))} style={iSt}>
-              <option value="">Select cohort</option>
-              {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </FormField>
+          <FormField label="Phone"><input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="(555) 123-4567" style={iSt} /></FormField>
         </div>
+        <FormField label="Cohort">
+          <select value={form.cohort} onChange={(e) => setForm((f) => ({ ...f, cohort: e.target.value }))} style={iSt}>
+            <option value="">Select cohort</option>
+            {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </FormField>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save} disabled={saving}>{saving ? "Inviting…" : "Add Trainee"}</Btn></div>
       </Modal>
       <PhotoCropModal
