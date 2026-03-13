@@ -5271,12 +5271,8 @@ const AdminMaster = () => {
           <input value={videoTitle} onChange={(e) => setVideoTitle(e.target.value)} placeholder="e.g. Layered Cut Breakdown" style={iSt} />
         </FormField>
 
-        {/* Duration — auto-detected for uploads, manual for links */}
-        {videoMode === "link" && (
-          <FormField label="Duration">
-            <input value={videoDuration} onChange={(e) => setVideoDuration(e.target.value)} placeholder="e.g. 18:45" style={iSt} />
-          </FormField>
-        )}
+        {/* Duration — auto-detected for uploads, shown as info for links */}
+        {videoDuration && <p style={{ fontSize: "11px", color: T.textMuted }}>Duration: {videoDuration}</p>}
 
         {/* Mode toggle */}
         <button onClick={() => setVideoMode(videoMode === "upload" ? "link" : "upload")} style={{
