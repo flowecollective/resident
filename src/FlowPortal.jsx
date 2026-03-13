@@ -4117,31 +4117,31 @@ const AdminMaster = () => {
     const result = [];
     let i = 0;
     const len = text.length;
-    const parseField = () => {
-      if (i >= len || text[i] === "\n" || text[i] === "\r") return "";
-      if (text[i] === '"') {
-        i++; let val = "";
-        while (i < len) {
-          if (text[i] === '"') {
-            if (i + 1 < len && text[i + 1] === '"') { val += '"'; i += 2; }
-            else { i++; break; }
-          } else { val += text[i]; i++; }
-        }
-        if (i < len && text[i] === ",") i++;
-        return val;
-      }
-      let val = "";
-      while (i < len && text[i] !== "," && text[i] !== "\n" && text[i] !== "\r") { val += text[i]; i++; }
-      if (i < len && text[i] === ",") i++;
-      return val;
-    };
     while (i < len) {
       const row = [];
-      while (i < len && text[i] !== "\n" && text[i] !== "\r") {
-        row.push(parseField());
-        if (i < len && text[i] !== "\n" && text[i] !== "\r" && text[i] !== ",") break;
+      let inRow = true;
+      while (inRow && i < len) {
+        if (text[i] === '"') {
+          // Quoted field — read until closing quote (handles newlines inside quotes)
+          i++; let val = "";
+          while (i < len) {
+            if (text[i] === '"') {
+              if (i + 1 < len && text[i + 1] === '"') { val += '"'; i += 2; }
+              else { i++; break; }
+            } else { val += text[i]; i++; }
+          }
+          row.push(val);
+        } else {
+          // Unquoted field
+          let val = "";
+          while (i < len && text[i] !== "," && text[i] !== "\n" && text[i] !== "\r") { val += text[i]; i++; }
+          row.push(val);
+        }
+        // After field: comma = next field, newline = end of row, EOF = end
+        if (i < len && text[i] === ",") { i++; }
+        else { inRow = false; }
       }
-      // handle stray commas at end of quoted fields spanning lines
+      // Skip line ending
       if (i < len && text[i] === "\r") i++;
       if (i < len && text[i] === "\n") i++;
       result.push(row);
