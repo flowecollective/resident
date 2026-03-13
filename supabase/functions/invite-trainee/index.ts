@@ -141,12 +141,17 @@ serve(async (req) => {
 
     // Ensure profile exists (trigger may not have fired yet)
     const userId = created.user.id;
+    const debug: string[] = [];
+
     // Wait for trigger, then check if profile exists
     await new Promise((r) => setTimeout(r, 800));
-    const { data: existingRow } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
+    const { data: existingRow, error: checkErr } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
+    debug.push(`check: row=${!!existingRow}, err=${checkErr?.message || "none"}`);
+
     if (!existingRow) {
       // Trigger didn't fire — create profile manually
-      await supabase.from("profiles").insert({ id: userId, name, email, role: "resident" });
+      const { error: insErr } = await supabase.from("profiles").insert({ id: userId, name, email, role: "resident" });
+      debug.push(`insert: err=${insErr?.message || "none"}`);
     }
 
     // Now apply additional fields
@@ -160,16 +165,18 @@ serve(async (req) => {
     if (!enabled.includes("agreement")) { updates.agreement_signed = true; updates.agreement_date = new Date().toISOString().split("T")[0]; }
     if (!enabled.includes("enrollment")) { updates.enrollment_completed = true; updates.enrollment_date = new Date().toISOString().split("T")[0]; }
     if (!enabled.includes("gusto")) { updates.gusto_completed = true; updates.gusto_date = new Date().toISOString().split("T")[0]; }
-    await supabase.from("profiles").update(updates).eq("id", userId);
+    const { error: updErr } = await supabase.from("profiles").update(updates).eq("id", userId);
+    debug.push(`update: err=${updErr?.message || "none"}`);
 
     // Return the created profile
-    const { data: profile } = await supabase
+    const { data: profile, error: selErr } = await supabase
       .from("profiles")
       .select("id, name, email, cohort, photo, role")
       .eq("id", userId)
       .single();
+    debug.push(`select: got=${!!profile}, role=${profile?.role}, err=${selErr?.message || "none"}`);
 
-    return new Response(JSON.stringify({ profile }), {
+    return new Response(JSON.stringify({ profile, debug }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

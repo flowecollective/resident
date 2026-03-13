@@ -5501,7 +5501,7 @@ const AdminTrainees = ({ onNav }) => {
       if (form.phone.trim()) {
         const raw = form.phone.trim().replace(/\D/g, "").replace(/^1/, "");
         if (raw.length === 10) {
-          await supabase.from("contacts").insert({ user_id: p.id, name: p.name, phone: `+1${raw}` });
+          await supabase.from("contacts").upsert({ user_id: p.id, name: p.name, phone: `+1${raw}` }, { onConflict: "user_id" });
         }
       }
       setResidents((prev) => [...prev, { id: p.id, name: p.name, email: p.email, cohort: p.cohort || "", photo: p.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
