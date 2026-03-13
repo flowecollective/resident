@@ -35,7 +35,7 @@ serve(async (req) => {
     // Verify caller is admin
     const { data: callerProfile, error: profileErr } = await supabase
       .from("profiles")
-      .select("role, tenant_id")
+      .select("role")
       .eq("id", caller.id)
       .single();
 
@@ -111,7 +111,6 @@ serve(async (req) => {
       user_metadata: {
         name,
         role: "resident",
-        tenant_id: callerProfile.tenant_id,
       },
     });
 
