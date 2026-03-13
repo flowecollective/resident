@@ -115,18 +115,25 @@ serve(async (req) => {
     });
 
     if (createErr) {
-      // If user already exists, try to find them and return their profile
+      // If user already exists, reactivate them
       if (createErr.message?.includes("already been registered") || createErr.message?.includes("already exists")) {
         const { data: { users } } = await supabase.auth.admin.listUsers();
         const existing = users?.find((u: any) => u.email === email);
         if (existing) {
+          // Reactivate: clear deleted_at and update fields
+          const reactivateFields: Record<string, unknown> = { deleted_at: null, role: "resident" };
+          if (name) reactivateFields.name = name;
+          if (cohort) reactivateFields.cohort = cohort;
+          if (photo) reactivateFields.photo = photo;
+          await supabase.from("profiles").update(reactivateFields).eq("id", existing.id);
+
           const { data: existingProfile } = await supabase
             .from("profiles")
             .select("id, name, email, cohort, photo, role")
             .eq("id", existing.id)
             .single();
           if (existingProfile) {
-            return new Response(JSON.stringify({ profile: existingProfile, note: "User already existed" }), {
+            return new Response(JSON.stringify({ profile: existingProfile, reactivated: true }), {
               status: 200,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });

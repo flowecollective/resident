@@ -5433,6 +5433,14 @@ const AdminTrainees = ({ onNav }) => {
   const [editingCohortColor, setEditingCohortColor] = useState(null);
   const [, forceUpdate] = useState(0);
   const [cohorts, setCohorts] = useState([]);
+  const [deactivated, setDeactivated] = useState([]);
+  const [showDeactivated, setShowDeactivated] = useState(false);
+
+  // Load deactivated residents
+  useEffect(() => {
+    supabase.from("profiles").select("id, name, email, cohort, photo").eq("role", "resident").not("deleted_at", "is", null)
+      .then(({ data }) => { if (data) setDeactivated(data); });
+  }, [residents]);
 
   // Load cohorts from Supabase settings (source of truth), then ensure any resident cohorts are included
   useEffect(() => {
@@ -5503,8 +5511,13 @@ const AdminTrainees = ({ onNav }) => {
           await supabase.from("contacts").upsert({ user_id: p.id, name: p.name, phone: `+1${raw}` }, { onConflict: "user_id" });
         }
       }
-      setResidents((prev) => [...prev, { id: p.id, name: p.name, email: p.email, cohort: p.cohort || "", photo: p.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
-      showToast(`${TL.s} created — send them an invite when ready`);
+      setResidents((prev) => {
+        const exists = prev.some((r) => r.id === p.id);
+        if (exists) return prev.map((r) => r.id === p.id ? { ...r, name: p.name, email: p.email, cohort: p.cohort || r.cohort, photo: p.photo || r.photo } : r);
+        return [...prev, { id: p.id, name: p.name, email: p.email, cohort: p.cohort || "", photo: p.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }];
+      });
+      setDeactivated((prev) => prev.filter((r) => r.id !== p.id));
+      showToast(data.reactivated ? `${p.name} reactivated` : `${TL.s} created`);
       setModal(false);
     } catch (err) {
       showToast(err.message || `Failed to add ${TL.sl}`);
@@ -5534,6 +5547,12 @@ const AdminTrainees = ({ onNav }) => {
     setResidents((p) => p.filter((r) => r.id !== id));
     setConfirmRemove(null);
     showToast(`${TL.s} deactivated`);
+  };
+  const reactivate = async (prof) => {
+    await supabase.from("profiles").update({ deleted_at: null }).eq("id", prof.id);
+    setDeactivated((p) => p.filter((r) => r.id !== prof.id));
+    setResidents((p) => [...p, { id: prof.id, name: prof.name, email: prof.email, cohort: prof.cohort || "", photo: prof.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
+    showToast(`${prof.name} reactivated`);
   };
 
   const changeCohort = async (residentId, newCohortName) => {
@@ -5667,6 +5686,33 @@ const AdminTrainees = ({ onNav }) => {
             <p style={{ color: T.textMuted, marginBottom: 12 }}>No cohorts yet. Create one to get started.</p>
             <Btn onClick={() => setCohortModal(true)}><Icon name="plus" size={16} color={T.cream} /> Create Cohort</Btn>
           </Card>
+        )}
+
+        {/* Deactivated Residents */}
+        {deactivated.length > 0 && (
+          <div style={{ marginTop: 24 }}>
+            <button onClick={() => setShowDeactivated((v) => !v)} style={{
+              background: "none", border: "none", cursor: "pointer", padding: 0,
+              display: "flex", alignItems: "center", gap: 8, fontSize: "13px", fontWeight: 600, color: T.textMuted,
+            }}>
+              <Icon name={showDeactivated ? "chevron-down" : "chevron-right"} size={14} color={T.textMuted} />
+              Deactivated ({deactivated.length})
+            </button>
+            {showDeactivated && (
+              <Card style={{ padding: 0, marginTop: 10, opacity: 0.7 }}>
+                {deactivated.map((r, i) => (
+                  <div key={r.id} style={{ padding: "12px 22px", display: "flex", alignItems: "center", gap: 14, borderBottom: i < deactivated.length - 1 ? `1px solid ${T.lightLine}` : "none" }}>
+                    <Avatar name={r.name} size={32} photo={r.photo} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: "13px", fontWeight: 500 }}>{r.name}</p>
+                      <p style={{ fontSize: "11px", color: T.textMuted }}>{r.email}</p>
+                    </div>
+                    <Btn variant="outline" onClick={() => reactivate(r)} style={{ fontSize: "11px", padding: "4px 12px" }}>Reactivate</Btn>
+                  </div>
+                ))}
+              </Card>
+            )}
+          </div>
         )}
       </div>
 
