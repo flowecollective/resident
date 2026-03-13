@@ -5523,9 +5523,6 @@ const AdminTrainees = ({ onNav }) => {
                           <div style={{ width: 60 }}><ProgressBar value={pct} height={5} /></div>
                           <span style={{ fontSize: "11px", fontWeight: 600, color: T.gold, minWidth: 30, textAlign: "right" }}>{pct}%</span>
                         </div>
-                        <button onClick={() => sendInvite(r.id)} style={{ background: "none", border: `1px solid ${T.lightLine}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.text, display: "flex", alignItems: "center", gap: 4 }}>
-                          <Icon name="message" size={12} color={T.text} /> Invite
-                        </button>
                         <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
                           <Icon name="eye" size={12} color={T.gold} /> View
                         </button>
@@ -5566,9 +5563,6 @@ const AdminTrainees = ({ onNav }) => {
                       <option value="" disabled>Assign cohort</option>
                       {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <button onClick={() => sendInvite(r.id)} style={{ background: "none", border: `1px solid ${T.lightLine}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.text, display: "flex", alignItems: "center", gap: 4 }}>
-                      <Icon name="message" size={12} color={T.text} /> Invite
-                    </button>
                     <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
                       <Icon name="eye" size={12} color={T.gold} /> View
                     </button>
@@ -7371,6 +7365,34 @@ const SettingsPage = () => {
 
       <PhotoCropModal open={photoCropOpen} onClose={() => setPhotoCropOpen(false)} onSave={handlePhotoSave} currentPhoto={user?.photo} />
 
+      {/* Display Labels — admin only */}
+      {user?.role === "admin" && (
+        <Card style={{ padding: 24, marginBottom: 20 }}>
+          <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Display Labels</h4>
+          <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 12 }}>Customize what your members are called throughout the portal.</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { singular: "Trainee", plural: "Trainees" },
+              { singular: "Resident", plural: "Residents" },
+              { singular: "Student", plural: "Students" },
+              { singular: "Apprentice", plural: "Apprentices" },
+            ].map((opt) => (
+              <button
+                key={opt.singular}
+                onClick={() => { setTraineeLabel(opt); showToast(`Label updated to "${opt.plural}" — reload to see changes`); }}
+                style={{
+                  padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 500,
+                  background: TL.s === opt.singular ? T.charcoal : T.cream,
+                  color: TL.s === opt.singular ? T.cream : T.textMuted,
+                }}
+              >
+                {opt.plural}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Calendar Sync */}
       <Card style={{ padding: 28, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -7420,33 +7442,6 @@ const SettingsPage = () => {
           <p style={{ fontSize: "12px", color: T.textMuted, textAlign: "center", padding: "8px 0" }}>No calendars connected</p>
         )}
       </Card>
-
-      {user?.role === "admin" && (
-        <Card style={{ padding: 24, marginTop: 20 }}>
-          <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Display Labels</h4>
-          <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 12 }}>Customize what trainees are called throughout the portal. This is purely visual.</p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {[
-              { singular: "Trainee", plural: "Trainees" },
-              { singular: "Resident", plural: "Residents" },
-              { singular: "Student", plural: "Students" },
-              { singular: "Apprentice", plural: "Apprentices" },
-            ].map((opt) => (
-              <button
-                key={opt.singular}
-                onClick={() => { setTraineeLabel(opt); showToast(`Label updated to "${opt.plural}" — reload to see changes`); }}
-                style={{
-                  padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 500,
-                  background: TL.s === opt.singular ? T.charcoal : T.cream,
-                  color: TL.s === opt.singular ? T.cream : T.textMuted,
-                }}
-              >
-                {opt.plural}
-              </button>
-            ))}
-          </div>
-        </Card>
-      )}
 
       <Card style={{ padding: 24, marginTop: 20 }}>
         <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Portal Info</h4>
