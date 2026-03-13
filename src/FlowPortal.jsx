@@ -16,7 +16,9 @@ const setCohortColorMap = (map) => {
   _cohortColorMap = map;
   localStorage.setItem("cohort_colors", JSON.stringify(map));
   // Persist to Supabase settings table
-  supabase.from("settings").upsert({ key: "cohort_colors", value: map }, { onConflict: "key" });
+  supabase.from("settings").upsert({ key: "cohort_colors", value: map }).then(({ error }) => {
+    if (error) console.error("setCohortColorMap error:", error);
+  });
 };
 const cohortColor = (cohort) => {
   if (!cohort) return undefined;
@@ -5314,8 +5316,9 @@ const AdminTrainees = ({ onNav }) => {
   }, [residents]);
 
   const persistCohorts = async (list) => {
-    const { error } = await supabase.from("settings").upsert({ key: "cohorts", value: list }, { onConflict: "key" });
+    const { error } = await supabase.from("settings").upsert({ key: "cohorts", value: list });
     if (error) console.error("persistCohorts error:", error);
+    else console.log("persistCohorts OK:", list);
   };
 
   const addCohort = () => {
