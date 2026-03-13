@@ -1065,7 +1065,7 @@ const TraineeOnboarding = ({ user, onNav }) => {
 //  TRAINEE: DASHBOARD
 // ════════════════════════════════════════════
 const TraineeDash = ({ user }) => {
-  const { schedule, residents, setResidents, messages, masterProgram, showToast } = useData();
+  const { schedule, residents, setResidents, messages, masterProgram, showToast, techniqueStages, timingStages } = useData();
   const me = residents.find((r) => r.id === user.id) || residents[0];
   const { total, done, pct } = getProgress(me, masterProgram);
   const myEvents = schedule.filter((e) => e.assignTo === "all" || e.assignTo === me.id);
@@ -1145,8 +1145,8 @@ const TraineeDash = ({ user }) => {
                     {sk.type === "service" && (
                       <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
                         {[
-                          { label: "Technique", stage: sp.technique, stages: TECHNIQUE_STAGES, colors: TECHNIQUE_COLORS },
-                          { label: "Timing", stage: sp.timing, stages: TIMING_STAGES, colors: TIMING_COLORS },
+                          { label: "Technique", stage: sp.technique, stages: techniqueStages, colors: TECHNIQUE_COLORS },
+                          { label: "Timing", stage: sp.timing, stages: timingStages, colors: TIMING_COLORS },
                         ].map((track) => (
                           <div key={track.label} style={{ flex: 1, padding: "10px 12px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1647,6 +1647,7 @@ const StagePill = ({ label, stage, stages, colors }) => (
 );
 
 const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEditLog, onPlayVideo, onReply, timingLogs, role = "resident" }) => {
+  const { techniqueStages, timingStages } = useData();
   const [expanded, setExpanded] = useState(false);
   const p = getSkillProgress(trainee, skill.id);
   const isService = skill.type === "service";
@@ -1703,8 +1704,8 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
       )}
       {isService && (
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          <StagePill label="Tech" stage={p.technique} stages={TECHNIQUE_STAGES} colors={TECHNIQUE_COLORS} />
-          <StagePill label="Timing" stage={p.timing} stages={TIMING_STAGES} colors={TIMING_COLORS} />
+          <StagePill label="Tech" stage={p.technique} stages={techniqueStages} colors={TECHNIQUE_COLORS} />
+          <StagePill label="Timing" stage={p.timing} stages={timingStages} colors={TIMING_COLORS} />
           {hasStandard && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Goal</span>
@@ -1848,7 +1849,7 @@ const getEmbedUrl = (url) => {
 };
 
 const TraineeSkills = ({ user }) => {
-  const { residents, setResidents, masterProgram, notifications, setNotifications, showToast } = useData();
+  const { residents, setResidents, masterProgram, notifications, setNotifications, showToast, techniqueStages, timingStages } = useData();
   const me = residents.find((r) => r.id === user.id) || residents[0];
   const cats = getTraineeCats(me, masterProgram);
   const { total, done, pct } = getProgress(me, masterProgram);
@@ -2012,8 +2013,8 @@ const TraineeSkills = ({ user }) => {
                   const cc = sk.catColor || T.gold;
                   const logs = (me.timingLogs || {})[sk.id] || [];
                   const totalMin = logs.reduce((a, l) => a + (l.minutes || 0), 0);
-                  const techLabel = TECHNIQUE_STAGES[sp.technique];
-                  const timeLabel = TIMING_STAGES[sp.timing];
+                  const techLabel = techniqueStages[sp.technique];
+                  const timeLabel = timingStages[sp.timing];
                   return (
                     <Card key={sk.id} style={{ padding: 0, overflow: "hidden", borderLeft: `4px solid ${cc}`, ...(sk.archived ? { opacity: 0.6 } : {}) }}>
                       <div style={{ padding: "16px 18px" }}>
@@ -2035,7 +2036,7 @@ const TraineeSkills = ({ user }) => {
                             <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted, marginBottom: 4 }}>Technique</p>
                             <p style={{ fontSize: "13px", fontWeight: 700, color: sp.technique > 0 ? TECHNIQUE_COLORS[sp.technique] : T.textMuted }}>{techLabel}</p>
                             <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
-                              {TECHNIQUE_STAGES.slice(1).map((_, i) => (
+                              {techniqueStages.slice(1).map((_, i) => (
                                 <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i + 1 <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
                               ))}
                             </div>
@@ -2044,7 +2045,7 @@ const TraineeSkills = ({ user }) => {
                             <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted, marginBottom: 4 }}>Timing</p>
                             <p style={{ fontSize: "13px", fontWeight: 700, color: sp.timing > 0 ? TIMING_COLORS[sp.timing] : T.textMuted }}>{sp.timing === 0 ? "Not Started" : timeLabel}</p>
                             <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
-                              {TIMING_STAGES.slice(1).map((_, i) => (
+                              {timingStages.slice(1).map((_, i) => (
                                 <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i + 1 <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
                               ))}
                             </div>
@@ -2118,7 +2119,7 @@ const TraineeSkills = ({ user }) => {
                                   <p style={{ fontSize: "14px", fontWeight: 600 }}>{sk.name}</p>
                                   {isService && !complete && (
                                     <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 2 }}>
-                                      {TECHNIQUE_STAGES[sp.technique]} · {TIMING_STAGES[sp.timing]}
+                                      {techniqueStages[sp.technique]} · {timingStages[sp.timing]}
                                     </p>
                                   )}
                                   {complete && <p style={{ fontSize: "11px", color: T.success, fontWeight: 500, marginTop: 2 }}>Complete</p>}
@@ -2140,10 +2141,10 @@ const TraineeSkills = ({ user }) => {
                                       <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                                           <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", color: T.textMuted }}>Technique</span>
-                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TECHNIQUE_COLORS[sp.technique] }}>{TECHNIQUE_STAGES[sp.technique]}</span>
+                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TECHNIQUE_COLORS[sp.technique] }}>{techniqueStages[sp.technique]}</span>
                                         </div>
                                         <div style={{ display: "flex", gap: 3 }}>
-                                          {TECHNIQUE_STAGES.map((_, si) => (
+                                          {techniqueStages.map((_, si) => (
                                             <div key={si} style={{ flex: 1, height: 4, borderRadius: 2, background: si <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
                                           ))}
                                         </div>
@@ -2151,10 +2152,10 @@ const TraineeSkills = ({ user }) => {
                                       <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                                           <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", color: T.textMuted }}>Timing</span>
-                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TIMING_COLORS[sp.timing] }}>{TIMING_STAGES[sp.timing]}</span>
+                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TIMING_COLORS[sp.timing] }}>{timingStages[sp.timing]}</span>
                                         </div>
                                         <div style={{ display: "flex", gap: 3 }}>
-                                          {TIMING_STAGES.map((_, si) => (
+                                          {timingStages.map((_, si) => (
                                             <div key={si} style={{ flex: 1, height: 4, borderRadius: 2, background: si <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
                                           ))}
                                         </div>
@@ -2349,7 +2350,7 @@ const TraineeSkills = ({ user }) => {
 // ════════════════════════════════════════════
 //  TRAINEE: HANDBOOK
 // ════════════════════════════════════════════
-const HANDBOOK_SECTIONS = [
+const getHandbookSections = (techniqueStages, timingStages) => [
   { id: "welcome", num: "01", title: "Welcome & Program Overview", content: [
     { type: "p", text: "Welcome to Flowe Collective. You have been selected to join our stylist training program — a comprehensive, hands-on experience designed to prepare you for a successful career behind the chair." },
     { type: "p", text: "This program is built on three pillars: technical mastery, timing proficiency, and professional development. Over the next 12 weeks, you will work through a customized training track tailored to your career goals." },
@@ -2388,9 +2389,9 @@ const HANDBOOK_SECTIONS = [
   { id: "skills", num: "06", title: "Skill Progression Explained", content: [
     { type: "p", text: "Every service skill is evaluated on two dimensions: technique mastery and timing proficiency. Knowledge items are simply complete or not complete." },
     { type: "h3", text: "Technique Stages" },
-    { type: "li", items: ["Not Started → Learning → Mannequin → Competent"] },
+    { type: "li", items: [techniqueStages.join(" → ")] },
     { type: "h3", text: "Timing Stages" },
-    { type: "li", items: ["Not Started → Building → On Pace → Floor Ready"] },
+    { type: "li", items: [timingStages.join(" → ")] },
     { type: "h3", text: "Logging Times" },
     { type: "p", text: "Use the timer in your portal to track practice sessions. Log mannequin and live model times separately. Your running averages help you and your educator track your improvement." },
     { type: "h3", text: "Who Controls What" },
@@ -2442,6 +2443,8 @@ const HANDBOOK_SECTIONS = [
 ];
 
 const HandbookPage = () => {
+  const { techniqueStages, timingStages } = useData();
+  const HANDBOOK_SECTIONS = getHandbookSections(techniqueStages, timingStages);
   const [activeSection, setActiveSection] = useState("welcome");
 
   const renderContent = (content) => content.map((block, i) => {
@@ -2494,7 +2497,8 @@ const HandbookPage = () => {
 //  TRAINEE: DOCS
 // ════════════════════════════════════════════
 const TraineeDocs = () => {
-  const { user, docs, setDocs } = useData();
+  const { user, docs, setDocs, techniqueStages, timingStages } = useData();
+  const HANDBOOK_SECTIONS = getHandbookSections(techniqueStages, timingStages);
   const [f, setF] = useState("All");
   const [viewDoc, setViewDoc] = useState(null);
   const [showHandbook, setShowHandbook] = useState(false);
@@ -3034,7 +3038,7 @@ const MsgPage = ({ user }) => {
 //  ADMIN: DASHBOARD
 // ════════════════════════════════════════════
 const AdminDash = ({ onNav }) => {
-  const { schedule, setSchedule, residents, setResidents, masterProgram, messages, showToast, notifications, setNotifications } = useData();
+  const { schedule, setSchedule, residents, setResidents, masterProgram, messages, showToast, notifications, setNotifications, techniqueStages, timingStages } = useData();
   const [pendingAgreements, setPendingAgreements] = useState([]);
   const [gustoResidents, setGustoResidents] = useState([]);
   const [noteModal, setNoteModal] = useState(false);
@@ -3314,7 +3318,7 @@ const AdminDash = ({ onNav }) => {
                         <div key={sid} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: T.radiusSm, background: `${cc}08`, borderLeft: `2px solid ${cc}` }}>
                           <Icon name="target" size={10} color={T.gold} />
                           <span style={{ fontSize: "11px", fontWeight: 500, flex: 1 }}>{sk.name}</span>
-                          <span style={{ fontSize: "9px", color: T.textMuted }}>{TECHNIQUE_STAGES[p.technique]}</span>
+                          <span style={{ fontSize: "9px", color: T.textMuted }}>{techniqueStages[p.technique]}</span>
                         </div>
                       );
                     })}
@@ -3460,7 +3464,7 @@ const AdminDash = ({ onNav }) => {
                         if (!sk) return null;
                         const cc = cat.color || T.gold;
                         const p = getSkillProgress(r, sid);
-                        const stageName = TECHNIQUE_STAGES[p.technique] || "Not Started";
+                        const stageName = techniqueStages[p.technique] || "Not Started";
                         return (
                           <div key={sid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: T.radiusSm, background: `${cc}08`, borderLeft: `3px solid ${cc}` }}>
                             <span style={{ flex: 1, fontSize: "12px", fontWeight: 500 }}>{sk.name}</span>
@@ -3685,7 +3689,7 @@ const AdminDash = ({ onNav }) => {
                         }}>
                           {isFocus && <Icon name="target" size={9} color={T.gold} />}
                           {sk.name}
-                          <span style={{ color: T.textMuted, fontWeight: 400 }}>{p.technique === 0 ? "Not Started" : TECHNIQUE_STAGES[p.technique]}</span>
+                          <span style={{ color: T.textMuted, fontWeight: 400 }}>{p.technique === 0 ? "Not Started" : techniqueStages[p.technique]}</span>
                         </span>
                       );
                     })}
@@ -3805,11 +3809,11 @@ const AdminDash = ({ onNav }) => {
               <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1, padding: "10px 12px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}` }}>
                   <span style={{ fontSize: "10px", color: T.textMuted, textTransform: "uppercase" }}>Technique</span>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: TECHNIQUE_COLORS[p.technique] }}>{TECHNIQUE_STAGES[p.technique]}</p>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: TECHNIQUE_COLORS[p.technique] }}>{techniqueStages[p.technique]}</p>
                 </div>
                 <div style={{ flex: 1, padding: "10px 12px", borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}` }}>
                   <span style={{ fontSize: "10px", color: T.textMuted, textTransform: "uppercase" }}>Timing</span>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: TIMING_COLORS[p.timing] }}>{TIMING_STAGES[p.timing]}</p>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: TIMING_COLORS[p.timing] }}>{timingStages[p.timing]}</p>
                 </div>
               </div>
 
@@ -3818,13 +3822,13 @@ const AdminDash = ({ onNav }) => {
                 {p.technique < 3 && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", cursor: "pointer" }}>
                     <input type="checkbox" checked={advanceTech} onChange={(e) => setAdvanceTech(e.target.checked)} />
-                    Advance technique → {TECHNIQUE_STAGES[p.technique + 1]}
+                    Advance technique → {techniqueStages[p.technique + 1]}
                   </label>
                 )}
                 {p.timing < 3 && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", cursor: "pointer" }}>
                     <input type="checkbox" checked={advanceTiming} onChange={(e) => setAdvanceTiming(e.target.checked)} />
-                    Advance timing → {TIMING_STAGES[p.timing + 1]}
+                    Advance timing → {timingStages[p.timing + 1]}
                   </label>
                 )}
               </div>
@@ -5932,7 +5936,7 @@ const AdminTrainees = ({ onNav }) => {
 //  ADMIN: TRAINEE PROFILE (overview + track builder tabs)
 // ════════════════════════════════════════════
 const TraineeProfile = ({ traineeId, onNav }) => {
-  const { residents, setResidents, masterProgram, schedule, setSchedule, showToast } = useData();
+  const { residents, setResidents, masterProgram, schedule, setSchedule, showToast, techniqueStages, timingStages } = useData();
   const [editField, setEditField] = useState(null); // "cohort" | "phone" | null
   const [cohortVal, setCohortVal] = useState("");
   const [phoneVal, setPhoneVal] = useState("");
@@ -6061,7 +6065,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
       const current = x.progress?.[sid] || { technique: 0, timing: 0 };
       return { ...x, progress: { ...x.progress, [sid]: { ...current, [dimension]: value } } };
     }));
-    showToast(dimension === "technique" ? TECHNIQUE_STAGES[value] : TIMING_STAGES[value]);
+    showToast(dimension === "technique" ? techniqueStages[value] : timingStages[value]);
     // Persist to Supabase
     const r2 = residents.find((x) => x.id === traineeId);
     const current = r2?.progress?.[sid] || { technique: 0, timing: 0 };
@@ -6315,10 +6319,10 @@ const TraineeProfile = ({ traineeId, onNav }) => {
           {/* Skill Progress — full interactive controls */}
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: T.white, fontSize: "11px", color: T.textMuted }}>
-              <span style={{ fontWeight: 600 }}>Technique:</span> Not Started → Learning → Mannequin → Competent
+              <span style={{ fontWeight: 600 }}>Technique:</span> {techniqueStages.join(" → ")}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: T.white, fontSize: "11px", color: T.textMuted }}>
-              <span style={{ fontWeight: 600 }}>Timing:</span> Not Started → Building → On Pace → Floor Ready
+              <span style={{ fontWeight: 600 }}>Timing:</span> {timingStages.join(" → ")}
             </div>
           </div>
 
@@ -6424,7 +6428,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                     Technique {p.technique === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>— not started</span>}
                                   </p>
                                   <div style={{ display: "flex", gap: 3 }}>
-                                    {TECHNIQUE_STAGES.slice(1).map((stage, i) => {
+                                    {techniqueStages.slice(1).map((stage, i) => {
                                       const si = i + 1;
                                       const isActive = si <= p.technique;
                                       const isCurrent = si === p.technique;
@@ -6446,7 +6450,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                     Timing {p.timing === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>— not started</span>}
                                   </p>
                                   <div style={{ display: "flex", gap: 3 }}>
-                                    {TIMING_STAGES.slice(1).map((stage, i) => {
+                                    {timingStages.slice(1).map((stage, i) => {
                                       const si = i + 1;
                                       const isActive = si <= p.timing;
                                       const isCurrent = si === p.timing;
@@ -8197,6 +8201,8 @@ const App = () => {
   const [messages, setMessages] = useState([]);
   const [gcalConnected, setGcalConnected] = useState(!!localStorage.getItem("gcal_token"));
   const [gcalEvents, setGcalEvents] = useState([]);
+  const [techniqueStages, setTechniqueStages] = useState(TECHNIQUE_STAGES);
+  const [timingStages, setTimingStages] = useState(TIMING_STAGES);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState({ message: "", visible: false });
   const [notifications, setNotifications] = useState([]);
@@ -8262,6 +8268,14 @@ const App = () => {
         _traineeLabel = labelSetting.value;
         localStorage.setItem("trainee_label", JSON.stringify(labelSetting.value));
       }
+
+      // Load stage names from settings
+      const [{ data: techSetting }, { data: timeSetting }] = await Promise.all([
+        supabase.from("settings").select("value").eq("key", "technique_stages").maybeSingle(),
+        supabase.from("settings").select("value").eq("key", "timing_stages").maybeSingle(),
+      ]);
+      if (techSetting?.value && Array.isArray(techSetting.value) && techSetting.value.length === 4) setTechniqueStages(techSetting.value);
+      if (timeSetting?.value && Array.isArray(timeSetting.value) && timeSetting.value.length === 4) setTimingStages(timeSetting.value);
 
       // Load master program from Supabase (active + archived with flags)
       const [{ data: catsData, error: catsErr }, { data: skillsData, error: skillsErr }, { data: archCatsData }, { data: archSkillsData }] = await Promise.all([
@@ -8478,7 +8492,7 @@ const App = () => {
 
   if (!user) return <><GlobalStyle /><AuthScreen /></>;
 
-  const data = { user, setUser, masterProgram, setMasterProgram, presets, setPresets, residents, setResidents, schedule, setSchedule, docs, setDocs, messages, setMessages, gcalConnected, setGcalConnected, gcalEvents, setGcalEvents, notifications, setNotifications, showToast };
+  const data = { user, setUser, masterProgram, setMasterProgram, presets, setPresets, residents, setResidents, schedule, setSchedule, docs, setDocs, messages, setMessages, gcalConnected, setGcalConnected, gcalEvents, setGcalEvents, notifications, setNotifications, showToast, techniqueStages, setTechniqueStages, timingStages, setTimingStages };
 
   // User photo comes from Supabase profile now
   const enrichedUser = user;
