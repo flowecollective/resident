@@ -1632,16 +1632,16 @@ const StagePill = ({ label, stage, stages, colors }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
     <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", width: 52, flexShrink: 0 }}>{label}</span>
     <div style={{ display: "flex", gap: 3, flex: 1 }}>
-      {stages.map((s, i) => (
+      {stages.slice(1).map((s, i) => (
         <div key={i} style={{
           flex: 1, height: 6, borderRadius: 3,
-          background: i <= stage - 1 ? colors[i] || T.gold : T.creamDark,
+          background: i + 1 <= stage ? colors[i + 1] || T.gold : T.creamDark,
           transition: "background .3s",
         }} />
       ))}
     </div>
-    <span style={{ fontSize: "10px", fontWeight: 500, color: stage > 0 ? colors[stage - 1] : T.textMuted, minWidth: 60, textAlign: "right" }}>
-      {stages[stage]}
+    <span style={{ fontSize: "10px", fontWeight: 500, color: stage > 0 ? colors[stage] : T.textMuted, minWidth: 60, textAlign: "right" }}>
+      {stage === 0 ? "Not Started" : stages[stage]}
     </span>
   </div>
 );
@@ -2033,19 +2033,19 @@ const TraineeSkills = ({ user }) => {
                         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                           <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.cream }}>
                             <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted, marginBottom: 4 }}>Technique</p>
-                            <p style={{ fontSize: "13px", fontWeight: 700, color: TECHNIQUE_COLORS[sp.technique] }}>{techLabel}</p>
+                            <p style={{ fontSize: "13px", fontWeight: 700, color: sp.technique > 0 ? TECHNIQUE_COLORS[sp.technique] : T.textMuted }}>{techLabel}</p>
                             <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
-                              {TECHNIQUE_STAGES.map((_, si) => (
-                                <div key={si} style={{ flex: 1, height: 3, borderRadius: 2, background: si <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
+                              {TECHNIQUE_STAGES.slice(1).map((_, i) => (
+                                <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i + 1 <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
                               ))}
                             </div>
                           </div>
                           <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.cream }}>
                             <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted, marginBottom: 4 }}>Timing</p>
-                            <p style={{ fontSize: "13px", fontWeight: 700, color: TIMING_COLORS[sp.timing] }}>{timeLabel}</p>
+                            <p style={{ fontSize: "13px", fontWeight: 700, color: sp.timing > 0 ? TIMING_COLORS[sp.timing] : T.textMuted }}>{sp.timing === 0 ? "Not Started" : timeLabel}</p>
                             <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
-                              {TIMING_STAGES.map((_, si) => (
-                                <div key={si} style={{ flex: 1, height: 3, borderRadius: 2, background: si <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
+                              {TIMING_STAGES.slice(1).map((_, i) => (
+                                <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i + 1 <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
                               ))}
                             </div>
                           </div>
@@ -6420,33 +6420,47 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                             {isService && (
                               <>
                                 <div style={{ marginBottom: 6 }}>
-                                  <p style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 4 }}>Technique</p>
+                                  <p style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 4 }}>
+                                    Technique {p.technique === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>— not started</span>}
+                                  </p>
                                   <div style={{ display: "flex", gap: 3 }}>
-                                    {TECHNIQUE_STAGES.map((stage, si) => (
-                                      <button key={si} onClick={() => setStage(sk.id, "technique", si)} style={{
-                                        flex: 1, padding: "6px 2px", borderRadius: 4, border: "none",
-                                        background: si <= p.technique - 1 ? TECHNIQUE_COLORS[si] : (si === p.technique ? T.creamDark : "transparent"),
-                                        color: si <= p.technique - 1 ? T.white : (si === p.technique ? T.charcoal : T.textMuted),
-                                        fontSize: "10px", fontWeight: 600, cursor: "pointer",
-                                        outline: si === p.technique ? "2px solid " + (TECHNIQUE_COLORS[si] || T.creamDark) : "none",
-                                        outlineOffset: 1,
-                                      }}>{stage.split(" ").slice(-1)[0]}</button>
-                                    ))}
+                                    {TECHNIQUE_STAGES.slice(1).map((stage, i) => {
+                                      const si = i + 1;
+                                      const isActive = si <= p.technique;
+                                      const isCurrent = si === p.technique;
+                                      return (
+                                        <button key={si} onClick={() => setStage(sk.id, "technique", isCurrent ? 0 : si)} style={{
+                                          flex: 1, padding: "6px 2px", borderRadius: 4, border: "none",
+                                          background: isActive ? TECHNIQUE_COLORS[si] : T.creamDark,
+                                          color: isActive ? T.white : T.textMuted,
+                                          fontSize: "10px", fontWeight: 600, cursor: "pointer",
+                                          outline: isCurrent ? "2px solid " + TECHNIQUE_COLORS[si] : "none",
+                                          outlineOffset: 1,
+                                        }}>{stage}</button>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                                 <div style={{ marginBottom: 6 }}>
-                                  <p style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 4 }}>Timing</p>
+                                  <p style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 4 }}>
+                                    Timing {p.timing === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>— not started</span>}
+                                  </p>
                                   <div style={{ display: "flex", gap: 3 }}>
-                                    {TIMING_STAGES.map((stage, si) => (
-                                      <button key={si} onClick={() => setStage(sk.id, "timing", si)} style={{
-                                        flex: 1, padding: "6px 2px", borderRadius: 4, border: "none",
-                                        background: si <= p.timing - 1 ? TIMING_COLORS[si] : (si === p.timing ? T.creamDark : "transparent"),
-                                        color: si <= p.timing - 1 ? T.white : (si === p.timing ? T.charcoal : T.textMuted),
-                                        fontSize: "10px", fontWeight: 600, cursor: "pointer",
-                                        outline: si === p.timing ? "2px solid " + (TIMING_COLORS[si] || T.creamDark) : "none",
-                                        outlineOffset: 1,
-                                      }}>{stage.split(" ").slice(-1)[0]}</button>
-                                    ))}
+                                    {TIMING_STAGES.slice(1).map((stage, i) => {
+                                      const si = i + 1;
+                                      const isActive = si <= p.timing;
+                                      const isCurrent = si === p.timing;
+                                      return (
+                                        <button key={si} onClick={() => setStage(sk.id, "timing", isCurrent ? 0 : si)} style={{
+                                          flex: 1, padding: "6px 2px", borderRadius: 4, border: "none",
+                                          background: isActive ? TIMING_COLORS[si] : T.creamDark,
+                                          color: isActive ? T.white : T.textMuted,
+                                          fontSize: "10px", fontWeight: 600, cursor: "pointer",
+                                          outline: isCurrent ? "2px solid " + TIMING_COLORS[si] : "none",
+                                          outlineOffset: 1,
+                                        }}>{stage}</button>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
