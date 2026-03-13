@@ -5805,6 +5805,15 @@ const TraineeProfile = ({ traineeId, onNav }) => {
       });
   }, [traineeId]);
 
+  // Load onboarding status
+  const [onboarding, setOnboarding] = useState(null);
+  useEffect(() => {
+    supabase.from("profiles")
+      .select("agreement_signed, agreement_date, enrollment_completed, enrollment_date, gusto_completed, gusto_date, onboarding_steps")
+      .eq("id", traineeId).single()
+      .then(({ data }) => { if (data) setOnboarding(data); });
+  }, [traineeId]);
+
   const savePhone = async () => {
     const raw = phoneVal.trim().replace(/\D/g, "").replace(/^1/, "");
     if (!raw || raw.length !== 10) { showToast("Enter a valid 10-digit number"); return; }
@@ -6058,6 +6067,45 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 
       {tab === "overview" && (
         <div className="fade-up">
+          {/* Onboarding Status */}
+          {onboarding && (() => {
+            const steps = [
+              { key: "agreement", label: "Residency Agreement", done: onboarding.agreement_signed, date: onboarding.agreement_date },
+              { key: "enrollment", label: "Tuition Enrollment", done: onboarding.enrollment_completed, date: onboarding.enrollment_date },
+              { key: "gusto", label: "Payroll Setup", done: onboarding.gusto_completed, date: onboarding.gusto_date },
+            ];
+            const enabled = (onboarding.onboarding_steps || ["agreement", "enrollment", "gusto"]);
+            const activeSteps = steps.filter((s) => enabled.includes(s.key));
+            const allDone = activeSteps.every((s) => s.done);
+            if (allDone) return null;
+            return (
+              <Card style={{ padding: 16, marginBottom: 20, borderLeft: `4px solid ${T.gold}` }}>
+                <h4 style={{ fontFamily: T.fontD, fontSize: "14px", fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Icon name="clipboard" size={16} color={T.gold} /> Onboarding
+                  <Badge color={T.gold}>{activeSteps.filter((s) => s.done).length}/{activeSteps.length}</Badge>
+                </h4>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {activeSteps.map((s) => (
+                    <div key={s.key} style={{
+                      display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
+                      borderRadius: T.radiusSm, background: s.done ? T.successBg : T.cream,
+                      border: `1px solid ${s.done ? T.success + "30" : T.creamDark}`,
+                    }}>
+                      <div style={{
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: s.done ? T.success : T.creamDark,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        {s.done && <Icon name="check" size={10} color={T.white} />}
+                      </div>
+                      <span style={{ fontSize: "12px", fontWeight: 500, color: s.done ? T.success : T.text }}>{s.label}</span>
+                      {s.done && s.date && <span style={{ fontSize: "10px", color: T.textMuted }}>{s.date}</span>}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })()}
           {/* Current Focus */}
           <Card style={{ padding: 20, marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
