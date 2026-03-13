@@ -1664,10 +1664,12 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
       padding: "12px 14px", borderRadius: T.radiusSm,
       background: complete ? T.successBg : T.cream,
       border: complete ? "1px solid " + T.success + "30" : "none",
+      ...(skill.archived ? { opacity: 0.6 } : {}),
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isService ? 8 : 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: "13px", fontWeight: 500, color: complete ? T.success : T.text }}>{skill.name}</span>
+          {skill.archived && <span style={{ fontSize: "8px", fontWeight: 600, padding: "2px 5px", borderRadius: 4, background: T.creamDark, color: T.textMuted }}>ARCHIVED</span>}
           <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: isService ? T.goldMuted : T.charcoalMuted, color: isService ? T.gold : T.textMuted }}>
             {isService ? "SERVICE" : "KNOWLEDGE"}
           </span>
@@ -2008,11 +2010,14 @@ const TraineeSkills = ({ user }) => {
                   const techLabel = TECHNIQUE_STAGES[sp.technique];
                   const timeLabel = TIMING_STAGES[sp.timing];
                   return (
-                    <Card key={sk.id} style={{ padding: 0, overflow: "hidden", borderLeft: `4px solid ${cc}` }}>
+                    <Card key={sk.id} style={{ padding: 0, overflow: "hidden", borderLeft: `4px solid ${cc}`, ...(sk.archived ? { opacity: 0.6 } : {}) }}>
                       <div style={{ padding: "16px 18px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                           <div>
-                            <p style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 2 }}>{sk.name}</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <p style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 2 }}>{sk.name}</p>
+                              {sk.archived && <span style={{ fontSize: "8px", fontWeight: 600, padding: "2px 5px", borderRadius: 4, background: T.creamDark, color: T.textMuted }}>ARCHIVED</span>}
+                            </div>
                             <p style={{ fontSize: "11px", color: cc }}>{sk.catName}</p>
                           </div>
                           <span style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 700, color: cc }}>{skPct}%</span>
@@ -4043,9 +4048,9 @@ const AdminSchedule = () => {
           <FormField label="Link to Skill">
             <select value={form.skillId} onChange={(e) => handleSkillChange(e.target.value)} style={selSt}>
               <option value="">Select a skill...</option>
-              {masterProgram.map((cat) => (
+              {masterProgram.filter((c) => !c.archived).map((cat) => (
                 <optgroup key={cat.id} label={cat.name}>
-                  {cat.skills.map((sk) => <option key={sk.id} value={sk.id}>{sk.name}</option>)}
+                  {cat.skills.filter((s) => !s.archived).map((sk) => <option key={sk.id} value={sk.id}>{sk.name}</option>)}
                 </optgroup>
               ))}
             </select>
@@ -4150,6 +4155,8 @@ const AdminSchedule = () => {
 // ════════════════════════════════════════════
 const AdminMaster = () => {
   const { masterProgram, setMasterProgram, presets, setPresets, showToast } = useData();
+  // Filter out archived items for the admin editing view
+  const activeProgram = masterProgram.filter((c) => !c.archived).map((c) => ({ ...c, skills: c.skills.filter((s) => !s.archived) }));
   const [masterTab, setMasterTab] = useState("program");
   const [catModal, setCatModal] = useState(false);
   const [skModal, setSkModal] = useState(false);
@@ -4750,7 +4757,7 @@ const AdminMaster = () => {
   };
   const handleSkDragEnd = () => { setDragSkId(null); setDragSkCatId(null); setDragOverSkId(null); };
 
-  const totalSk = masterProgram.reduce((a, c) => a + c.skills.length, 0);
+  const totalSk = activeProgram.reduce((a, c) => a + c.skills.length, 0);
 
   // Preset state (inline)
   const [presetModal, setPresetModal] = useState(false);
@@ -4787,7 +4794,7 @@ const AdminMaster = () => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub={masterTab === "program" ? `${masterProgram.length} categories · ${totalSk} total skills` : `${presets.length} presets · Quick-assign skill combinations`}>
+      <SectionTitle sub={masterTab === "program" ? `${activeProgram.length} categories · ${totalSk} total skills` : `${presets.length} presets · Quick-assign skill combinations`}>
         Master Program
       </SectionTitle>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -4859,7 +4866,7 @@ const AdminMaster = () => {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {masterProgram.map((cat) => {
+        {activeProgram.map((cat) => {
           const isDragging = dragCatId === cat.id;
           const isDragOver = dragOverCatId === cat.id;
           return (
@@ -4986,7 +4993,7 @@ const AdminMaster = () => {
                 </div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {masterProgram.map((cat) => {
+                {activeProgram.map((cat) => {
                   const count = cat.skills.filter((s) => pr.skillIds.includes(s.id)).length;
                   if (!count) return null;
                   return <Badge key={cat.id} color={cat.color || T.textMuted}>{cat.name} ({count})</Badge>;
@@ -5002,7 +5009,7 @@ const AdminMaster = () => {
           <FormField label="Preset Name"><input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g. Color Specialist" style={iSt} /></FormField>
           <FormField label={`Select Skills (${presetSelIds.size} selected)`}>
             <div style={{ maxHeight: 360, overflowY: "auto", border: `1.5px solid ${T.creamDark}`, borderRadius: T.radiusSm, padding: 12 }}>
-              {masterProgram.map((cat) => {
+              {activeProgram.map((cat) => {
                 const allIn = cat.skills.every((s) => presetSelIds.has(s.id));
                 const someIn = cat.skills.some((s) => presetSelIds.has(s.id));
                 return (
@@ -6175,6 +6182,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                   {isService ? "SVC" : "KN"}
                                 </span>
                                 <span style={{ fontSize: "13px", fontWeight: 500, color: complete ? T.success : T.text }}>{sk.name}</span>
+                                {sk.archived && <span style={{ fontSize: "8px", fontWeight: 600, padding: "2px 5px", borderRadius: 4, background: T.creamDark, color: T.textMuted }}>ARCHIVED</span>}
                                 {isFocus && <Badge color={T.gold}>Focus</Badge>}
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -6519,7 +6527,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
           <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, marginBottom: 12 }}>Master Program</h3>
           <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 16 }}>Check skills to add them</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {masterProgram.map((cat) => {
+            {masterProgram.filter((c) => !c.archived).map((cat) => {
               const cc = cat.color || T.gold;
               return (
                 <Card key={cat.id} style={{ padding: 0, overflow: "hidden", borderLeft: `5px solid ${cc}` }}>
@@ -6529,7 +6537,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
                       {cat.name}
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {cat.skills.map((sk) => {
+                      {cat.skills.filter((s) => !s.archived).map((sk) => {
                         const isA = assigned.has(sk.id);
                         return (
                           <button
@@ -8038,19 +8046,31 @@ const App = () => {
         localStorage.setItem("trainee_label", JSON.stringify(labelSetting.value));
       }
 
-      // Load master program from Supabase (exclude archived items)
-      const [{ data: catsData }, { data: skillsData }] = await Promise.all([
+      // Load master program from Supabase (active + archived with flags)
+      const [{ data: catsData }, { data: skillsData }, { data: archCatsData }, { data: archSkillsData }] = await Promise.all([
         supabase.from("categories").select("*").is("archived_at", null).order("sort_order"),
         supabase.from("skills").select("*").is("archived_at", null).order("sort_order"),
+        supabase.from("categories").select("*").not("archived_at", "is", null),
+        supabase.from("skills").select("*").not("archived_at", "is", null),
       ]);
       if (catsData) {
-        const program = catsData.map((c) => ({
-          id: c.id, name: c.name, color: c.color, videos: c.videos || [],
-          skills: (skillsData || []).filter((s) => s.category_id === c.id).map((s) => ({
-            id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop,
-          })),
+        const mapSkill = (s, archived) => ({
+          id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop,
+          ...(archived ? { archived: true } : {}),
+        });
+        // Active categories with active + archived skills merged in
+        const activeCatIds = new Set(catsData.map((c) => c.id));
+        const program = catsData.map((c) => {
+          const activeSkills = (skillsData || []).filter((s) => s.category_id === c.id).map((s) => mapSkill(s, false));
+          const archivedInCat = (archSkillsData || []).filter((s) => s.category_id === c.id).map((s) => mapSkill(s, true));
+          return { id: c.id, name: c.name, color: c.color, videos: c.videos || [], skills: [...activeSkills, ...archivedInCat] };
+        });
+        // Archived categories with their skills
+        const archCats = (archCatsData || []).map((c) => ({
+          id: c.id, name: c.name, color: c.color, videos: c.videos || [], archived: true,
+          skills: (archSkillsData || []).filter((s) => s.category_id === c.id).map((s) => mapSkill(s, true)),
         }));
-        setMasterProgram(program);
+        setMasterProgram([...program, ...archCats]);
       }
 
       // Load presets from Supabase
