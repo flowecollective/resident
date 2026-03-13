@@ -28,6 +28,8 @@ export const AdminSchedule = () => {
   const [type, setType] = useState("general");
   const [assignTo, setAssignTo] = useState("all");
   const [skillId, setSkillId] = useState("");
+  const [repeat, setRepeat] = useState("none");
+  const [repeatUntil, setRepeatUntil] = useState("");
 
   const allSkills = masterProgram.flatMap((c) => c.skills.map((s) => ({ ...s, catName: c.name })));
 
@@ -38,6 +40,8 @@ export const AdminSchedule = () => {
     setType("general");
     setAssignTo("all");
     setSkillId("");
+    setRepeat("none");
+    setRepeatUntil("");
     cal.setSelectedDate(date);
     setOpen(true);
   };
@@ -49,6 +53,8 @@ export const AdminSchedule = () => {
     setType(ev.type);
     setAssignTo(ev.assignTo || "all");
     setSkillId(ev.skillId || "");
+    setRepeat("none");
+    setRepeatUntil("");
     setOpen(true);
   };
 
@@ -62,22 +68,44 @@ export const AdminSchedule = () => {
 
   const save = () => {
     if (!title.trim()) return;
-    const ev = {
-      id: editId || Date.now(),
+
+    if (editId) {
+      const ev = { id: editId, title: title.trim(), time, date: cal.selectedDate, type, assignTo, skillId: skillId || null };
+      setSchedule(schedule.map((e) => (e.id === editId ? ev : e)));
+      showToast("Event updated");
+      setOpen(false);
+      return;
+    }
+
+    // Generate dates for recurring events
+    const dates = [cal.selectedDate];
+    if (repeat !== "none" && repeatUntil) {
+      const intervalDays = repeat === "weekly" ? 7 : 14;
+      const start = new Date(cal.selectedDate + "T00:00:00");
+      const end = new Date(repeatUntil + "T00:00:00");
+      let cursor = new Date(start);
+      cursor.setDate(cursor.getDate() + intervalDays);
+      while (cursor <= end) {
+        const y = cursor.getFullYear();
+        const m = String(cursor.getMonth() + 1).padStart(2, "0");
+        const d = String(cursor.getDate()).padStart(2, "0");
+        dates.push(`${y}-${m}-${d}`);
+        cursor.setDate(cursor.getDate() + intervalDays);
+      }
+    }
+
+    const newEvents = dates.map((date) => ({
+      id: Date.now() + Math.random(),
       title: title.trim(),
       time,
-      date: cal.selectedDate,
+      date,
       type,
       assignTo,
       skillId: skillId || null,
-    };
-    if (editId) {
-      setSchedule(schedule.map((e) => (e.id === editId ? ev : e)));
-      showToast("Event updated");
-    } else {
-      setSchedule([...schedule, ev]);
-      showToast("Event added");
-    }
+    }));
+
+    setSchedule([...schedule, ...newEvents]);
+    showToast(newEvents.length > 1 ? `${newEvents.length} events added` : "Event added");
     setOpen(false);
   };
 
@@ -191,6 +219,24 @@ export const AdminSchedule = () => {
             ))}
           </select>
         </FormField>
+
+        {!editId && (
+          <>
+            <FormField label="Repeat">
+              <select value={repeat} onChange={(e) => setRepeat(e.target.value)} style={selSt}>
+                <option value="none">Does not repeat</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Every 2 weeks</option>
+              </select>
+            </FormField>
+
+            {repeat !== "none" && (
+              <FormField label="Repeat until">
+                <input type="date" value={repeatUntil} onChange={(e) => setRepeatUntil(e.target.value)} style={iSt} />
+              </FormField>
+            )}
+          </>
+        )}
 
         <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
           <Btn onClick={save}>{editId ? "Update" : "Add Event"}</Btn>
