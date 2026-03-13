@@ -5181,7 +5181,18 @@ const AdminMaster = () => {
               </button>
             ))}
           </div>
-          <RichEditor value={newSkSop[newSkSopTab]} onChange={(html) => setNewSkSop((d) => ({ ...d, [newSkSopTab]: html }))} />
+          {SOP_SECTIONS.filter((s) => s.key === newSkSopTab).map((sec) => (
+            <div key={sec.key}>
+              <p style={{ fontSize: "11px", color: T.textMuted, marginBottom: 8 }}>
+                {sec.key === "steps" && "Ordered steps for performing this service. Use numbered list for best results."}
+                {sec.key === "mistakes" && `Common mistakes ${TL.pl} make. Use bullet list.`}
+                {sec.key === "consultation" && "What to assess or ask the client before starting."}
+                {sec.key === "tips" && "Your personal technique notes and insider knowledge."}
+                {sec.key === "tools" && "Tools and products needed for this service."}
+              </p>
+              <RichEditor value={newSkSop[sec.key]} onChange={(html) => setNewSkSop((d) => ({ ...d, [sec.key]: html }))} />
+            </div>
+          ))}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setSkModal(false)}>Cancel</Btn><Btn onClick={addSk}>Add Skill</Btn></div>
       </Modal>
