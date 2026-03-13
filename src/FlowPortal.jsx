@@ -7103,7 +7103,7 @@ const SettingsPage = () => {
     // Also clean up google token if removing a google source
     const removing = calSources.find((s) => s.id === id);
     if (removing?.type === "google") {
-      localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); localStorage.removeItem("gcal_refresh_token");
+      localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_refresh_token");
       if (user?.id) supabase.from("profiles").update({ gcal_refresh_token: null }).eq("id", user.id);
     }
     saveCalSources(updated);
@@ -7476,7 +7476,7 @@ const fetchGcalEvents = async (token) => {
       const refreshed = await refreshGcalToken(rt);
       if (refreshed?.access_token) {
         localStorage.setItem("gcal_token", refreshed.access_token);
-        localStorage.setItem("gcal_expiry", String(Date.now() + (refreshed.expires_in || 3600) * 1000));
+
         // Update the token in cal_sources too
         try {
           const sources = JSON.parse(localStorage.getItem("cal_sources") || "[]");
@@ -7562,9 +7562,8 @@ const _gcalCallbackToken = (() => {
     const data = await exchangeGcalCode(code);
     if (data?.access_token) {
       localStorage.setItem("gcal_token", data.access_token);
-      localStorage.setItem("gcal_expiry", String(Date.now() + (data.expires_in || 3600) * 1000));
+
       if (data.refresh_token) localStorage.setItem("gcal_refresh_token", data.refresh_token);
-      localStorage.setItem("cal_source", "google");
       // Update cal_sources
       try {
         const sources = JSON.parse(localStorage.getItem("cal_sources") || "[]");
