@@ -5313,8 +5313,9 @@ const AdminTrainees = ({ onNav }) => {
     setCohorts((prev) => [...new Set([...prev, ...fromResidents])].sort());
   }, [residents]);
 
-  const persistCohorts = (list) => {
-    supabase.from("settings").upsert({ key: "cohorts", value: list }, { onConflict: "key" });
+  const persistCohorts = async (list) => {
+    const { error } = await supabase.from("settings").upsert({ key: "cohorts", value: list }, { onConflict: "key" });
+    if (error) console.error("persistCohorts error:", error);
   };
 
   const addCohort = () => {
