@@ -7550,11 +7550,32 @@ const AdminTuition = ({ onNav }) => {
 };
 
 const SettingsPage = () => {
-  const { user, setUser, gcalConnected, setGcalConnected, setGcalEvents, showToast } = useData();
+  const { user, setUser, gcalConnected, setGcalConnected, setGcalEvents, showToast, techniqueStages, setTechniqueStages, timingStages, setTimingStages } = useData();
   const [loading, setLoading] = useState(false);
   const [profileName, setProfileName] = useState(user?.name || "");
   const [profileSaving, setProfileSaving] = useState(false);
   const [photoCropOpen, setPhotoCropOpen] = useState(false);
+  const [editTechStages, setEditTechStages] = useState(techniqueStages);
+  const [editTimeStages, setEditTimeStages] = useState(timingStages);
+  const [stagesDirty, setStagesDirty] = useState(false);
+  const updateStage = (type, idx, val) => {
+    if (type === "technique") {
+      const next = [...editTechStages]; next[idx] = val; setEditTechStages(next);
+    } else {
+      const next = [...editTimeStages]; next[idx] = val; setEditTimeStages(next);
+    }
+    setStagesDirty(true);
+  };
+  const saveStages = async () => {
+    setTechniqueStages(editTechStages);
+    setTimingStages(editTimeStages);
+    await Promise.all([
+      supabase.from("settings").upsert({ key: "technique_stages", value: editTechStages }),
+      supabase.from("settings").upsert({ key: "timing_stages", value: editTimeStages }),
+    ]);
+    setStagesDirty(false);
+    showToast("Stage names saved");
+  };
 
   const saveProfile = async () => {
     if (!profileName.trim()) return;
@@ -7791,6 +7812,42 @@ const SettingsPage = () => {
           <p style={{ fontSize: "12px", color: T.textMuted, textAlign: "center", padding: "8px 0" }}>No calendars connected</p>
         )}
       </Card>
+
+      {user?.role === "admin" && (
+        <Card style={{ padding: 28, marginTop: 20 }}>
+          <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 6 }}>Progression Stages</h4>
+          <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 16 }}>Customize the stage names for skill progression tracking.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }} className="r-grid">
+            <div>
+              <p style={{ fontSize: "11px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 8 }}>Technique Stages</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {editTechStages.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ width: 16, height: 16, borderRadius: 4, background: TECHNIQUE_COLORS[i], flexShrink: 0 }} />
+                    <input value={s} onChange={(e) => updateStage("technique", i, e.target.value)} style={{ ...iSt, flex: 1 }} placeholder={`Stage ${i}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: "11px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 8 }}>Timing Stages</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {editTimeStages.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ width: 16, height: 16, borderRadius: 4, background: TIMING_COLORS[i], flexShrink: 0 }} />
+                    <input value={s} onChange={(e) => updateStage("timing", i, e.target.value)} style={{ ...iSt, flex: 1 }} placeholder={`Stage ${i}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {stagesDirty && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+              <Btn onClick={saveStages}>Save Stage Names</Btn>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card style={{ padding: 24, marginTop: 20 }}>
         <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Portal Info</h4>
