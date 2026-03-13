@@ -4318,21 +4318,26 @@ const AdminMaster = () => {
       if (cat) setArchived((p) => [...p, { ...cat, archivedAt: localDate(), archiveType: "category" }]);
       setMasterProgram((p) => p.filter((c) => c.id !== deleteTarget.catId));
       // Delete from DB: skills first, then category
-      const { error: skErr, count: skCount } = await supabase.from("skills").delete().eq("category_id", deleteTarget.catId);
-      if (skErr) console.error("Skills delete error:", skErr);
-      else console.log("Skills deleted, count:", skCount);
-      const { error: catErr, count: catCount } = await supabase.from("categories").delete().eq("id", deleteTarget.catId);
-      if (catErr) console.error("Category delete error:", catErr);
-      else console.log("Category deleted, count:", catCount);
+      console.log("Deleting category:", deleteTarget.catId);
+      const { error: skErr, count: skCount } = await supabase.from("skills").delete({ count: "exact" }).eq("category_id", deleteTarget.catId);
+      console.log("Skills delete result:", { error: skErr, count: skCount });
+      const { error: catErr, count: catCount } = await supabase.from("categories").delete({ count: "exact" }).eq("id", deleteTarget.catId);
+      console.log("Category delete result:", { error: catErr, count: catCount });
+      // Verify deletion
+      const { data: verify } = await supabase.from("categories").select("id").eq("id", deleteTarget.catId);
+      console.log("Category still in DB after delete?", verify);
       showToast("Category archived");
     } else {
       const cat = masterProgram.find((c) => c.id === deleteTarget.catId);
       const sk = cat?.skills.find((s) => s.id === deleteTarget.skillId);
       if (sk) setArchived((p) => [...p, { ...sk, fromCategory: cat?.name, archivedAt: localDate(), archiveType: "skill" }]);
       setMasterProgram((p) => p.map((c) => c.id === deleteTarget.catId ? { ...c, skills: c.skills.filter((s) => s.id !== deleteTarget.skillId) } : c));
-      const { error: skErr, count: skCount } = await supabase.from("skills").delete().eq("id", deleteTarget.skillId);
-      if (skErr) console.error("Skill delete error:", skErr);
-      else console.log("Skill deleted, count:", skCount);
+      console.log("Deleting skill:", deleteTarget.skillId);
+      const { error: skErr, count: skCount } = await supabase.from("skills").delete({ count: "exact" }).eq("id", deleteTarget.skillId);
+      console.log("Skill delete result:", { error: skErr, count: skCount });
+      // Verify deletion
+      const { data: verify } = await supabase.from("skills").select("id").eq("id", deleteTarget.skillId);
+      console.log("Skill still in DB after delete?", verify);
       showToast("Skill archived");
     }
     setDeleteModal(false);
