@@ -2840,7 +2840,7 @@ const MsgPage = ({ user }) => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub={isAdmin ? {`${TL.s} conversations`} : `Conversation with ${partnerName}`}>
+      <SectionTitle sub={isAdmin ? `${TL.s} conversations` : `Conversation with ${partnerName}`}>
         Messages
       </SectionTitle>
 
@@ -5141,7 +5141,7 @@ const AdminMaster = () => {
           <div key={sec.key}>
             <p style={{ fontSize: "11px", color: T.textMuted, marginBottom: 8 }}>
               {sec.key === "steps" && "Ordered steps for performing this service. Use numbered list for best results."}
-              {sec.key === "mistakes" && {`Common mistakes ${TL.pl} make. Use bullet list.`}}
+              {sec.key === "mistakes" && `Common mistakes ${TL.pl} make. Use bullet list.`}
               {sec.key === "consultation" && "What to assess or ask the client before starting."}
               {sec.key === "tips" && "Your personal technique notes and insider knowledge."}
               {sec.key === "tools" && "Tools and products needed for this service."}
