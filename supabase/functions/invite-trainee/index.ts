@@ -115,6 +115,24 @@ serve(async (req) => {
     });
 
     if (createErr) {
+      // If user already exists, try to find them and return their profile
+      if (createErr.message?.includes("already been registered") || createErr.message?.includes("already exists")) {
+        const { data: { users } } = await supabase.auth.admin.listUsers();
+        const existing = users?.find((u: any) => u.email === email);
+        if (existing) {
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("id, name, email, cohort, photo, role")
+            .eq("id", existing.id)
+            .single();
+          if (existingProfile) {
+            return new Response(JSON.stringify({ profile: existingProfile, note: "User already existed" }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+      }
       return new Response(JSON.stringify({ error: createErr.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
