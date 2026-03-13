@@ -4318,15 +4318,21 @@ const AdminMaster = () => {
       if (cat) setArchived((p) => [...p, { ...cat, archivedAt: localDate(), archiveType: "category" }]);
       setMasterProgram((p) => p.filter((c) => c.id !== deleteTarget.catId));
       // Delete from DB: skills first, then category
-      await supabase.from("skills").delete().eq("category_id", deleteTarget.catId);
-      await supabase.from("categories").delete().eq("id", deleteTarget.catId);
+      const { error: skErr, count: skCount } = await supabase.from("skills").delete().eq("category_id", deleteTarget.catId);
+      if (skErr) console.error("Skills delete error:", skErr);
+      else console.log("Skills deleted, count:", skCount);
+      const { error: catErr, count: catCount } = await supabase.from("categories").delete().eq("id", deleteTarget.catId);
+      if (catErr) console.error("Category delete error:", catErr);
+      else console.log("Category deleted, count:", catCount);
       showToast("Category archived");
     } else {
       const cat = masterProgram.find((c) => c.id === deleteTarget.catId);
       const sk = cat?.skills.find((s) => s.id === deleteTarget.skillId);
       if (sk) setArchived((p) => [...p, { ...sk, fromCategory: cat?.name, archivedAt: localDate(), archiveType: "skill" }]);
       setMasterProgram((p) => p.map((c) => c.id === deleteTarget.catId ? { ...c, skills: c.skills.filter((s) => s.id !== deleteTarget.skillId) } : c));
-      await supabase.from("skills").delete().eq("id", deleteTarget.skillId);
+      const { error: skErr, count: skCount } = await supabase.from("skills").delete().eq("id", deleteTarget.skillId);
+      if (skErr) console.error("Skill delete error:", skErr);
+      else console.log("Skill deleted, count:", skCount);
       showToast("Skill archived");
     }
     setDeleteModal(false);
