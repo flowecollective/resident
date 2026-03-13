@@ -4238,7 +4238,8 @@ const AdminMaster = () => {
       let existing = next.find((c) => c.name.toLowerCase() === csvCat.name.toLowerCase());
       if (!existing) {
         const nextColor = CAT_COLORS[(next.length) % CAT_COLORS.length];
-        const { data: catData } = await supabase.from("categories").insert({ name: csvCat.name, color: nextColor, videos: [], sort_order: next.length }).select().single();
+        const { data: catData, error: catErr } = await supabase.from("categories").insert({ name: csvCat.name, color: nextColor, videos: [], sort_order: next.length }).select().single();
+        if (catErr) { console.error("Category insert error:", catErr); continue; }
         if (!catData) continue;
         existing = { id: catData.id, name: catData.name, color: catData.color, videos: [], skills: [] };
         next.push(existing);
