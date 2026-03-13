@@ -2388,9 +2388,9 @@ const HANDBOOK_SECTIONS = [
   { id: "skills", num: "06", title: "Skill Progression Explained", content: [
     { type: "p", text: "Every service skill is evaluated on two dimensions: technique mastery and timing proficiency. Knowledge items are simply complete or not complete." },
     { type: "h3", text: "Technique Stages" },
-    { type: "li", items: ["Not Started → Theory → Mannequin → Competent"] },
+    { type: "li", items: ["Not Started → Learning → Mannequin → Competent"] },
     { type: "h3", text: "Timing Stages" },
-    { type: "li", items: ["Not Started → Slow → On Pace → Floor Ready"] },
+    { type: "li", items: ["Not Started → Building → On Pace → Floor Ready"] },
     { type: "h3", text: "Logging Times" },
     { type: "p", text: "Use the timer in your portal to track practice sessions. Log mannequin and live model times separately. Your running averages help you and your educator track your improvement." },
     { type: "h3", text: "Who Controls What" },
@@ -3685,7 +3685,7 @@ const AdminDash = ({ onNav }) => {
                         }}>
                           {isFocus && <Icon name="target" size={9} color={T.gold} />}
                           {sk.name}
-                          <span style={{ color: T.textMuted, fontWeight: 400 }}>{TECHNIQUE_STAGES[p.technique].split(" ").slice(-1)[0]}</span>
+                          <span style={{ color: T.textMuted, fontWeight: 400 }}>{p.technique === 0 ? "Not Started" : TECHNIQUE_STAGES[p.technique]}</span>
                         </span>
                       );
                     })}
@@ -6315,10 +6315,10 @@ const TraineeProfile = ({ traineeId, onNav }) => {
           {/* Skill Progress — full interactive controls */}
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: T.white, fontSize: "11px", color: T.textMuted }}>
-              <span style={{ fontWeight: 600 }}>Technique:</span> Not Started → Theory → Mannequin → Competent
+              <span style={{ fontWeight: 600 }}>Technique:</span> Not Started → Learning → Mannequin → Competent
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: T.white, fontSize: "11px", color: T.textMuted }}>
-              <span style={{ fontWeight: 600 }}>Timing:</span> Not Started → Slow → On Pace → Floor Ready
+              <span style={{ fontWeight: 600 }}>Timing:</span> Not Started → Building → On Pace → Floor Ready
             </div>
           </div>
 
