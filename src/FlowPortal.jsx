@@ -4159,10 +4159,10 @@ const AdminMaster = () => {
       try {
         const rows = parseCsvText(ev.target.result);
         if (rows.length < 2) { setCsvError("CSV file is empty or has no data rows."); return; }
-        const hdr = rows[0].map((h) => h.trim().toLowerCase());
-        const catIdx = hdr.indexOf("category");
-        const nameIdx = hdr.indexOf("skill name");
-        if (catIdx === -1 || nameIdx === -1) { setCsvError("CSV must have 'Category' and 'Skill Name' columns."); return; }
+        const hdr = rows[0].map((h) => h.trim().replace(/^\uFEFF/, "").toLowerCase());
+        const catIdx = hdr.findIndex((h) => h === "category" || h === "cat");
+        const nameIdx = hdr.findIndex((h) => h === "skill name" || h === "name" || h === "skill");
+        if (catIdx === -1 || nameIdx === -1) { setCsvError(`CSV must have 'Category' and 'Skill Name' columns. Found headers: ${rows[0].map((h) => h.trim()).join(", ")}`); return; }
         const typeIdx = hdr.indexOf("type");
         const tgtIdx = hdr.indexOf("target min");
         const maxIdx = hdr.indexOf("max min");
