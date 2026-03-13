@@ -4393,7 +4393,9 @@ const AdminMaster = () => {
   const addCat = async () => {
     if (!newCat.trim()) return;
     const color = newCatColor || CAT_COLORS[masterProgram.length % CAT_COLORS.length];
-    const { data } = await supabase.from("categories").insert({ name: newCat.trim(), color, videos: [], sort_order: masterProgram.length }).select().single();
+    const { data, error: catInsErr } = await supabase.from("categories").insert({ name: newCat.trim(), color, videos: [], sort_order: masterProgram.length }).select().single();
+    console.log("Category insert:", { data, error: catInsErr });
+    if (catInsErr) { showToast("Failed to save category: " + catInsErr.message); return; }
     if (data) setMasterProgram((p) => [...p, { id: data.id, name: data.name, color: data.color, videos: data.videos || [], skills: [] }]);
     setNewCat(""); setNewCatColor(null); setCatModal(false); showToast("Category added");
   };
@@ -4514,7 +4516,9 @@ const AdminMaster = () => {
     };
     const hasSop = Object.values(newSkSop).some((v) => v && v.trim());
     if (hasSop) row.sop = { ...newSkSop };
-    const { data } = await supabase.from("skills").insert(row).select().single();
+    const { data, error: skInsErr } = await supabase.from("skills").insert(row).select().single();
+    console.log("Skill insert:", { data, error: skInsErr, row });
+    if (skInsErr) { showToast("Failed to save skill: " + skInsErr.message); return; }
     if (data) {
       const skill = { id: data.id, name: data.name, type: data.type, targetMin: data.target_min, maxMin: data.max_min, videos: data.videos || [], sop: data.sop };
       setMasterProgram((p) => p.map((c) => c.id === targetCat ? { ...c, skills: [...c.skills, skill] } : c));
@@ -4547,7 +4551,9 @@ const AdminMaster = () => {
       ? { ...c, skills: c.skills.map((s) => s.id === editSkillData.id ? { ...s, targetMin: t, maxMin: m, sop: hasSop ? { ...sopData } : s.sop } : s) }
       : c
     ));
-    await supabase.from("skills").update(updates).eq("id", editSkillData.id);
+    const { error: skUpdErr } = await supabase.from("skills").update(updates).eq("id", editSkillData.id);
+    console.log("Skill update:", { error: skUpdErr, updates, id: editSkillData.id });
+    if (skUpdErr) showToast("Failed to save: " + skUpdErr.message);
     setEditSkillModal(false);
     showToast("Skill updated");
   };
