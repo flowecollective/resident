@@ -8263,6 +8263,10 @@ const App = () => {
           id: c.id, name: c.name, color: c.color, videos: c.videos || [], archived: true,
           skills: (archSkillsData || []).filter((s) => s.category_id === c.id).map((s) => mapSkill(s, true)),
         }));
+        const allSkills = program.flatMap((c) => c.skills);
+        const sopSkills = allSkills.filter((s) => s.sop && Object.values(s.sop).some((v) => v && v.trim && v.trim()));
+        console.log("Program built — total skills:", allSkills.length, "with real SOP:", sopSkills.length, "first SOP sample:", JSON.stringify(sopSkills[0]?.sop)?.substring(0, 200));
+        console.log("First skill full:", JSON.stringify(allSkills[0]));
         setMasterProgram([...program, ...archCats]);
       }
 
