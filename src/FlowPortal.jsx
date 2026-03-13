@@ -7056,6 +7056,9 @@ const SettingsPage = () => {
   const saveCalSources = (sources) => {
     setCalSources(sources);
     localStorage.setItem("cal_sources", JSON.stringify(sources));
+    // Persist to profile (strip access tokens — refresh token is stored separately)
+    const safe = sources.map(({ token, ...rest }) => rest);
+    if (user?.id) supabase.from("profiles").update({ cal_sources: safe }).eq("id", user.id);
   };
 
   const refreshAllCalendars = async (sources) => {
@@ -7099,7 +7102,10 @@ const SettingsPage = () => {
     const updated = calSources.filter((s) => s.id !== id);
     // Also clean up google token if removing a google source
     const removing = calSources.find((s) => s.id === id);
-    if (removing?.type === "google") { localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); }
+    if (removing?.type === "google") {
+      localStorage.removeItem("gcal_token"); localStorage.removeItem("gcal_expiry"); localStorage.removeItem("gcal_refresh_token");
+      if (user?.id) supabase.from("profiles").update({ gcal_refresh_token: null }).eq("id", user.id);
+    }
     saveCalSources(updated);
     await refreshAllCalendars(updated);
     showToast("Calendar removed");
@@ -7570,6 +7576,14 @@ const _gcalCallbackToken = (() => {
         }
         localStorage.setItem("cal_sources", JSON.stringify(sources));
       } catch {}
+      // Persist refresh token + cal_sources to profile
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const safe = JSON.parse(localStorage.getItem("cal_sources") || "[]").map(({ token, ...rest }) => rest);
+        const updates = { cal_sources: safe };
+        if (data.refresh_token) updates.gcal_refresh_token = data.refresh_token;
+        supabase.from("profiles").update(updates).eq("id", authUser.id);
+      }
     }
   })();
   // Clean the code from URL
@@ -7616,6 +7630,21 @@ const App = () => {
         tenant_id: profile.tenant_id,
       });
       setPage(profile.role === "admin" ? "a-dash" : "dash");
+
+      // Hydrate calendar sources from profile → localStorage (so calendar useEffect picks them up)
+      if (profile.cal_sources?.length) {
+        const existing = JSON.parse(localStorage.getItem("cal_sources") || "[]");
+        if (!existing.length) {
+          // Restore saved sources; re-attach access token if we have one locally
+          const token = localStorage.getItem("gcal_token");
+          const hydrated = profile.cal_sources.map((s) => s.type === "google" && token ? { ...s, token } : s);
+          localStorage.setItem("cal_sources", JSON.stringify(hydrated));
+        }
+      }
+      if (profile.gcal_refresh_token && !localStorage.getItem("gcal_refresh_token")) {
+        localStorage.setItem("gcal_refresh_token", profile.gcal_refresh_token);
+      }
+
       // Fetch documents from Supabase
       const docsQuery = profile.role === "admin"
         ? supabase.from("documents").select("*").order("created_at", { ascending: false })
