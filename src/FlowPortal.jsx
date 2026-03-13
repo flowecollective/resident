@@ -4552,7 +4552,6 @@ const AdminMaster = () => {
       : c
     ));
     const { error: skUpdErr } = await supabase.from("skills").update(updates).eq("id", editSkillData.id);
-    console.log("Skill update:", { error: skUpdErr, updates, id: editSkillData.id });
     if (skUpdErr) showToast("Failed to save: " + skUpdErr.message);
     setEditSkillModal(false);
     showToast("Skill updated");
@@ -4630,19 +4629,28 @@ const AdminMaster = () => {
       source: isUpload ? "upload" : "link",
       fileName: isUpload ? videoFile.name : null,
     };
-    setMasterProgram((p) => p.map((c) => {
-      if (c.id !== videoTarget.catId) return c;
-      if (videoTarget.type === "cat") return { ...c, videos: [...(c.videos || []), vid] };
-      return { ...c, skills: c.skills.map((s) => s.id === videoTarget.skillId ? { ...s, videos: [...(s.videos || []), vid] } : s) };
-    }));
-    // Persist video array to DB
+    // Compute new videos array BEFORE state update (React state is async)
+    let newVids;
     if (videoTarget.type === "cat") {
       const cat = masterProgram.find((c) => c.id === videoTarget.catId);
-      await supabase.from("categories").update({ videos: [...(cat?.videos || []), vid] }).eq("id", videoTarget.catId);
+      newVids = [...(cat?.videos || []), vid];
     } else {
       const cat = masterProgram.find((c) => c.id === videoTarget.catId);
       const sk = cat?.skills.find((s) => s.id === videoTarget.skillId);
-      await supabase.from("skills").update({ videos: [...(sk?.videos || []), vid] }).eq("id", videoTarget.skillId);
+      newVids = [...(sk?.videos || []), vid];
+    }
+    setMasterProgram((p) => p.map((c) => {
+      if (c.id !== videoTarget.catId) return c;
+      if (videoTarget.type === "cat") return { ...c, videos: newVids };
+      return { ...c, skills: c.skills.map((s) => s.id === videoTarget.skillId ? { ...s, videos: newVids } : s) };
+    }));
+    // Persist to DB using pre-computed array
+    if (videoTarget.type === "cat") {
+      const { error: vidErr } = await supabase.from("categories").update({ videos: newVids }).eq("id", videoTarget.catId);
+      if (vidErr) { showToast("Failed to save video: " + vidErr.message); return; }
+    } else {
+      const { error: vidErr } = await supabase.from("skills").update({ videos: newVids }).eq("id", videoTarget.skillId);
+      if (vidErr) { showToast("Failed to save video: " + vidErr.message); return; }
     }
     showToast("Video added");
     setVideoModal(false);
@@ -4653,36 +4661,49 @@ const AdminMaster = () => {
     if (!editVideoId || !editVideoTitle.trim()) { setEditVideoId(null); return; }
     const { catId, skillId, videoId } = editVideoId;
     const updateVid = (v) => v.id === videoId ? { ...v, title: editVideoTitle.trim() } : v;
-    setMasterProgram((p) => p.map((c) => {
-      if (c.id !== catId) return c;
-      if (!skillId) return { ...c, videos: (c.videos || []).map(updateVid) };
-      return { ...c, skills: c.skills.map((s) => s.id === skillId ? { ...s, videos: (s.videos || []).map(updateVid) } : s) };
-    }));
+    // Compute updated videos BEFORE state update
+    let updatedVids;
     if (!skillId) {
       const cat = masterProgram.find((c) => c.id === catId);
-      await supabase.from("categories").update({ videos: (cat?.videos || []).map(updateVid) }).eq("id", catId);
+      updatedVids = (cat?.videos || []).map(updateVid);
     } else {
       const cat = masterProgram.find((c) => c.id === catId);
       const sk = cat?.skills.find((s) => s.id === skillId);
-      await supabase.from("skills").update({ videos: (sk?.videos || []).map(updateVid) }).eq("id", skillId);
+      updatedVids = (sk?.videos || []).map(updateVid);
+    }
+    setMasterProgram((p) => p.map((c) => {
+      if (c.id !== catId) return c;
+      if (!skillId) return { ...c, videos: updatedVids };
+      return { ...c, skills: c.skills.map((s) => s.id === skillId ? { ...s, videos: updatedVids } : s) };
+    }));
+    if (!skillId) {
+      await supabase.from("categories").update({ videos: updatedVids }).eq("id", catId);
+    } else {
+      await supabase.from("skills").update({ videos: updatedVids }).eq("id", skillId);
     }
     setEditVideoId(null);
     showToast("Video renamed");
   };
   const removeVideo = async (catId, skillId, videoId) => {
-    setMasterProgram((p) => p.map((c) => {
-      if (c.id !== catId) return c;
-      if (!skillId) return { ...c, videos: (c.videos || []).filter((v) => v.id !== videoId) };
-      return { ...c, skills: c.skills.map((s) => s.id === skillId ? { ...s, videos: (s.videos || []).filter((v) => v.id !== videoId) } : s) };
-    }));
-    // Persist updated video array to DB
+    // Compute filtered videos BEFORE state update
+    let filteredVids;
     if (!skillId) {
       const cat = masterProgram.find((c) => c.id === catId);
-      await supabase.from("categories").update({ videos: (cat?.videos || []).filter((v) => v.id !== videoId) }).eq("id", catId);
+      filteredVids = (cat?.videos || []).filter((v) => v.id !== videoId);
     } else {
       const cat = masterProgram.find((c) => c.id === catId);
       const sk = cat?.skills.find((s) => s.id === skillId);
-      await supabase.from("skills").update({ videos: (sk?.videos || []).filter((v) => v.id !== videoId) }).eq("id", skillId);
+      filteredVids = (sk?.videos || []).filter((v) => v.id !== videoId);
+    }
+    setMasterProgram((p) => p.map((c) => {
+      if (c.id !== catId) return c;
+      if (!skillId) return { ...c, videos: filteredVids };
+      return { ...c, skills: c.skills.map((s) => s.id === skillId ? { ...s, videos: filteredVids } : s) };
+    }));
+    if (!skillId) {
+      await supabase.from("categories").update({ videos: filteredVids }).eq("id", catId);
+    } else {
+      await supabase.from("skills").update({ videos: filteredVids }).eq("id", skillId);
     }
     showToast("Video removed");
   };
