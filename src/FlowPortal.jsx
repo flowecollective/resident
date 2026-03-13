@@ -2471,11 +2471,18 @@ const TraineeDocs = () => {
   const [f, setF] = useState("All");
   const [viewDoc, setViewDoc] = useState(null);
 
-  // Refresh docs on mount
+  // Refresh docs on mount — show docs visible to this trainee
   useEffect(() => {
     if (!user?.id) return;
-    supabase.from("documents").select("*").eq("uploaded_by", user.id).order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setDocs(data);
+    supabase.from("documents").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+      if (!data) return;
+      // Show: docs uploaded by this trainee, OR visibility=all, OR assigned to this trainee
+      const visible = data.filter((d) =>
+        d.uploaded_by === user.id ||
+        d.visibility === "all" || !d.visibility ||
+        (d.visibility === "specific" && d.assigned_to?.includes(user.id))
+      );
+      setDocs(visible);
     });
   }, []);
   const cats = ["All", ...new Set(docs.map((d) => d.category))];
@@ -6539,13 +6546,14 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
 //  ADMIN: DOCUMENTS
 // ════════════════════════════════════════════
 const AdminDocs = () => {
-  const { user, docs, setDocs, showToast } = useData();
+  const { user, docs, setDocs, residents, showToast } = useData();
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: "", category: "Resources", url: "" });
+  const [form, setForm] = useState({ name: "", category: "Resources", url: "", visibility: "all", assigned_to: [] });
   const [fileData, setFileData] = useState(null);
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [fileType, setFileType] = useState("");
+  const [editDoc, setEditDoc] = useState(null);
   const fileInputRef = useRef(null);
 
   // Refresh docs on mount (picks up countersigned agreements, etc.)
@@ -6605,14 +6613,39 @@ const AdminDocs = () => {
       url: uploadUrl,
       storage_path: storagePath,
       uploaded_by: user.id,
+      visibility: form.visibility,
+      assigned_to: form.visibility === "specific" ? form.assigned_to : [],
     }).select().single();
 
     if (insErr) { console.error("Doc insert error:", insErr); showToast("Error uploading"); return; }
     setDocs((p) => [inserted, ...p]);
-    setForm({ name: "", category: "Resources", url: "" });
+    setForm({ name: "", category: "Resources", url: "", visibility: "all", assigned_to: [] });
     setFileData(null); setFileName(""); setFileSize(""); setFileType("");
     setModal(false);
     showToast("Document uploaded");
+  };
+
+  const saveEdit = async () => {
+    if (!editDoc) return;
+    const updates = {
+      name: form.name.trim(),
+      category: form.category,
+      visibility: form.visibility,
+      assigned_to: form.visibility === "specific" ? form.assigned_to : [],
+    };
+    const { error } = await supabase.from("documents").update(updates).eq("id", editDoc.id);
+    if (error) { showToast("Error updating"); return; }
+    setDocs((p) => p.map((d) => d.id === editDoc.id ? { ...d, ...updates } : d));
+    setEditDoc(null);
+    setModal(false);
+    showToast("Document updated");
+  };
+
+  const openEdit = (doc) => {
+    setEditDoc(doc);
+    setForm({ name: doc.name, category: doc.category, url: doc.url || "", visibility: doc.visibility || "all", assigned_to: doc.assigned_to || [] });
+    setFileData(null); setFileName(""); setFileSize(""); setFileType("");
+    setModal(true);
   };
 
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -6627,7 +6660,8 @@ const AdminDocs = () => {
   };
 
   const openModal = () => {
-    setForm({ name: "", category: "Resources", url: "" });
+    setEditDoc(null);
+    setForm({ name: "", category: "Resources", url: "", visibility: "all", assigned_to: [] });
     setFileData(null); setFileName(""); setFileSize(""); setFileType("");
     setModal(true);
   };
@@ -6655,11 +6689,19 @@ const AdminDocs = () => {
                 </div>
               </div>
               <Badge color={T.textMuted}>{doc.category}</Badge>
+              {(doc.visibility === "specific" && doc.assigned_to?.length > 0) && (
+                <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 6px", borderRadius: 3, background: T.charcoalMuted, color: T.textMuted }}>
+                  {doc.assigned_to.length} trainee{doc.assigned_to.length !== 1 ? "s" : ""}
+                </span>
+              )}
               {doc.url && (
                 <button onClick={() => setViewDoc(doc)} title="View" style={{ background: T.goldMuted, border: "none", borderRadius: 4, padding: 6, cursor: "pointer", position: "relative", zIndex: 2 }}>
                   <Icon name="eye" size={14} color={T.gold} />
                 </button>
               )}
+              <button onClick={() => openEdit(doc)} title="Edit" style={{ background: T.goldMuted, border: "none", borderRadius: 4, padding: 6, cursor: "pointer", position: "relative", zIndex: 2 }}>
+                <Icon name="edit" size={14} color={T.gold} />
+              </button>
               <button onClick={() => setConfirmDelete(doc)} title="Delete" style={{ background: "#fee", border: "none", borderRadius: 4, padding: 6, cursor: "pointer", position: "relative", zIndex: 2 }}>
                 <Icon name="trash" size={16} color={T.danger} />
               </button>
@@ -6668,54 +6710,56 @@ const AdminDocs = () => {
         </div>
       )}
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Upload Document" width={480}>
-        {/* File Upload Zone */}
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            padding: fileData ? "16px" : "32px",
-            borderRadius: T.radius,
-            border: "2px dashed " + (fileData ? T.success : T.goldLight),
-            background: fileData ? T.successBg : T.cream,
-            cursor: "pointer",
-            textAlign: "center",
-            marginBottom: 16,
-            transition: "all .2s",
-          }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.xlsx,.csv,.txt"
-            onChange={handleFileSelect}
-            style={{ display: "none" }}
-          />
-          {fileData ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center" }}>
-              <Icon name="check" size={20} color={T.success} />
-              <div style={{ textAlign: "left" }}>
-                <p style={{ fontSize: "13px", fontWeight: 500, color: T.success }}>{fileName}</p>
-                <p style={{ fontSize: "11px", color: T.textMuted }}>{fileSize} · Click to change</p>
+      <Modal open={modal} onClose={() => { setModal(false); setEditDoc(null); }} title={editDoc ? "Edit Document" : "Upload Document"} width={480}>
+        {/* File Upload Zone — only show for new uploads */}
+        {!editDoc && <>
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              padding: fileData ? "16px" : "32px",
+              borderRadius: T.radius,
+              border: "2px dashed " + (fileData ? T.success : T.goldLight),
+              background: fileData ? T.successBg : T.cream,
+              cursor: "pointer",
+              textAlign: "center",
+              marginBottom: 16,
+              transition: "all .2s",
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.xlsx,.csv,.txt"
+              onChange={handleFileSelect}
+              style={{ display: "none" }}
+            />
+            {fileData ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center" }}>
+                <Icon name="check" size={20} color={T.success} />
+                <div style={{ textAlign: "left" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 500, color: T.success }}>{fileName}</p>
+                  <p style={{ fontSize: "11px", color: T.textMuted }}>{fileSize} · Click to change</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <>
-              <Icon name="plus" size={24} color={T.goldLight} />
-              <p style={{ fontSize: "13px", fontWeight: 500, color: T.textMuted, marginTop: 8 }}>Click to upload a file</p>
-              <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 2 }}>PDF, images, Word, Excel, text</p>
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <Icon name="plus" size={24} color={T.goldLight} />
+                <p style={{ fontSize: "13px", fontWeight: 500, color: T.textMuted, marginTop: 8 }}>Click to upload a file</p>
+                <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 2 }}>PDF, images, Word, Excel, text</p>
+              </>
+            )}
+          </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, height: 1, background: T.creamDark }} />
-          <span style={{ fontSize: "11px", color: T.textMuted, fontWeight: 500 }}>OR</span>
-          <div style={{ flex: 1, height: 1, background: T.creamDark }} />
-        </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ flex: 1, height: 1, background: T.creamDark }} />
+            <span style={{ fontSize: "11px", color: T.textMuted, fontWeight: 500 }}>OR</span>
+            <div style={{ flex: 1, height: 1, background: T.creamDark }} />
+          </div>
 
-        <FormField label="External Link (Google Drive, Dropbox, etc.)">
-          <input value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="https://drive.google.com/..." style={iSt} />
-        </FormField>
+          <FormField label="External Link (Google Drive, Dropbox, etc.)">
+            <input value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="https://drive.google.com/..." style={iSt} />
+          </FormField>
+        </>}
 
         <FormField label="Document Name">
           <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Color Formulation Guide" style={iSt} />
@@ -6725,9 +6769,44 @@ const AdminDocs = () => {
             {["Onboarding", "Schedule", "Resources", "Forms", "Policies"].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </FormField>
+        <FormField label="Visible To">
+          <select value={form.visibility} onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value }))} style={selSt}>
+            <option value="all">All Trainees</option>
+            <option value="specific">Specific Trainees</option>
+          </select>
+        </FormField>
+        {form.visibility === "specific" && (
+          <FormField label="Assign To">
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 160, overflowY: "auto", padding: "8px 0" }}>
+              {residents.map((r) => (
+                <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "13px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={form.assigned_to.includes(r.id)}
+                    onChange={(e) => {
+                      setForm((f) => ({
+                        ...f,
+                        assigned_to: e.target.checked
+                          ? [...f.assigned_to, r.id]
+                          : f.assigned_to.filter((id) => id !== r.id),
+                      }));
+                    }}
+                  />
+                  {r.name}
+                  {r.cohort && <span style={{ fontSize: "10px", color: T.textMuted }}>({r.cohort})</span>}
+                </label>
+              ))}
+              {residents.length === 0 && <p style={{ fontSize: "12px", color: T.textMuted }}>No trainees yet</p>}
+            </div>
+          </FormField>
+        )}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
-          <Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn>
-          <Btn onClick={add} disabled={!form.name.trim() && !fileData}>Upload</Btn>
+          <Btn variant="outline" onClick={() => { setModal(false); setEditDoc(null); }}>Cancel</Btn>
+          {editDoc ? (
+            <Btn onClick={saveEdit} disabled={!form.name.trim()}>Save</Btn>
+          ) : (
+            <Btn onClick={add} disabled={!form.name.trim() && !fileData}>Upload</Btn>
+          )}
         </div>
       </Modal>
 
@@ -7773,11 +7852,17 @@ const App = () => {
       }
 
       // Fetch documents from Supabase
-      const docsQuery = profile.role === "admin"
-        ? supabase.from("documents").select("*").order("created_at", { ascending: false })
-        : supabase.from("documents").select("*").eq("uploaded_by", profile.id).order("created_at", { ascending: false });
-      const { data: docsData } = await docsQuery;
-      setDocs(docsData || []);
+      const { data: docsData } = await supabase.from("documents").select("*").order("created_at", { ascending: false });
+      if (profile.role === "admin") {
+        setDocs(docsData || []);
+      } else {
+        // Trainees see: their own uploads + all-visibility docs + docs assigned to them
+        setDocs((docsData || []).filter((d) =>
+          d.uploaded_by === profile.id ||
+          d.visibility === "all" || !d.visibility ||
+          (d.visibility === "specific" && d.assigned_to?.includes(profile.id))
+        ));
+      }
 
       // Load cohort colors from Supabase (fall back to localStorage)
       const { data: cohortSetting } = await supabase.from("settings").select("value").eq("key", "cohort_colors").maybeSingle();
