@@ -4187,6 +4187,7 @@ const AdminMaster = () => {
   const [videoFile, setVideoFile] = useState(null);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoMode, setVideoMode] = useState("upload"); // "upload" or "link"
+  const [playingVideo, setPlayingVideo] = useState(null);
   const [sopData, setSopData] = useState({ steps: "", mistakes: "", consultation: "", tips: "", tools: "" });
   const [sopTab, setSopTab] = useState("steps");
 
@@ -4943,7 +4944,9 @@ const AdminMaster = () => {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
                     {cat.videos.map((v) => (
                       <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 20, background: "#8B6AAE10", fontSize: "11px" }}>
-                        <Icon name="play" size={12} color="#8B6AAE" />
+                        <button onClick={() => setPlayingVideo(v)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }} title="Play video">
+                          <Icon name="play" size={12} color="#8B6AAE" />
+                        </button>
                         {editVideoId?.videoId === v.id ? (
                           <input value={editVideoTitle} onChange={(e) => setEditVideoTitle(e.target.value)} onBlur={saveVideoTitle} onKeyDown={(e) => { if (e.key === "Enter") saveVideoTitle(); if (e.key === "Escape") setEditVideoId(null); }} autoFocus style={{ border: "none", outline: "none", background: "transparent", color: "#8B6AAE", fontWeight: 500, fontSize: "11px", width: Math.max(60, editVideoTitle.length * 7) }} />
                         ) : (
@@ -5221,7 +5224,9 @@ const AdminMaster = () => {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {vids.map((v) => (
                     <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 20, background: "#8B6AAE10", fontSize: "11px" }}>
-                      <Icon name="play" size={12} color="#8B6AAE" />
+                      <button onClick={() => setPlayingVideo(v)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }} title="Play video">
+                        <Icon name="play" size={12} color="#8B6AAE" />
+                      </button>
                       {editVideoId?.videoId === v.id ? (
                         <input value={editVideoTitle} onChange={(e) => setEditVideoTitle(e.target.value)} onBlur={saveVideoTitle} onKeyDown={(e) => { if (e.key === "Enter") saveVideoTitle(); if (e.key === "Escape") setEditVideoId(null); }} autoFocus style={{ border: "none", outline: "none", background: "transparent", color: "#8B6AAE", fontWeight: 500, fontSize: "11px", width: Math.max(60, editVideoTitle.length * 7) }} />
                       ) : (
@@ -5440,6 +5445,41 @@ const AdminMaster = () => {
             </div>
           </>
         )}
+      </Modal>
+
+      {/* Video Player Modal */}
+      <Modal open={!!playingVideo} onClose={() => setPlayingVideo(null)} title={playingVideo?.title || "Video"} width={700}>
+        {playingVideo && (() => {
+          const url = playingVideo.url;
+          const isDataUrl = url && (url.startsWith("data:") || url.startsWith("blob:"));
+          const embedUrl = !isDataUrl ? getEmbedUrl(url) : null;
+          if (isDataUrl) {
+            return (
+              <div>
+                <video controls autoPlay style={{ width: "100%", maxHeight: "70vh", background: T.charcoal }} src={url} />
+                {playingVideo.duration && playingVideo.duration !== "—" && (
+                  <p style={{ fontSize: "12px", color: T.textMuted, padding: "10px 14px" }}>{playingVideo.duration}</p>
+                )}
+              </div>
+            );
+          }
+          if (embedUrl) {
+            return (
+              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
+                <iframe src={embedUrl} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />
+              </div>
+            );
+          }
+          return (
+            <div style={{ textAlign: "center", padding: 32 }}>
+              <Icon name="play" size={48} color="#8B6AAE" />
+              <p style={{ fontSize: "14px", fontWeight: 500, marginTop: 12 }}>{playingVideo.title}</p>
+              <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", background: "#8B6AAE", color: T.white, textDecoration: "none", fontSize: "13px", fontWeight: 500, borderRadius: T.radiusSm, marginTop: 16 }}>
+                <Icon name="play" size={14} color={T.white} /> Open Video
+              </a>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );
