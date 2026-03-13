@@ -5464,6 +5464,7 @@ const AdminTrainees = ({ onNav }) => {
     const updated = cohorts.filter((c) => c !== name);
     setCohorts(updated);
     persistCohorts(updated);
+    setConfirmRemove(null);
     showToast("Cohort removed");
   };
 
@@ -5520,10 +5521,12 @@ const AdminTrainees = ({ onNav }) => {
       showToast(err.message || "Failed to send invite");
     }
   };
-  const rem = async (id) => {
+  const [confirmRemove, setConfirmRemove] = useState(null); // { type: "resident"|"cohort", id?, name }
+  const deactivate = async (id) => {
     await supabase.from("profiles").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     setResidents((p) => p.filter((r) => r.id !== id));
-    showToast(`${TL.s} removed`);
+    setConfirmRemove(null);
+    showToast(`${TL.s} deactivated`);
   };
 
   const changeCohort = async (residentId, newCohortName) => {
@@ -5577,7 +5580,7 @@ const AdminTrainees = ({ onNav }) => {
                   <span style={{ fontSize: "11px", color: T.textMuted, background: T.white, padding: "2px 8px", borderRadius: 10 }}>{members.length} {members.length !== 1 ? TL.pl : TL.sl}</span>
                 </div>
                 {members.length === 0 && (
-                  <button onClick={() => removeCohort(cohort)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                  <button onClick={() => setConfirmRemove({ type: "cohort", name: cohort })} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
                     <Icon name="trash" size={14} color={T.danger} />
                   </button>
                 )}
@@ -5604,7 +5607,7 @@ const AdminTrainees = ({ onNav }) => {
                         <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
                           <Icon name="eye" size={12} color={T.gold} /> View
                         </button>
-                        <button onClick={() => rem(r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
+                        <button onClick={() => setConfirmRemove({ type: "resident", id: r.id, name: r.name })} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
                       </div>
                     );
                   })}
@@ -5644,7 +5647,7 @@ const AdminTrainees = ({ onNav }) => {
                     <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
                       <Icon name="eye" size={12} color={T.gold} /> View
                     </button>
-                    <button onClick={() => rem(r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
+                    <button onClick={() => setConfirmRemove({ type: "resident", id: r.id, name: r.name })} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
                   </div>
                 );
               })}
@@ -5744,6 +5747,21 @@ const AdminTrainees = ({ onNav }) => {
         currentPhoto={form.photo}
         onSave={(dataUrl) => setForm((f) => ({ ...f, photo: dataUrl }))}
       />
+      {/* Confirm Remove Modal */}
+      <Modal open={!!confirmRemove} onClose={() => setConfirmRemove(null)} title={confirmRemove?.type === "resident" ? `Deactivate ${TL.s}` : "Remove Cohort"}>
+        <p style={{ fontSize: 14, color: T.text, marginBottom: 20 }}>
+          {confirmRemove?.type === "resident"
+            ? <>Are you sure you want to deactivate <strong>{confirmRemove?.name}</strong>? They will be removed from the active roster but their data will be preserved.</>
+            : <>Are you sure you want to remove the <strong>{confirmRemove?.name}</strong> cohort? {TL.p} in this cohort will become unassigned.</>}
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <Btn variant="outline" onClick={() => setConfirmRemove(null)}>Cancel</Btn>
+          <Btn style={{ background: confirmRemove?.type === "resident" ? T.warning || T.gold : T.danger }} onClick={() => {
+            if (confirmRemove?.type === "resident") deactivate(confirmRemove.id);
+            else if (confirmRemove?.type === "cohort") removeCohort(confirmRemove.name);
+          }}>{confirmRemove?.type === "resident" ? "Deactivate" : "Remove"}</Btn>
+        </div>
+      </Modal>
     </div>
   );
 };
