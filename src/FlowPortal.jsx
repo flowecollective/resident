@@ -5494,7 +5494,6 @@ const AdminTrainees = ({ onNav }) => {
         }),
       });
       const data = await res.json();
-      console.log("invite-trainee response:", res.status, data);
       if (!res.ok) throw new Error(data.error || data.detail || `Failed to add ${TL.sl}`);
       const p = data.profile;
       // Save phone number to contacts if provided
