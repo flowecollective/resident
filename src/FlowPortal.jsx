@@ -4551,7 +4551,8 @@ const AdminMaster = () => {
       ? { ...c, skills: c.skills.map((s) => s.id === editSkillData.id ? { ...s, targetMin: t, maxMin: m, sop: hasSop ? { ...sopData } : s.sop } : s) }
       : c
     ));
-    const { error: skUpdErr } = await supabase.from("skills").update(updates).eq("id", editSkillData.id);
+    const { data: skUpdData, error: skUpdErr, count: skUpdCount } = await supabase.from("skills").update(updates).eq("id", editSkillData.id).select();
+    console.log("Skill update:", { error: skUpdErr, data: skUpdData, id: editSkillData.id, updates });
     if (skUpdErr) showToast("Failed to save: " + skUpdErr.message);
     setEditSkillModal(false);
     showToast("Skill updated");
@@ -8234,12 +8235,13 @@ const App = () => {
       }
 
       // Load master program from Supabase (active + archived with flags)
-      const [{ data: catsData }, { data: skillsData }, { data: archCatsData }, { data: archSkillsData }] = await Promise.all([
+      const [{ data: catsData, error: catsErr }, { data: skillsData, error: skillsErr }, { data: archCatsData }, { data: archSkillsData }] = await Promise.all([
         supabase.from("categories").select("*").is("archived_at", null).order("sort_order"),
         supabase.from("skills").select("*").is("archived_at", null).order("sort_order"),
         supabase.from("categories").select("*").not("archived_at", "is", null),
         supabase.from("skills").select("*").not("archived_at", "is", null),
       ]);
+      console.log("DB load — cats:", catsData?.length, catsErr, "skills:", skillsData?.length, skillsErr, "sample skill:", skillsData?.[0]);
       if (catsData) {
         const mapSkill = (s, archived) => ({
           id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop,
