@@ -623,7 +623,6 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
         { id: "sched", label: "Schedule", icon: "calendar" },
         { id: "skills", label: "My Skills", icon: "check" },
         { id: "tuition", label: "My Tuition", icon: "dollar" },
-        { id: "handbook", label: "Handbook", icon: "file" },
         { id: "docs", label: "Documents", icon: "file" },
         { id: "msg", label: "Messages", icon: "message" },
         { id: "settings", label: "Settings", icon: "settings" },
@@ -2444,7 +2443,7 @@ const HandbookPage = () => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub="Your complete guide to the Flowe training program">Trainee Handbook</SectionTitle>
+      <SectionTitle sub="Your complete guide to the Flowe training program">{TL.s} Handbook</SectionTitle>
       <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20, alignItems: "start" }}>
         {/* TOC sidebar */}
         <Card style={{ padding: 16, position: "sticky", top: 20 }}>
@@ -2488,13 +2487,14 @@ const TraineeDocs = () => {
   const { user, docs, setDocs } = useData();
   const [f, setF] = useState("All");
   const [viewDoc, setViewDoc] = useState(null);
+  const [showHandbook, setShowHandbook] = useState(false);
+  const [handbookSection, setHandbookSection] = useState("welcome");
 
   // Refresh docs on mount — show docs visible to this trainee
   useEffect(() => {
     if (!user?.id) return;
     supabase.from("documents").select("*").order("created_at", { ascending: false }).then(({ data }) => {
       if (!data) return;
-      // Show: docs uploaded by this trainee, OR visibility=all, OR assigned to this trainee
       const visible = data.filter((d) =>
         d.uploaded_by === user.id ||
         d.visibility === "all" || !d.visibility ||
@@ -2505,6 +2505,13 @@ const TraineeDocs = () => {
   }, []);
   const cats = ["All", ...new Set(docs.map((d) => d.category))];
   const fd = f === "All" ? docs : docs.filter((d) => d.category === f);
+
+  const renderHandbookContent = (content) => content.map((block, i) => {
+    if (block.type === "p") return <p key={i} style={{ fontSize: "13px", lineHeight: 1.7, color: T.text, marginBottom: 12 }}>{block.text}</p>;
+    if (block.type === "h3") return <h4 key={i} style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600, color: T.gold, marginTop: 16, marginBottom: 8 }}>{block.text}</h4>;
+    if (block.type === "li") return <ul key={i} style={{ paddingLeft: 20, marginBottom: 12 }}>{block.items.map((item, j) => <li key={j} style={{ fontSize: "13px", lineHeight: 1.7, color: T.text, marginBottom: 4 }}>{item}</li>)}</ul>;
+    return null;
+  });
 
   const handleOpen = (doc) => {
     if (doc.url) {
@@ -2522,9 +2529,58 @@ const TraineeDocs = () => {
     a.click();
   };
 
+  if (showHandbook) return (
+    <div className="fade-up">
+      <SectionTitle sub="Your complete guide to the training program" action={
+        <Btn variant="outline" onClick={() => setShowHandbook(false)}><Icon name="back" size={14} color={T.textMuted} /> Back to Documents</Btn>
+      }>Handbook</SectionTitle>
+      <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20, alignItems: "start" }}>
+        <Card style={{ padding: 16, position: "sticky", top: 20 }}>
+          <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: T.textMuted, marginBottom: 10 }}>Contents</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {HANDBOOK_SECTIONS.map((sec) => (
+              <button key={sec.id} onClick={() => setHandbookSection(sec.id)} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: T.radiusSm,
+                border: "none", background: handbookSection === sec.id ? T.goldMuted : "transparent",
+                cursor: "pointer", textAlign: "left", fontSize: "11px",
+                color: handbookSection === sec.id ? T.charcoal : T.textMuted,
+                fontWeight: handbookSection === sec.id ? 600 : 400,
+              }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, color: T.gold, minWidth: 18 }}>{sec.num}</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sec.title}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+        <Card style={{ padding: 32 }}>
+          {HANDBOOK_SECTIONS.filter((s) => s.id === handbookSection).map((sec) => (
+            <div key={sec.id}>
+              <span style={{ fontSize: "36px", fontFamily: T.fontD, fontWeight: 600, color: T.goldLight }}>{sec.num}</span>
+              <h2 style={{ fontFamily: T.fontD, fontSize: "24px", fontWeight: 600, color: T.charcoal, marginBottom: 4 }}>{sec.title}</h2>
+              <div style={{ height: 2, width: 60, background: T.gold, borderRadius: 1, marginBottom: 20 }} />
+              {renderHandbookContent(sec.content)}
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+
   return (
     <div className="fade-up">
       <SectionTitle sub="Training materials and resources">Documents</SectionTitle>
+      {/* Handbook banner */}
+      <Card onClick={() => setShowHandbook(true)} style={{ padding: "16px 22px", marginBottom: 16, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", borderLeft: `4px solid ${T.gold}`, transition: "box-shadow .2s" }}>
+        <div style={{ width: 40, height: 40, borderRadius: T.radiusSm, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon name="file" size={18} color={T.gold} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: "14px", fontWeight: 600 }}>{TL.s} Handbook</p>
+          <p style={{ fontSize: "11px", color: T.textMuted }}>Program guide, policies, and expectations</p>
+        </div>
+        <Icon name="back" size={16} color={T.textMuted} style={{ transform: "rotate(180deg)" }} />
+      </Card>
+
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {cats.map((c) => (
           <button key={c} onClick={() => setF(c)} style={{
@@ -8137,7 +8193,7 @@ const App = () => {
       sched: <TraineeSchedule user={user} />,
       skills: <TraineeSkills user={user} />,
       tuition: <TraineeTuition user={user} />,
-      handbook: <HandbookPage />,
+      // handbook now lives inside TraineeDocs
       docs: <TraineeDocs />,
       msg: <MsgPage user={user} />,
       settings: <SettingsPage />,
