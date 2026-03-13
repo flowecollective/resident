@@ -1652,6 +1652,8 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
   const complete = isService ? (p.technique >= 3 && p.timing >= 3) : p.done;
   const skPct = getSkillPct(trainee, skill.id, masterProgram);
   const hasStandard = isService && skill.targetMin;
+  const hasSop = skill.sop && Object.values(skill.sop).some((v) => v);
+  const hasVids = (skill.videos || []).length > 0;
   const logs = timingLogs || [];
   const avgTime = logs.length ? Math.round(logs.reduce((a, l) => a + l.minutes, 0) / logs.length) : null;
   const mannequinLogs = logs.filter((l) => l.type === "mannequin");
@@ -1667,12 +1669,14 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
       ...(skill.archived ? { opacity: 0.6 } : {}),
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isService ? 8 : 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: "13px", fontWeight: 500, color: complete ? T.success : T.text }}>{skill.name}</span>
           {skill.archived && <span style={{ fontSize: "8px", fontWeight: 600, padding: "2px 5px", borderRadius: 4, background: T.creamDark, color: T.textMuted }}>ARCHIVED</span>}
           <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: isService ? T.goldMuted : T.charcoalMuted, color: isService ? T.gold : T.textMuted }}>
             {isService ? "SERVICE" : "KNOWLEDGE"}
           </span>
+          {hasSop && <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 4, background: T.success + "12", fontSize: "9px", fontWeight: 600, color: T.success }}><Icon name="file" size={9} color={T.success} />Curriculum</span>}
+          {hasVids && <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 4, background: "#8B6AAE12", fontSize: "9px", fontWeight: 600, color: "#8B6AAE" }}><Icon name="play" size={9} color="#8B6AAE" />{skill.videos.length} video{skill.videos.length !== 1 ? "s" : ""}</span>}
         </div>
         {isService ? (
           <span style={{ fontSize: "11px", fontWeight: 600, color: complete ? T.success : T.gold }}>{skPct}%</span>
@@ -5012,9 +5016,9 @@ const AdminMaster = () => {
                           <span style={{ fontSize: "10px", color: T.textMuted }}>{sk.targetMin}–{sk.maxMin}m</span>
                         ) : null}
                         {(hasSop || hasVids) && (
-                          <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                            {hasSop && <Icon name="file" size={8} color={T.success} />}
-                            {hasVids && <><Icon name="play" size={8} color="#8B6AAE" /><span style={{ fontSize: "9px", color: "#8B6AAE" }}>{sk.videos.length}</span></>}
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {hasSop && <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.success + "15", fontSize: "9px", fontWeight: 600, color: T.success }}><Icon name="file" size={9} color={T.success} />SOP</span>}
+                            {hasVids && <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: "#8B6AAE15", fontSize: "9px", fontWeight: 600, color: "#8B6AAE" }}><Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}</span>}
                           </span>
                         )}
                         <button onClick={() => confirmDeleteSk(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
