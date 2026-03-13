@@ -12,16 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const { name, email, cohort, photo, onboarding_steps } = await req.json();
+    const body = await req.json();
+    const action = body.action || "create"; // "create" | "invite"
 
-    if (!name || !email) {
-      return new Response(JSON.stringify({ error: "Name and email are required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Verify caller is an admin
+    // Verify caller is authenticated
     const authHeader = req.headers.get("authorization") || "";
     const callerClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -55,24 +49,78 @@ serve(async (req) => {
       });
     }
 
-    // Create auth user with invite (sends magic link email)
-    const { data: invite, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: {
+    // ── SEND INVITE (email) to existing user ──
+    if (action === "invite") {
+      const { user_id } = body;
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: "user_id is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Get user email
+      const { data: profile } = await supabase.from("profiles").select("email").eq("id", user_id).single();
+      if (!profile) {
+        return new Response(JSON.stringify({ error: "Trainee not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Send invite email via magic link
+      const { error: invErr } = await supabase.auth.admin.inviteUserByEmail(profile.email);
+      if (invErr) {
+        // If already confirmed, generate a magic link instead
+        const { data: link, error: linkErr } = await supabase.auth.admin.generateLink({
+          type: "magiclink",
+          email: profile.email,
+        });
+        if (linkErr) {
+          return new Response(JSON.stringify({ error: linkErr.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+      // Mark invite as sent
+      await supabase.from("profiles").update({ invite_sent_at: new Date().toISOString() }).eq("id", user_id);
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── CREATE trainee (no email sent) ──
+    const { name, email, cohort, photo, onboarding_steps } = body;
+
+    if (!name || !email) {
+      return new Response(JSON.stringify({ error: "Name and email are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create auth user WITHOUT sending invite email
+    const tempPw = crypto.randomUUID() + crypto.randomUUID();
+    const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+      email,
+      password: tempPw,
+      email_confirm: false,
+      user_metadata: {
         name,
         role: "resident",
         tenant_id: callerProfile.tenant_id,
       },
     });
 
-    if (inviteErr) {
-      return new Response(JSON.stringify({ error: inviteErr.message }), {
+    if (createErr) {
+      return new Response(JSON.stringify({ error: createErr.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // The trigger auto-creates the profile. Now update it with cohort/photo/onboarding config.
-    const userId = invite.user.id;
+    // The trigger auto-creates the profile. Update with cohort/photo/onboarding config.
+    const userId = created.user.id;
     const updates: Record<string, unknown> = {};
     if (cohort) updates.cohort = cohort;
     if (photo) updates.photo = photo;

@@ -5336,6 +5336,7 @@ const AdminTrainees = ({ onNav }) => {
           "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
         },
         body: JSON.stringify({
+          action: "create",
           name: form.name.trim(), email: form.email.trim(), cohort: form.cohort, photo: form.photo,
           onboarding_steps: Object.entries(form.onboarding).filter(([, v]) => v).map(([k]) => k),
         }),
@@ -5351,12 +5352,29 @@ const AdminTrainees = ({ onNav }) => {
         }
       }
       setResidents((prev) => [...prev, { id: p.id, name: p.name, email: p.email, cohort: p.cohort || "", photo: p.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
-      showToast("Trainee invited — they'll receive an email to set their password");
+      showToast("Trainee created — send them an invite when ready");
       setModal(false);
     } catch (err) {
       showToast(err.message || "Failed to add trainee");
     }
     setSaving(false);
+  };
+  const sendInvite = async (id) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-trainee`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ action: "invite", user_id: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send invite");
+      showToast("Invite sent!");
+    } catch (err) {
+      showToast(err.message || "Failed to send invite");
+    }
   };
   const rem = async (id) => {
     await supabase.from("profiles").update({ deleted_at: new Date().toISOString() }).eq("id", id);
@@ -5439,6 +5457,9 @@ const AdminTrainees = ({ onNav }) => {
                           <div style={{ width: 60 }}><ProgressBar value={pct} height={5} /></div>
                           <span style={{ fontSize: "11px", fontWeight: 600, color: T.gold, minWidth: 30, textAlign: "right" }}>{pct}%</span>
                         </div>
+                        <button onClick={() => sendInvite(r.id)} style={{ background: "none", border: `1px solid ${T.lightLine}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.text, display: "flex", alignItems: "center", gap: 4 }}>
+                          <Icon name="message" size={12} color={T.text} /> Invite
+                        </button>
                         <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
                           <Icon name="eye" size={12} color={T.gold} /> View
                         </button>
@@ -5479,6 +5500,9 @@ const AdminTrainees = ({ onNav }) => {
                       <option value="" disabled>Assign cohort</option>
                       {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
+                    <button onClick={() => sendInvite(r.id)} style={{ background: "none", border: `1px solid ${T.lightLine}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 500, color: T.text, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="message" size={12} color={T.text} /> Invite
+                    </button>
                     <button onClick={() => onNav(`a-trainees:${r.id}`)} style={{ background: T.goldMuted, border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: T.gold, display: "flex", alignItems: "center", gap: 4 }}>
                       <Icon name="eye" size={12} color={T.gold} /> View
                     </button>
@@ -5551,19 +5575,29 @@ const AdminTrainees = ({ onNav }) => {
             {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </FormField>
-        <div style={{ marginTop: 16 }}>
-          <p style={{ fontSize: "12px", fontWeight: 600, color: T.text, marginBottom: 8 }}>Onboarding Steps</p>
-          {[
-            { key: "agreement", label: "Residency Agreement" },
-            { key: "enrollment", label: "Tuition Enrollment" },
-            { key: "gusto", label: "Payroll Setup" },
-          ].map(({ key, label }) => (
-            <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: "13px", color: T.text }}>
-              <input type="checkbox" checked={form.onboarding[key]} onChange={() => setForm((f) => ({ ...f, onboarding: { ...f.onboarding, [key]: !f.onboarding[key] } }))} />
-              {label}
-            </label>
-          ))}
-        </div>
+        <details style={{ marginTop: 16, border: `1px solid ${T.lightLine}`, borderRadius: 8, padding: "0" }}>
+          <summary style={{ padding: "10px 14px", cursor: "pointer", fontSize: "12px", fontWeight: 600, color: T.text, listStyle: "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>Onboarding Steps</span>
+            <span style={{ fontSize: "11px", fontWeight: 400, color: T.textMuted }}>
+              {Object.values(form.onboarding).filter(Boolean).length} of 3 enabled
+            </span>
+          </summary>
+          <div style={{ padding: "4px 14px 12px", borderTop: `1px solid ${T.lightLine}` }}>
+            {[
+              { key: "agreement", label: "Residency Agreement", desc: "Sign the salon residency agreement" },
+              { key: "enrollment", label: "Tuition Enrollment", desc: "Enroll and set up tuition payments" },
+              { key: "gusto", label: "Payroll Setup", desc: "Complete payroll onboarding via Gusto" },
+            ].map(({ key, label, desc }) => (
+              <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", cursor: "pointer", borderBottom: key !== "gusto" ? `1px solid ${T.cream}` : "none" }}>
+                <input type="checkbox" checked={form.onboarding[key]} onChange={() => setForm((f) => ({ ...f, onboarding: { ...f.onboarding, [key]: !f.onboarding[key] } }))} style={{ marginTop: 2 }} />
+                <div>
+                  <p style={{ fontSize: "13px", fontWeight: 500, color: T.text }}>{label}</p>
+                  <p style={{ fontSize: "11px", color: T.textMuted, marginTop: 1 }}>{desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </details>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save} disabled={saving}>{saving ? "Inviting…" : "Add Trainee"}</Btn></div>
       </Modal>
       <PhotoCropModal
