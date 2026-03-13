@@ -139,9 +139,16 @@ serve(async (req) => {
       });
     }
 
-    // The trigger auto-creates the profile. Update with cohort/photo/onboarding config.
+    // Ensure profile exists (trigger may not have fired yet)
     const userId = created.user.id;
-    const updates: Record<string, unknown> = {};
+    // Wait briefly for trigger, then upsert to guarantee the profile row
+    await new Promise((r) => setTimeout(r, 500));
+    await supabase.from("profiles").upsert({
+      id: userId, name, email, role: "resident",
+    }, { onConflict: "id", ignoreDuplicates: true });
+
+    // Now apply additional fields
+    const updates: Record<string, unknown> = { role: "resident" };
     if (cohort) updates.cohort = cohort;
     if (photo) updates.photo = photo;
     if (onboarding_steps) updates.onboarding_steps = onboarding_steps;
@@ -151,9 +158,7 @@ serve(async (req) => {
     if (!enabled.includes("agreement")) { updates.agreement_signed = true; updates.agreement_date = new Date().toISOString().split("T")[0]; }
     if (!enabled.includes("enrollment")) { updates.enrollment_completed = true; updates.enrollment_date = new Date().toISOString().split("T")[0]; }
     if (!enabled.includes("gusto")) { updates.gusto_completed = true; updates.gusto_date = new Date().toISOString().split("T")[0]; }
-    if (Object.keys(updates).length > 0) {
-      await supabase.from("profiles").update(updates).eq("id", userId);
-    }
+    await supabase.from("profiles").update(updates).eq("id", userId);
 
     // Return the created profile
     const { data: profile } = await supabase
