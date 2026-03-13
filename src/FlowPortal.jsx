@@ -3755,7 +3755,7 @@ const AdminDash = ({ onNav }) => {
 const AdminSchedule = () => {
   const { schedule, setSchedule, gcalEvents, masterProgram, residents, showToast } = useData();
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ title: "", date: localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "" });
+  const [form, setForm] = useState({ title: "", date: localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "", repeat: "none", repeatUntil: "" });
   const [editId, setEditId] = useState(null);
   const cal = useCalendar(2026, 2);
 
@@ -3769,7 +3769,7 @@ const AdminSchedule = () => {
   const allSkills = masterProgram.flatMap((c) => c.skills.map((s) => ({ ...s, catName: c.name })));
 
   const openNew = (date) => {
-    setForm({ title: "", date: date || localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "" });
+    setForm({ title: "", date: date || localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "", repeat: "none", repeatUntil: "" });
     setEditId(null);
     setModal(true);
   };
@@ -3804,20 +3804,39 @@ const AdminSchedule = () => {
 
   const save = async () => {
     if (!form.title.trim()) return;
-    const event = { ...form, time: buildTimeRange(form.time, parseInt(form.duration, 10) || 60) };
-    delete event.duration;
-    if (event.type !== "skill") event.skillId = null;
-    const row = { title: event.title, date: event.date, time: event.time, type: event.type, assign_to: event.assignTo, skill_id: event.skillId || null, notes: event.notes || null };
+    const timeStr = buildTimeRange(form.time, parseInt(form.duration, 10) || 60);
+    const baseEvent = { title: form.title.trim(), time: timeStr, type: form.type, assignTo: form.assignTo, skillId: form.type === "skill" ? (form.skillId || null) : null };
+
     if (editId) {
+      const row = { title: baseEvent.title, date: form.date, time: timeStr, type: baseEvent.type, assign_to: baseEvent.assignTo, skill_id: baseEvent.skillId, notes: null };
       await supabase.from("schedule").update(row).eq("id", editId);
-      setSchedule((p) => p.map((e) => (e.id === editId ? { ...e, ...event } : e)));
+      setSchedule((p) => p.map((e) => (e.id === editId ? { ...e, ...baseEvent, date: form.date } : e)));
       showToast("Event updated");
     } else {
-      const { data } = await supabase.from("schedule").insert(row).select().single();
-      if (data) {
-        setSchedule((p) => [...p, { id: data.id, title: data.title, date: data.date, time: data.time, type: data.type || "general", assignTo: data.assign_to || "all", skillId: data.skill_id }]);
+      // Generate dates for recurring events
+      const dates = [form.date];
+      if (form.repeat !== "none" && form.repeatUntil) {
+        const intervalDays = form.repeat === "weekly" ? 7 : 14;
+        const start = new Date(form.date + "T00:00:00");
+        const end = new Date(form.repeatUntil + "T00:00:00");
+        let cursor = new Date(start);
+        cursor.setDate(cursor.getDate() + intervalDays);
+        while (cursor <= end) {
+          const y = cursor.getFullYear();
+          const m = String(cursor.getMonth() + 1).padStart(2, "0");
+          const d = String(cursor.getDate()).padStart(2, "0");
+          dates.push(`${y}-${m}-${d}`);
+          cursor.setDate(cursor.getDate() + intervalDays);
+        }
       }
-      showToast("Event added");
+
+      const rows = dates.map((date) => ({ title: baseEvent.title, date, time: timeStr, type: baseEvent.type, assign_to: baseEvent.assignTo, skill_id: baseEvent.skillId, notes: null }));
+      const { data } = await supabase.from("schedule").insert(rows).select();
+      if (data) {
+        const newEvents = data.map((d) => ({ id: d.id, title: d.title, date: d.date, time: d.time, type: d.type || "general", assignTo: d.assign_to || "all", skillId: d.skill_id }));
+        setSchedule((p) => [...p, ...newEvents]);
+      }
+      showToast(dates.length > 1 ? `${dates.length} events added` : "Event added");
     }
     setModal(false);
   };
@@ -3951,6 +3970,24 @@ const AdminSchedule = () => {
             {residents.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </FormField>
+
+        {/* Repeat (new events only) */}
+        {!editId && (
+          <div className="r-grid" style={{ display: "grid", gridTemplateColumns: form.repeat !== "none" ? "1fr 1fr" : "1fr", gap: 12 }}>
+            <FormField label="Repeat">
+              <select value={form.repeat} onChange={(e) => setForm((f) => ({ ...f, repeat: e.target.value }))} style={selSt}>
+                <option value="none">Does not repeat</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Every 2 weeks</option>
+              </select>
+            </FormField>
+            {form.repeat !== "none" && (
+              <FormField label="Repeat until">
+                <input type="date" value={form.repeatUntil} onChange={(e) => setForm((f) => ({ ...f, repeatUntil: e.target.value }))} style={iSt} />
+              </FormField>
+            )}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
           <Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn>
