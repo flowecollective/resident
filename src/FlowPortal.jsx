@@ -1151,12 +1151,12 @@ const TraineeDash = ({ user }) => {
                           <div key={track.label} style={{ flex: 1, padding: "10px 12px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                               <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted }}>{track.label}</span>
-                              <span style={{ fontSize: "12px", fontWeight: 700, color: track.colors[track.stage] }}>{track.stages[track.stage]}</span>
+                              <span style={{ fontSize: "12px", fontWeight: 700, color: track.stage > 0 ? track.colors[track.stage] : T.textMuted }}>{track.stage === 0 ? "Not Started" : track.stages[track.stage]}</span>
                             </div>
                             {/* Step dots */}
                             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                              {track.stages.map((_, si) => (
-                                <div key={si} style={{ flex: 1, height: 4, borderRadius: 2, background: si <= track.stage ? track.colors[track.stage] : T.lightLine, transition: "background .2s" }} />
+                              {track.stages.slice(1).map((_, i) => (
+                                <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= track.stage ? track.colors[track.stage] : T.lightLine, transition: "background .2s" }} />
                               ))}
                             </div>
                           </div>
@@ -2141,22 +2141,22 @@ const TraineeSkills = ({ user }) => {
                                       <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                                           <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", color: T.textMuted }}>Technique</span>
-                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TECHNIQUE_COLORS[sp.technique] }}>{techniqueStages[sp.technique]}</span>
+                                          <span style={{ fontSize: "12px", fontWeight: 700, color: sp.technique > 0 ? TECHNIQUE_COLORS[sp.technique] : T.textMuted }}>{sp.technique === 0 ? "Not Started" : techniqueStages[sp.technique]}</span>
                                         </div>
                                         <div style={{ display: "flex", gap: 3 }}>
-                                          {techniqueStages.map((_, si) => (
-                                            <div key={si} style={{ flex: 1, height: 4, borderRadius: 2, background: si <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
+                                          {techniqueStages.slice(1).map((_, i) => (
+                                            <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= sp.technique ? TECHNIQUE_COLORS[sp.technique] : T.lightLine }} />
                                           ))}
                                         </div>
                                       </div>
                                       <div style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                                           <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", color: T.textMuted }}>Timing</span>
-                                          <span style={{ fontSize: "12px", fontWeight: 700, color: TIMING_COLORS[sp.timing] }}>{timingStages[sp.timing]}</span>
+                                          <span style={{ fontSize: "12px", fontWeight: 700, color: sp.timing > 0 ? TIMING_COLORS[sp.timing] : T.textMuted }}>{sp.timing === 0 ? "Not Started" : timingStages[sp.timing]}</span>
                                         </div>
                                         <div style={{ display: "flex", gap: 3 }}>
-                                          {timingStages.map((_, si) => (
-                                            <div key={si} style={{ flex: 1, height: 4, borderRadius: 2, background: si <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
+                                          {timingStages.slice(1).map((_, i) => (
+                                            <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= sp.timing ? TIMING_COLORS[sp.timing] : T.lightLine }} />
                                           ))}
                                         </div>
                                       </div>
