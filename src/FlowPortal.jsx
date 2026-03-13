@@ -7422,17 +7422,20 @@ const SettingsPage = () => {
       <PhotoCropModal open={photoCropOpen} onClose={() => setPhotoCropOpen(false)} onSave={handlePhotoSave} currentPhoto={user?.photo} />
 
       {/* Display Labels — admin only */}
-      {user?.role === "admin" && (
+      {user?.role === "admin" && (() => {
+        const presets = [
+          { singular: "Trainee", plural: "Trainees" },
+          { singular: "Resident", plural: "Residents" },
+          { singular: "Student", plural: "Students" },
+          { singular: "Apprentice", plural: "Apprentices" },
+        ];
+        const isCustom = !presets.some((p) => p.singular === TL.s);
+        return (
         <Card style={{ padding: 24, marginBottom: 20 }}>
           <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Display Labels</h4>
           <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 12 }}>Customize what your members are called throughout the portal.</p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {[
-              { singular: "Trainee", plural: "Trainees" },
-              { singular: "Resident", plural: "Residents" },
-              { singular: "Student", plural: "Students" },
-              { singular: "Apprentice", plural: "Apprentices" },
-            ].map((opt) => (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {presets.map((opt) => (
               <button
                 key={opt.singular}
                 onClick={() => { setTraineeLabel(opt); showToast(`Label updated to "${opt.plural}" — reload to see changes`); }}
@@ -7445,9 +7448,21 @@ const SettingsPage = () => {
                 {opt.plural}
               </button>
             ))}
+            <span style={{ fontSize: "11px", color: T.textMuted }}>or</span>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const s = e.target.singular.value.trim();
+              const p = e.target.plural.value.trim();
+              if (s && p) { setTraineeLabel({ singular: s, plural: p }); showToast(`Label updated to "${p}" — reload to see changes`); }
+            }} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input name="singular" placeholder="Singular" defaultValue={isCustom ? TL.s : ""} style={{ ...iSt, width: 90, fontSize: "12px", padding: "6px 10px" }} />
+              <input name="plural" placeholder="Plural" defaultValue={isCustom ? TL.p : ""} style={{ ...iSt, width: 90, fontSize: "12px", padding: "6px 10px" }} />
+              <button type="submit" style={{ padding: "6px 12px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 600, background: T.gold, color: T.cream }}>Set</button>
+            </form>
           </div>
         </Card>
-      )}
+        );
+      })()}
 
       {/* Calendar Sync */}
       <Card style={{ padding: 28, marginBottom: 20 }}>
