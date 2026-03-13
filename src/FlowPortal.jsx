@@ -5301,7 +5301,7 @@ const AdminTrainees = ({ onNav }) => {
 
   // Load cohorts from Supabase settings + derive from residents
   useEffect(() => {
-    supabase.from("settings").select("value").eq("key", "cohorts").single().then(({ data }) => {
+    supabase.from("settings").select("value").eq("key", "cohorts").maybeSingle().then(({ data }) => {
       const saved = data?.value || [];
       const fromResidents = [...new Set(residents.map((r) => r.cohort).filter(Boolean))];
       setCohorts([...new Set([...saved, ...fromResidents])].sort());
@@ -7755,7 +7755,7 @@ const App = () => {
       setDocs(docsData || []);
 
       // Load cohort colors from Supabase (fall back to localStorage)
-      const { data: cohortSetting } = await supabase.from("settings").select("value").eq("key", "cohort_colors").single();
+      const { data: cohortSetting } = await supabase.from("settings").select("value").eq("key", "cohort_colors").maybeSingle();
       if (cohortSetting?.value) {
         _cohortColorMap = cohortSetting.value;
         localStorage.setItem("cohort_colors", JSON.stringify(cohortSetting.value));
