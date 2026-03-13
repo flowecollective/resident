@@ -141,11 +141,13 @@ serve(async (req) => {
 
     // Ensure profile exists (trigger may not have fired yet)
     const userId = created.user.id;
-    // Wait briefly for trigger, then upsert to guarantee the profile row
-    await new Promise((r) => setTimeout(r, 500));
-    await supabase.from("profiles").upsert({
-      id: userId, name, email, role: "resident",
-    }, { onConflict: "id", ignoreDuplicates: true });
+    // Wait for trigger, then check if profile exists
+    await new Promise((r) => setTimeout(r, 800));
+    const { data: existingRow } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
+    if (!existingRow) {
+      // Trigger didn't fire — create profile manually
+      await supabase.from("profiles").insert({ id: userId, name, email, role: "resident" });
+    }
 
     // Now apply additional fields
     const updates: Record<string, unknown> = { role: "resident" };
