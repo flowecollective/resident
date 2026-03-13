@@ -3932,20 +3932,29 @@ const AdminSchedule = () => {
         }
       }
 
-      const rows = dates.map((date) => ({ title: baseEvent.title, date, time: timeStr, type: baseEvent.type, assign_to: baseEvent.assignTo, skill_id: baseEvent.skillId, notes: null }));
+      const seriesId = dates.length > 1 ? uid() : null;
+      const rows = dates.map((date) => ({ title: baseEvent.title, date, time: timeStr, type: baseEvent.type, assign_to: baseEvent.assignTo, skill_id: baseEvent.skillId, notes: null, series_id: seriesId }));
       const { data } = await supabase.from("schedule").insert(rows).select();
       if (data) {
-        const newEvents = data.map((d) => ({ id: d.id, title: d.title, date: d.date, time: d.time, type: d.type || "general", assignTo: d.assign_to || "all", skillId: d.skill_id }));
+        const newEvents = data.map((d) => ({ id: d.id, title: d.title, date: d.date, time: d.time, type: d.type || "general", assignTo: d.assign_to || "all", skillId: d.skill_id, seriesId: d.series_id }));
         setSchedule((p) => [...p, ...newEvents]);
       }
       showToast(dates.length > 1 ? `${dates.length} events added` : "Event added");
     }
     setModal(false);
   };
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, seriesId }
   const rem = async (id) => {
     await supabase.from("schedule").delete().eq("id", id);
     setSchedule((p) => p.filter((e) => e.id !== id));
+    setDeleteConfirm(null);
     showToast("Event removed");
+  };
+  const remSeries = async (seriesId) => {
+    await supabase.from("schedule").delete().eq("series_id", seriesId);
+    setSchedule((p) => p.filter((e) => e.seriesId !== seriesId));
+    setDeleteConfirm(null);
+    showToast("Series removed");
   };
   const handleDayClick = (date) => { cal.setSelectedDate(date); };
   const selectedEvents = cal.selectedDate ? schedule.filter((e) => e.date === cal.selectedDate) : [];
@@ -3998,8 +4007,9 @@ const AdminSchedule = () => {
                     <div style={{ width: 3, height: 24, borderRadius: 2, background: getEvColor(ev, masterProgram) }} />
                     <span style={{ flex: 1, fontWeight: 500 }}>{ev.title}</span>
                     <span style={{ color: T.textMuted }}>{ev.time}</span>
+                    {ev.seriesId && <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 6px", borderRadius: 3, background: T.charcoalMuted, color: T.textMuted }}>SERIES</span>}
                     <button onClick={() => openEdit(ev)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="edit" size={14} color={T.textMuted} /></button>
-                    <button onClick={() => rem(ev.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
+                    <button onClick={() => ev.seriesId ? setDeleteConfirm({ id: ev.id, seriesId: ev.seriesId, title: ev.title }) : rem(ev.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="trash" size={14} color={T.danger} /></button>
                   </div>
                 ))}
               </div>
@@ -4117,6 +4127,18 @@ const AdminSchedule = () => {
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
           <Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn>
           <Btn onClick={save}>{editId ? "Save Changes" : "Add Event"}</Btn>
+        </div>
+      </Modal>
+
+      {/* Delete series confirmation */}
+      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Event" width={400}>
+        <p style={{ fontSize: "13px", color: T.textMuted, marginBottom: 16 }}>
+          <strong>{deleteConfirm?.title}</strong> is part of a recurring series.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Btn variant="outline" onClick={() => rem(deleteConfirm?.id)}>Delete this event only</Btn>
+          <Btn variant="danger" onClick={() => remSeries(deleteConfirm?.seriesId)}>Delete entire series</Btn>
+          <Btn variant="outline" onClick={() => setDeleteConfirm(null)} style={{ color: T.textMuted }}>Cancel</Btn>
         </div>
       </Modal>
     </div>
@@ -8025,7 +8047,7 @@ const App = () => {
         setSchedule(schedData.map((s) => ({
           id: s.id, title: s.title, date: s.date, time: s.time,
           type: s.type || "general", assignTo: s.assign_to || "all",
-          skillId: s.skill_id, notes: s.notes,
+          skillId: s.skill_id, notes: s.notes, seriesId: s.series_id,
         })));
       }
 
