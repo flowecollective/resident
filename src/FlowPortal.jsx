@@ -4394,7 +4394,6 @@ const AdminMaster = () => {
     if (!newCat.trim()) return;
     const color = newCatColor || CAT_COLORS[masterProgram.length % CAT_COLORS.length];
     const { data, error: catInsErr } = await supabase.from("categories").insert({ name: newCat.trim(), color, videos: [], sort_order: masterProgram.length }).select().single();
-    console.log("Category insert:", { data, error: catInsErr });
     if (catInsErr) { showToast("Failed to save category: " + catInsErr.message); return; }
     if (data) setMasterProgram((p) => [...p, { id: data.id, name: data.name, color: data.color, videos: data.videos || [], skills: [] }]);
     setNewCat(""); setNewCatColor(null); setCatModal(false); showToast("Category added");
@@ -4409,7 +4408,9 @@ const AdminMaster = () => {
   // Load archived items from DB on mount
   useEffect(() => {
     (async () => {
-      const mapSkill = (s) => ({ id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop });
+      const parseSop = (v) => { try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return v; } };
+      const parseVids = (v) => { try { return typeof v === "string" ? JSON.parse(v) : (v || []); } catch { return v || []; } };
+      const mapSkill = (s) => ({ id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: parseVids(s.videos), sop: parseSop(s.sop) });
       const [{ data: arCats }, { data: arSkills }, { data: allSkillsForArCats }] = await Promise.all([
         supabase.from("categories").select("*").not("archived_at", "is", null).order("archived_at"),
         supabase.from("skills").select("*").not("archived_at", "is", null).order("archived_at"),
@@ -4517,7 +4518,6 @@ const AdminMaster = () => {
     const hasSop = Object.values(newSkSop).some((v) => v && v.trim());
     if (hasSop) row.sop = { ...newSkSop };
     const { data, error: skInsErr } = await supabase.from("skills").insert(row).select().single();
-    console.log("Skill insert:", { data, error: skInsErr, row });
     if (skInsErr) { showToast("Failed to save skill: " + skInsErr.message); return; }
     if (data) {
       const skill = { id: data.id, name: data.name, type: data.type, targetMin: data.target_min, maxMin: data.max_min, videos: data.videos || [], sop: data.sop };
@@ -4551,8 +4551,7 @@ const AdminMaster = () => {
       ? { ...c, skills: c.skills.map((s) => s.id === editSkillData.id ? { ...s, targetMin: t, maxMin: m, sop: hasSop ? { ...sopData } : s.sop } : s) }
       : c
     ));
-    const { data: skUpdData, error: skUpdErr } = await supabase.from("skills").update(updates).eq("id", editSkillData.id).select();
-    console.log("Skill update — rows returned:", skUpdData?.length, "sop in response:", JSON.stringify(skUpdData?.[0]?.sop)?.substring(0, 100), "videos:", skUpdData?.[0]?.videos?.length);
+    const { error: skUpdErr } = await supabase.from("skills").update(updates).eq("id", editSkillData.id);
     if (skUpdErr) showToast("Failed to save: " + skUpdErr.message);
     setEditSkillModal(false);
     showToast("Skill updated");
@@ -8241,14 +8240,11 @@ const App = () => {
         supabase.from("categories").select("*").not("archived_at", "is", null),
         supabase.from("skills").select("*").not("archived_at", "is", null),
       ]);
-      console.log("DB load — cats:", catsData?.length, "skills:", skillsData?.length);
-      const withSop = (skillsData || []).filter((s) => s.sop);
-      const withVids = (skillsData || []).filter((s) => s.videos && s.videos.length > 0);
-      console.log("Skills with SOP:", withSop.length, "with videos:", withVids.length);
-      if (skillsData?.[0]) console.log("Sample skill keys:", Object.keys(skillsData[0]).join(", "));
       if (catsData) {
+        const parseSop = (v) => { try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return v; } };
+        const parseVids = (v) => { try { return typeof v === "string" ? JSON.parse(v) : (v || []); } catch { return v || []; } };
         const mapSkill = (s, archived) => ({
-          id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop,
+          id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: parseVids(s.videos), sop: parseSop(s.sop),
           ...(archived ? { archived: true } : {}),
         });
         // Active categories with active + archived skills merged in
@@ -8256,17 +8252,13 @@ const App = () => {
         const program = catsData.map((c) => {
           const activeSkills = (skillsData || []).filter((s) => s.category_id === c.id).map((s) => mapSkill(s, false));
           const archivedInCat = (archSkillsData || []).filter((s) => s.category_id === c.id).map((s) => mapSkill(s, true));
-          return { id: c.id, name: c.name, color: c.color, videos: c.videos || [], skills: [...activeSkills, ...archivedInCat] };
+          return { id: c.id, name: c.name, color: c.color, videos: parseVids(c.videos), skills: [...activeSkills, ...archivedInCat] };
         });
         // Archived categories with their skills
         const archCats = (archCatsData || []).map((c) => ({
-          id: c.id, name: c.name, color: c.color, videos: c.videos || [], archived: true,
+          id: c.id, name: c.name, color: c.color, videos: parseVids(c.videos), archived: true,
           skills: (archSkillsData || []).filter((s) => s.category_id === c.id).map((s) => mapSkill(s, true)),
         }));
-        const allSkills = program.flatMap((c) => c.skills);
-        const sopSkills = allSkills.filter((s) => s.sop && Object.values(s.sop).some((v) => v && v.trim && v.trim()));
-        console.log("Program built — total skills:", allSkills.length, "with real SOP:", sopSkills.length, "first SOP sample:", JSON.stringify(sopSkills[0]?.sop)?.substring(0, 200));
-        console.log("First skill full:", JSON.stringify(allSkills[0]));
         setMasterProgram([...program, ...archCats]);
       }
 
