@@ -5427,22 +5427,22 @@ const AdminTrainees = ({ onNav }) => {
   const [, forceUpdate] = useState(0);
   const [cohorts, setCohorts] = useState([]);
 
-  // Load cohorts from Supabase settings + derive from residents
+  // Load cohorts from Supabase settings (source of truth), then ensure any resident cohorts are included
   useEffect(() => {
     supabase.from("settings").select("value").eq("key", "cohorts").maybeSingle().then(({ data }) => {
       const saved = data?.value || [];
       const fromResidents = [...new Set(residents.map((r) => r.cohort).filter(Boolean))];
-      setCohorts([...new Set([...saved, ...fromResidents])].sort());
+      // Saved list is authoritative — only add resident cohorts not already tracked
+      const merged = [...new Set([...saved, ...fromResidents])].sort();
+      setCohorts(merged);
+      // Persist any newly discovered resident cohorts back to settings
+      if (merged.length > saved.length) persistCohorts(merged);
     });
   }, []);
-  // Also merge in any new resident cohorts
-  useEffect(() => {
-    const fromResidents = [...new Set(residents.map((r) => r.cohort).filter(Boolean))];
-    setCohorts((prev) => [...new Set([...prev, ...fromResidents])].sort());
-  }, [residents]);
 
-  const persistCohorts = (list) => {
-    supabase.from("settings").upsert({ key: "cohorts", value: list });
+  const persistCohorts = async (list) => {
+    const { error } = await supabase.from("settings").upsert({ key: "cohorts", value: list });
+    if (error) console.error("Cohort persist error:", error);
   };
 
   const addCohort = () => {
