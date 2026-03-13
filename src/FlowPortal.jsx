@@ -4293,6 +4293,33 @@ const AdminMaster = () => {
   const [showArchive, setShowArchive] = useState(false);
   const [archived, setArchived] = useState([]);
 
+  // Load archived items from DB on mount
+  useEffect(() => {
+    (async () => {
+      const mapSkill = (s) => ({ id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop });
+      const [{ data: arCats }, { data: arSkills }, { data: allSkillsForArCats }] = await Promise.all([
+        supabase.from("categories").select("*").not("archived_at", "is", null).order("archived_at"),
+        supabase.from("skills").select("*").not("archived_at", "is", null).order("archived_at"),
+        // Get ALL skills (including archived) that belong to archived categories
+        supabase.from("skills").select("*").order("sort_order"),
+      ]);
+      const archivedCatIds = new Set((arCats || []).map((c) => c.id));
+      const items = [
+        ...(arCats || []).map((c) => {
+          // Include all skills that belong to this archived category
+          const catSkills = (allSkillsForArCats || []).filter((s) => s.category_id === c.id);
+          return { id: c.id, name: c.name, color: c.color, videos: c.videos || [],
+            skills: catSkills.map(mapSkill), archivedAt: c.archived_at.split("T")[0], archiveType: "category" };
+        }),
+        // Individual archived skills (not part of archived categories)
+        ...(arSkills || []).filter((s) => !archivedCatIds.has(s.category_id)).map((s) => {
+          return { ...mapSkill(s), fromCategory: null, archivedAt: s.archived_at.split("T")[0], archiveType: "skill" };
+        }),
+      ];
+      if (items.length) setArchived(items);
+    })();
+  }, []);
+
   const confirmDeleteCat = (cat) => {
     const sopCount = cat.skills.filter((s) => s.sop && Object.values(s.sop).some((v) => v)).length;
     const videoCount = (cat.videos || []).length + cat.skills.reduce((a, s) => a + (s.videos || []).length, 0);
@@ -4313,31 +4340,21 @@ const AdminMaster = () => {
   };
   const executeDelete = async () => {
     if (!deleteTarget) return;
+    const now = new Date().toISOString();
     if (deleteTarget.type === "cat") {
       const cat = masterProgram.find((c) => c.id === deleteTarget.catId);
       if (cat) setArchived((p) => [...p, { ...cat, archivedAt: localDate(), archiveType: "category" }]);
       setMasterProgram((p) => p.filter((c) => c.id !== deleteTarget.catId));
-      // Delete from DB: skills first, then category
-      console.log("Deleting category:", deleteTarget.catId);
-      const { error: skErr, count: skCount } = await supabase.from("skills").delete({ count: "exact" }).eq("category_id", deleteTarget.catId);
-      console.log("Skills delete result:", { error: skErr, count: skCount });
-      const { error: catErr, count: catCount } = await supabase.from("categories").delete({ count: "exact" }).eq("id", deleteTarget.catId);
-      console.log("Category delete result:", { error: catErr, count: catCount });
-      // Verify deletion
-      const { data: verify } = await supabase.from("categories").select("id").eq("id", deleteTarget.catId);
-      console.log("Category still in DB after delete?", verify);
+      // Soft-delete: set archived_at on category and its skills
+      await supabase.from("skills").update({ archived_at: now }).eq("category_id", deleteTarget.catId);
+      await supabase.from("categories").update({ archived_at: now }).eq("id", deleteTarget.catId);
       showToast("Category archived");
     } else {
       const cat = masterProgram.find((c) => c.id === deleteTarget.catId);
       const sk = cat?.skills.find((s) => s.id === deleteTarget.skillId);
       if (sk) setArchived((p) => [...p, { ...sk, fromCategory: cat?.name, archivedAt: localDate(), archiveType: "skill" }]);
       setMasterProgram((p) => p.map((c) => c.id === deleteTarget.catId ? { ...c, skills: c.skills.filter((s) => s.id !== deleteTarget.skillId) } : c));
-      console.log("Deleting skill:", deleteTarget.skillId);
-      const { error: skErr, count: skCount } = await supabase.from("skills").delete({ count: "exact" }).eq("id", deleteTarget.skillId);
-      console.log("Skill delete result:", { error: skErr, count: skCount });
-      // Verify deletion
-      const { data: verify } = await supabase.from("skills").select("id").eq("id", deleteTarget.skillId);
-      console.log("Skill still in DB after delete?", verify);
+      await supabase.from("skills").update({ archived_at: now }).eq("id", deleteTarget.skillId);
       showToast("Skill archived");
     }
     setDeleteModal(false);
@@ -4345,38 +4362,32 @@ const AdminMaster = () => {
   };
   const restoreItem = async (item, idx) => {
     if (item.archiveType === "category") {
+      // Clear archived_at on category and its skills
+      await supabase.from("categories").update({ archived_at: null }).eq("id", item.id);
+      await supabase.from("skills").update({ archived_at: null }).eq("category_id", item.id);
       const { archivedAt, archiveType, ...cat } = item;
-      // Re-insert category and its skills into DB
-      const { data: catData } = await supabase.from("categories").insert({ name: cat.name, color: cat.color, videos: cat.videos || [], sort_order: masterProgram.length }).select().single();
-      if (catData) {
-        const newCatId = catData.id;
-        const restoredSkills = [];
-        for (const sk of cat.skills) {
-          const { data: skData } = await supabase.from("skills").insert({
-            name: sk.name, type: sk.type, target_min: sk.targetMin || 0, max_min: sk.maxMin || 0,
-            videos: sk.videos || [], sop: sk.sop || null, category_id: newCatId, sort_order: restoredSkills.length,
-          }).select().single();
-          if (skData) restoredSkills.push({ id: skData.id, name: skData.name, type: skData.type, targetMin: skData.target_min, maxMin: skData.max_min, videos: skData.videos || [], sop: skData.sop });
-        }
-        setMasterProgram((p) => [...p, { id: newCatId, name: catData.name, color: catData.color, videos: catData.videos || [], skills: restoredSkills }]);
-      }
+      setMasterProgram((p) => [...p, cat]);
     } else {
-      // Restore skill — try to find its original category, or put in first category
+      // Clear archived_at on skill
+      await supabase.from("skills").update({ archived_at: null }).eq("id", item.id);
       const { fromCategory, archivedAt, archiveType, ...sk } = item;
       const targetCatObj = masterProgram.find((c) => c.name === fromCategory) || masterProgram[0];
       if (targetCatObj) {
-        const { data: skData } = await supabase.from("skills").insert({
-          name: sk.name, type: sk.type, target_min: sk.targetMin || 0, max_min: sk.maxMin || 0,
-          videos: sk.videos || [], sop: sk.sop || null, category_id: targetCatObj.id, sort_order: targetCatObj.skills.length,
-        }).select().single();
-        if (skData) {
-          const restored = { id: skData.id, name: skData.name, type: skData.type, targetMin: skData.target_min, maxMin: skData.max_min, videos: skData.videos || [], sop: skData.sop };
-          setMasterProgram((p) => p.map((c) => c.id === targetCatObj.id ? { ...c, skills: [...c.skills, restored] } : c));
-        }
+        setMasterProgram((p) => p.map((c) => c.id === targetCatObj.id ? { ...c, skills: [...c.skills, sk] } : c));
       }
     }
     setArchived((p) => p.filter((_, i) => i !== idx));
     showToast("Restored");
+  };
+  const permanentDelete = async (item, idx) => {
+    if (item.archiveType === "category") {
+      await supabase.from("skills").delete().eq("category_id", item.id);
+      await supabase.from("categories").delete().eq("id", item.id);
+    } else {
+      await supabase.from("skills").delete().eq("id", item.id);
+    }
+    setArchived((p) => p.filter((_, i) => i !== idx));
+    showToast("Permanently deleted");
   };
 
   const openAddSk = (cid) => { setTargetCat(cid); setNewSk(""); setNewSkType("service"); setEditTarget(""); setEditMax(""); setNewSkSop({ steps: "", mistakes: "", consultation: "", tips: "", tools: "" }); setNewSkSopTab("steps"); setSkModal(true); };
@@ -4734,6 +4745,9 @@ const AdminMaster = () => {
                 <span style={{ fontSize: "10px", color: T.textMuted }}>{item.archivedAt}</span>
                 <Btn variant="gold" onClick={() => restoreItem(item, idx)} style={{ padding: "4px 10px", fontSize: "10px" }}>
                   Restore
+                </Btn>
+                <Btn variant="danger" onClick={() => permanentDelete(item, idx)} style={{ padding: "4px 10px", fontSize: "10px" }}>
+                  Delete
                 </Btn>
               </div>
             ))}
@@ -7772,25 +7786,16 @@ const App = () => {
         localStorage.setItem("cohort_colors", JSON.stringify(cohortSetting.value));
       }
 
-      // Load master program from Supabase
+      // Load master program from Supabase (exclude archived items)
       const [{ data: catsData }, { data: skillsData }] = await Promise.all([
-        supabase.from("categories").select("*").order("sort_order"),
-        supabase.from("skills").select("*").order("sort_order"),
+        supabase.from("categories").select("*").is("archived_at", null).order("sort_order"),
+        supabase.from("skills").select("*").is("archived_at", null).order("sort_order"),
       ]);
       if (catsData) {
         const program = catsData.map((c) => ({
-          id: c.id,
-          name: c.name,
-          color: c.color,
-          videos: c.videos || [],
+          id: c.id, name: c.name, color: c.color, videos: c.videos || [],
           skills: (skillsData || []).filter((s) => s.category_id === c.id).map((s) => ({
-            id: s.id,
-            name: s.name,
-            type: s.type,
-            targetMin: s.target_min,
-            maxMin: s.max_min,
-            videos: s.videos || [],
-            sop: s.sop,
+            id: s.id, name: s.name, type: s.type, targetMin: s.target_min, maxMin: s.max_min, videos: s.videos || [], sop: s.sop,
           })),
         }));
         setMasterProgram(program);
