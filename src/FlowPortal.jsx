@@ -259,18 +259,18 @@ const getSkillProgress = (trainee, sid) => {
   return { technique: p.technique || 0, timing: p.timing || 0, done: false };
 };
 
-const isSkillComplete = (trainee, sid, masterProgram) => {
+const isSkillComplete = (trainee, sid, masterProgram, maxTech = 4, maxTime = 3) => {
   const sk = findSkill(masterProgram, sid);
   const p = getSkillProgress(trainee, sid);
   if (!sk || sk.type === "knowledge") return p.done;
-  return p.technique >= 3 && p.timing >= 3;
+  return p.technique >= maxTech && p.timing >= maxTime;
 };
 
-const getSkillPct = (trainee, sid, masterProgram) => {
+const getSkillPct = (trainee, sid, masterProgram, maxTech = 4, maxTime = 3) => {
   const sk = findSkill(masterProgram, sid);
   const p = getSkillProgress(trainee, sid);
   if (!sk || sk.type === "knowledge") return p.done ? 100 : 0;
-  return Math.round(((p.technique + p.timing) / 6) * 100);
+  return Math.round(((p.technique + p.timing) / (maxTech + maxTime)) * 100);
 };
 
 const getTraineeCats = (trainee, masterProgram) => {
@@ -280,9 +280,10 @@ const getTraineeCats = (trainee, masterProgram) => {
   );
 };
 
-const getProgress = (trainee, masterProgram) => {
+const getProgress = (trainee, masterProgram, maxTech = 4, maxTime = 3) => {
   const t = trainee.skillIds?.length || 0;
   if (t === 0) return { total: 0, done: 0, pct: 0 };
+  const maxService = maxTech + maxTime;
   let totalPoints = 0;
   let earnedPoints = 0;
   let done = 0;
@@ -290,10 +291,10 @@ const getProgress = (trainee, masterProgram) => {
     const sk = findSkill(masterProgram, sid);
     const isService = sk && sk.type === "service";
     if (isService) {
-      totalPoints += 6;
+      totalPoints += maxService;
       const p = getSkillProgress(trainee, sid);
-      earnedPoints += p.technique + p.timing;
-      if (p.technique >= 3 && p.timing >= 3) done++;
+      earnedPoints += Math.min(p.technique, maxTech) + Math.min(p.timing, maxTime);
+      if (p.technique >= maxTech && p.timing >= maxTime) done++;
     } else {
       totalPoints += 1;
       const p = getSkillProgress(trainee, sid);
@@ -1066,8 +1067,10 @@ const TraineeOnboarding = ({ user, onNav }) => {
 // ════════════════════════════════════════════
 const TraineeDash = ({ user }) => {
   const { schedule, residents, setResidents, messages, masterProgram, showToast, techniqueStages, timingStages } = useData();
+  const maxTech = techniqueStages.length - 1;
+  const maxTime = timingStages.length - 1;
   const me = residents.find((r) => r.id === user.id) || residents[0];
-  const { total, done, pct } = getProgress(me, masterProgram);
+  const { total, done, pct } = getProgress(me, masterProgram, maxTech, maxTime);
   const myEvents = schedule.filter((e) => e.assignTo === "all" || e.assignTo === me.id);
   const today = myEvents.filter((e) => e.date === "2026-03-05");
   const upcoming = myEvents.filter((e) => e.date > "2026-03-05").sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
@@ -1117,8 +1120,8 @@ const TraineeDash = ({ user }) => {
       {(() => {
         const allSkills = cats.flatMap((c) => c.skills);
         const focus = allSkills
-          .filter((sk) => { const p = getSkillPct(me, sk.id, masterProgram); return p > 0 && p < 100; })
-          .sort((a, b) => getSkillPct(me, b.id, masterProgram) - getSkillPct(me, a.id, masterProgram))
+          .filter((sk) => { const p = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime); return p > 0 && p < 100; })
+          .sort((a, b) => getSkillPct(me, b.id, masterProgram, maxTech, maxTime) - getSkillPct(me, a.id, masterProgram, maxTech, maxTime))
           .slice(0, 2);
         if (focus.length === 0) return null;
         return (
@@ -1126,7 +1129,7 @@ const TraineeDash = ({ user }) => {
             <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, marginBottom: 14 }}>Current Focus</h3>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${focus.length}, 1fr)`, gap: 14 }}>
               {focus.map((sk) => {
-                const skPct = getSkillPct(me, sk.id, masterProgram);
+                const skPct = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime);
                 const sp = getSkillProgress(me, sk.id);
                 const cat = cats.find((c) => c.skills.some((s) => s.id === sk.id));
                 const cc = cat?.color || T.gold;
@@ -1292,8 +1295,8 @@ const TraineeDash = ({ user }) => {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {cats.map((cat) => {
-              const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(me, s.id, masterProgram), 0) / cat.skills.length);
-              const catDone = cat.skills.filter((s) => isSkillComplete(me, s.id, masterProgram)).length;
+              const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(me, s.id, masterProgram, maxTech, maxTime), 0) / cat.skills.length);
+              const catDone = cat.skills.filter((s) => isSkillComplete(me, s.id, masterProgram, maxTech, maxTime)).length;
               return (
                 <div key={cat.id}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -1648,11 +1651,13 @@ const StagePill = ({ label, stage, stages, colors }) => (
 
 const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEditLog, onPlayVideo, onReply, timingLogs, role = "resident" }) => {
   const { techniqueStages, timingStages } = useData();
+  const maxTech = techniqueStages.length - 1;
+  const maxTime = timingStages.length - 1;
   const [expanded, setExpanded] = useState(false);
   const p = getSkillProgress(trainee, skill.id);
   const isService = skill.type === "service";
-  const complete = isService ? (p.technique >= 3 && p.timing >= 3) : p.done;
-  const skPct = getSkillPct(trainee, skill.id, masterProgram);
+  const complete = isService ? (p.technique >= maxTech && p.timing >= maxTime) : p.done;
+  const skPct = getSkillPct(trainee, skill.id, masterProgram, maxTech, maxTime);
   const hasStandard = isService && skill.targetMin;
   const hasSop = sopHasContent(skill.sop);
   const hasVids = (skill.videos || []).length > 0;
@@ -1850,9 +1855,11 @@ const getEmbedUrl = (url) => {
 
 const TraineeSkills = ({ user }) => {
   const { residents, setResidents, masterProgram, notifications, setNotifications, showToast, techniqueStages, timingStages } = useData();
+  const maxTech = techniqueStages.length - 1;
+  const maxTime = timingStages.length - 1;
   const me = residents.find((r) => r.id === user.id) || residents[0];
   const cats = getTraineeCats(me, masterProgram);
-  const { total, done, pct } = getProgress(me, masterProgram);
+  const { total, done, pct } = getProgress(me, masterProgram, maxTech, maxTime);
   const [logModal, setLogModal] = useState(false);
   const [logSkill, setLogSkill] = useState(null);
   const [logMinutes, setLogMinutes] = useState("");
@@ -1956,17 +1963,17 @@ const TraineeSkills = ({ user }) => {
           : allSkills
             .filter((s) => {
               const p = getSkillProgress(me, s.id);
-              const complete = isSkillComplete(me, s.id, masterProgram);
+              const complete = isSkillComplete(me, s.id, masterProgram, maxTech, maxTime);
               if (complete) return false;
               if (s.type === "service") return p.technique > 0 || p.timing > 0;
               return false; // knowledge items don't have "in progress"
             })
-            .sort((a, b) => getSkillPct(me, b.id, masterProgram) - getSkillPct(me, a.id, masterProgram))
+            .sort((a, b) => getSkillPct(me, b.id, masterProgram, maxTech, maxTime) - getSkillPct(me, a.id, masterProgram, maxTech, maxTime))
             .slice(0, 2);
 
         // If nothing in progress, pick the first incomplete service skills
         const focusSkills = adminFocus ? inProgress : (inProgress.length > 0 ? inProgress : allSkills
-          .filter((s) => s.type === "service" && !isSkillComplete(me, s.id, masterProgram))
+          .filter((s) => s.type === "service" && !isSkillComplete(me, s.id, masterProgram, maxTech, maxTime))
           .slice(0, 2));
 
         return (
@@ -1989,7 +1996,7 @@ const TraineeSkills = ({ user }) => {
               </div>
               <div style={{ display: "flex", gap: 16 }}>
                 {cats.map((c) => {
-                  const cd = c.skills.filter((s) => isSkillComplete(me, s.id, masterProgram)).length;
+                  const cd = c.skills.filter((s) => isSkillComplete(me, s.id, masterProgram, maxTech, maxTime)).length;
                   return (
                     <div key={c.id} style={{ textAlign: "center" }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color || T.gold, margin: "0 auto 4px" }} />
@@ -2008,7 +2015,7 @@ const TraineeSkills = ({ user }) => {
               <p style={{ fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.25em", textTransform: "uppercase", color: T.gold, marginBottom: 12 }}>{adminFocus ? "Assigned Focus" : "Currently Working On"}</p>
               <div className="skill-focus-grid" style={{ display: "grid", gridTemplateColumns: focusSkills.length > 1 ? "1fr 1fr" : "1fr", gap: 12 }}>
                 {focusSkills.map((sk) => {
-                  const skPct = getSkillPct(me, sk.id, masterProgram);
+                  const skPct = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime);
                   const sp = getSkillProgress(me, sk.id);
                   const cc = sk.catColor || T.gold;
                   const logs = (me.timingLogs || {})[sk.id] || [];
@@ -2076,8 +2083,8 @@ const TraineeSkills = ({ user }) => {
           <p style={{ fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.25em", textTransform: "uppercase", color: T.textMuted, marginBottom: 12 }}>All Categories</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {cats.map((cat) => {
-              const catDone = cat.skills.filter((s) => isSkillComplete(me, s.id, masterProgram)).length;
-              const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(me, s.id, masterProgram), 0) / cat.skills.length);
+              const catDone = cat.skills.filter((s) => isSkillComplete(me, s.id, masterProgram, maxTech, maxTime)).length;
+              const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(me, s.id, masterProgram, maxTech, maxTime), 0) / cat.skills.length);
               const cc = cat.color || T.gold;
               return (
                 <Card key={cat.id} style={{ overflow: "hidden", borderLeft: `4px solid ${cc}` }}>
@@ -2096,9 +2103,9 @@ const TraineeSkills = ({ user }) => {
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {cat.skills.map((sk) => {
                           const sp = getSkillProgress(me, sk.id);
-                          const skPct = getSkillPct(me, sk.id, masterProgram);
+                          const skPct = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime);
                           const isService = sk.type === "service";
-                          const complete = isService ? sp.technique >= 3 && sp.timing >= 3 : sp.done;
+                          const complete = isService ? sp.technique >= maxTech && sp.timing >= maxTime : sp.done;
                           const logs = (me.timingLogs || {})[sk.id] || [];
                           const hasComments = logs.some((l) => (l.comments || []).length > 0);
                           return (
@@ -3039,6 +3046,8 @@ const MsgPage = ({ user }) => {
 // ════════════════════════════════════════════
 const AdminDash = ({ onNav }) => {
   const { schedule, setSchedule, residents, setResidents, masterProgram, messages, showToast, notifications, setNotifications, techniqueStages, timingStages } = useData();
+  const maxTech = techniqueStages.length - 1;
+  const maxTime = timingStages.length - 1;
   const [pendingAgreements, setPendingAgreements] = useState([]);
   const [gustoResidents, setGustoResidents] = useState([]);
   const [noteModal, setNoteModal] = useState(false);
@@ -3093,11 +3102,11 @@ const AdminDash = ({ onNav }) => {
 
   // Trainees needing attention: low progress or stalled
   const traineeStatus = residents.map((r) => {
-    const { pct, done, total } = getProgress(r, masterProgram);
+    const { pct, done, total } = getProgress(r, masterProgram, maxTech, maxTime);
     const cats = getTraineeCats(r, masterProgram);
     const inProgress = cats.flatMap((c) => c.skills.filter((s) => {
       const p = getSkillProgress(r, s.id);
-      return s.type === "service" ? (p.technique > 0 || p.timing > 0) && !(p.technique >= 3 && p.timing >= 3) : false;
+      return s.type === "service" ? (p.technique > 0 || p.timing > 0) && !(p.technique >= maxTech && p.timing >= maxTime) : false;
     }));
     const tuition = r.tuition || { total: 0, payments: [] };
     const paid = tuition.payments.reduce((a, p) => a + p.amount, 0);
@@ -3243,7 +3252,7 @@ const AdminDash = ({ onNav }) => {
         if (!r) return null;
         const cats = getTraineeCats(r, masterProgram);
         const focusSkills = r.focusSkills || [];
-        const { pct, done, total } = getProgress(r, masterProgram);
+        const { pct, done, total } = getProgress(r, masterProgram, maxTech, maxTime);
         // Recent practice logs across all skills
         const recentLogs = cats.flatMap((cat) =>
           cat.skills.flatMap((sk) => {
@@ -3281,8 +3290,8 @@ const AdminDash = ({ onNav }) => {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {cats.map((cat) => {
-                      const catDone = cat.skills.filter((s) => isSkillComplete(r, s.id, masterProgram)).length;
-                      const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(r, s.id, masterProgram), 0) / cat.skills.length);
+                      const catDone = cat.skills.filter((s) => isSkillComplete(r, s.id, masterProgram, maxTech, maxTime)).length;
+                      const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(r, s.id, masterProgram, maxTech, maxTime), 0) / cat.skills.length);
                       const cc = cat.color || T.gold;
                       return (
                         <div key={cat.id}>
@@ -3819,13 +3828,13 @@ const AdminDash = ({ onNav }) => {
 
               {/* Advance toggles */}
               <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-                {p.technique < 3 && (
+                {p.technique < maxTech && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", cursor: "pointer" }}>
                     <input type="checkbox" checked={advanceTech} onChange={(e) => setAdvanceTech(e.target.checked)} />
                     Advance technique → {techniqueStages[p.technique + 1]}
                   </label>
                 )}
-                {p.timing < 3 && (
+                {p.timing < maxTime && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", cursor: "pointer" }}>
                     <input type="checkbox" checked={advanceTiming} onChange={(e) => setAdvanceTiming(e.target.checked)} />
                     Advance timing → {timingStages[p.timing + 1]}
@@ -5536,7 +5545,9 @@ const AdminMaster = () => {
 //  ADMIN: TRAINEES LIST
 // ════════════════════════════════════════════
 const AdminTrainees = ({ onNav }) => {
-  const { residents, setResidents, masterProgram, showToast } = useData();
+  const { residents, setResidents, masterProgram, showToast, techniqueStages, timingStages } = useData();
+  const maxTech = techniqueStages.length - 1;
+  const maxTime = timingStages.length - 1;
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", cohort: "", phone: "", photo: null, onboarding: { agreement: true, enrollment: true, gusto: true } });
   const [photoCropOpen, setPhotoCropOpen] = useState(false);
@@ -5731,7 +5742,7 @@ const AdminTrainees = ({ onNav }) => {
               ) : (
                 <div>
                   {members.map((r, i) => {
-                    const { pct, done, total } = getProgress(r, masterProgram);
+                    const { pct, done, total } = getProgress(r, masterProgram, maxTech, maxTime);
                     return (
                       <div key={r.id} style={{ padding: "14px 22px", display: "flex", alignItems: "center", gap: 14, borderBottom: i < members.length - 1 ? `1px solid ${T.lightLine}` : "none" }}>
                         <Avatar name={r.name} size={36} photo={r.photo} ringColor={cohortColor(r.cohort)} />
@@ -5767,7 +5778,7 @@ const AdminTrainees = ({ onNav }) => {
             </div>
             <div>
               {unassigned.map((r, i) => {
-                const { pct, done, total } = getProgress(r, masterProgram);
+                const { pct, done, total } = getProgress(r, masterProgram, maxTech, maxTime);
                 return (
                   <div key={r.id} style={{ padding: "14px 22px", display: "flex", alignItems: "center", gap: 14, borderBottom: i < unassigned.length - 1 ? `1px solid ${T.lightLine}` : "none" }}>
                     <Avatar name={r.name} size={36} photo={r.photo} />
@@ -5937,6 +5948,8 @@ const AdminTrainees = ({ onNav }) => {
 // ════════════════════════════════════════════
 const TraineeProfile = ({ traineeId, onNav }) => {
   const { residents, setResidents, masterProgram, schedule, setSchedule, showToast, techniqueStages, timingStages } = useData();
+  const maxTech = techniqueStages.length - 1;
+  const maxTime = timingStages.length - 1;
   const [editField, setEditField] = useState(null); // "cohort" | "phone" | null
   const [cohortVal, setCohortVal] = useState("");
   const [phoneVal, setPhoneVal] = useState("");
@@ -6015,7 +6028,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
     );
   }
 
-  const { total, done, pct } = getProgress(r, masterProgram);
+  const { total, done, pct } = getProgress(r, masterProgram, maxTech, maxTime);
   const cats = getTraineeCats(r, masterProgram);
   const allLogs = Object.entries(r.timingLogs || {});
   const totalLogEntries = allLogs.reduce((a, [, logs]) => a + logs.length, 0);
@@ -6023,8 +6036,8 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 
   const serviceSkills = cats.flatMap((c) => c.skills.filter((s) => s.type === "service"));
   const knowledgeSkills = cats.flatMap((c) => c.skills.filter((s) => s.type === "knowledge"));
-  const completedServices = serviceSkills.filter((s) => isSkillComplete(r, s.id, masterProgram)).length;
-  const completedKnowledge = knowledgeSkills.filter((s) => isSkillComplete(r, s.id, masterProgram)).length;
+  const completedServices = serviceSkills.filter((s) => isSkillComplete(r, s.id, masterProgram, maxTech, maxTime)).length;
+  const completedKnowledge = knowledgeSkills.filter((s) => isSkillComplete(r, s.id, masterProgram, maxTech, maxTime)).length;
 
   // This trainee's scheduled events
   const myEvents = schedule.filter((e) => e.assignTo === "all" || e.assignTo === traineeId).sort((a, b) => a.date.localeCompare(b.date));
@@ -6335,8 +6348,8 @@ const TraineeProfile = ({ traineeId, onNav }) => {
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {cats.map((cat) => {
                 const cc = cat.color || T.gold;
-                const catDone = cat.skills.filter((s) => isSkillComplete(r, s.id, masterProgram)).length;
-                const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(r, s.id, masterProgram), 0) / (cat.skills.length || 1));
+                const catDone = cat.skills.filter((s) => isSkillComplete(r, s.id, masterProgram, maxTech, maxTime)).length;
+                const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(r, s.id, masterProgram, maxTech, maxTime), 0) / (cat.skills.length || 1));
                 return (
                   <Card key={cat.id} style={{ padding: 0, overflow: "hidden", borderLeft: `5px solid ${cc}` }}>
                     <div style={{ padding: 22, background: `linear-gradient(135deg, ${cc}08, ${cc}03)` }}>
@@ -6355,7 +6368,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                       {cat.skills.map((sk) => {
                         const p = getSkillProgress(r, sk.id);
                         const isService = sk.type === "service";
-                        const complete = isSkillComplete(r, sk.id, masterProgram);
+                        const complete = isSkillComplete(r, sk.id, masterProgram, maxTech, maxTime);
                         const isFocus = (r.focusSkills || []).includes(sk.id);
                         const focusCount = (r.focusSkills || []).length;
                         const skLogs = (r.timingLogs || {})[sk.id] || [];
@@ -6643,7 +6656,9 @@ const TraineeProfile = ({ traineeId, onNav }) => {
 //  ADMIN: TRACK BUILDER (drag + checkbox)
 // ════════════════════════════════════════════
 const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
-  const { residents, setResidents, masterProgram, presets, showToast } = useData();
+  const { residents, setResidents, masterProgram, presets, showToast, techniqueStages, timingStages } = useData();
+  const maxTech = techniqueStages.length - 1;
+  const maxTime = timingStages.length - 1;
   const r = residents.find((x) => x.id === traineeId);
   const [presetModal, setPresetModal] = useState(false);
   const [reorderDragId, setReorderDragId] = useState(null);
@@ -6659,7 +6674,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
   }
 
   const assigned = new Set(r.skillIds || []);
-  const { total, done, pct } = getProgress(r, masterProgram);
+  const { total, done, pct } = getProgress(r, masterProgram, maxTech, maxTime);
   const assignedCats = getTraineeCats(r, masterProgram);
 
   const toggleSkill = async (sid) => {
