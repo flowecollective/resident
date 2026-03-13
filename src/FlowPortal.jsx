@@ -7448,16 +7448,27 @@ const SettingsPage = () => {
                 {opt.plural}
               </button>
             ))}
-            <span style={{ fontSize: "11px", color: T.textMuted }}>or</span>
+            <button
+              onClick={() => { const el = document.getElementById("custom-label-form"); if (el) el.style.display = el.style.display === "none" ? "flex" : "none"; }}
+              style={{
+                padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 500,
+                background: isCustom ? T.charcoal : T.cream,
+                color: isCustom ? T.cream : T.textMuted,
+              }}
+            >
+              {isCustom ? TL.p : "Custom"}
+            </button>
+          </div>
+          <div id="custom-label-form" style={{ display: isCustom ? "flex" : "none", gap: 6, alignItems: "center", marginTop: 12 }}>
             <form onSubmit={(e) => {
               e.preventDefault();
               const s = e.target.singular.value.trim();
               const p = e.target.plural.value.trim();
               if (s && p) { setTraineeLabel({ singular: s, plural: p }); showToast(`Label updated to "${p}" — reload to see changes`); }
             }} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input name="singular" placeholder="Singular" defaultValue={isCustom ? TL.s : ""} style={{ ...iSt, width: 90, fontSize: "12px", padding: "6px 10px" }} />
-              <input name="plural" placeholder="Plural" defaultValue={isCustom ? TL.p : ""} style={{ ...iSt, width: 90, fontSize: "12px", padding: "6px 10px" }} />
-              <button type="submit" style={{ padding: "6px 12px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 600, background: T.gold, color: T.cream }}>Set</button>
+              <input name="singular" placeholder="Singular" defaultValue={isCustom ? TL.s : ""} style={{ ...iSt, width: 100, fontSize: "12px", padding: "6px 10px" }} />
+              <input name="plural" placeholder="Plural" defaultValue={isCustom ? TL.p : ""} style={{ ...iSt, width: 100, fontSize: "12px", padding: "6px 10px" }} />
+              <button type="submit" style={{ padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 600, background: T.gold, color: T.cream }}>Save</button>
             </form>
           </div>
         </Card>
