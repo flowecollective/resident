@@ -5316,14 +5316,36 @@ const AdminTrainees = ({ onNav }) => {
     showToast("Cohort removed");
   };
 
+  const [saving, setSaving] = useState(false);
   const openNew = (cohort) => { setForm({ name: "", email: "", cohort: cohort || "", photo: null }); setModal(true); };
-  const save = () => {
-    if (!form.name.trim()) return;
-    setResidents((p) => [...p, { id: `r_${uid()}`, name: form.name, email: form.email, cohort: form.cohort, photo: form.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
-    showToast("Trainee added");
-    setModal(false);
+  const save = async () => {
+    if (!form.name.trim() || !form.email.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-trainee`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), cohort: form.cohort, photo: form.photo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to invite trainee");
+      const p = data.profile;
+      setResidents((prev) => [...prev, { id: p.id, name: p.name, email: p.email, cohort: p.cohort || "", photo: p.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
+      showToast("Trainee invited — they'll receive an email to set their password");
+      setModal(false);
+    } catch (err) {
+      showToast(err.message || "Failed to add trainee");
+    }
+    setSaving(false);
   };
-  const rem = (id) => { setResidents((p) => p.filter((r) => r.id !== id)); showToast("Trainee removed"); };
+  const rem = async (id) => {
+    await supabase.from("profiles").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    setResidents((p) => p.filter((r) => r.id !== id));
+    showToast("Trainee removed");
+  };
 
   const changeCohort = async (residentId, newCohortName) => {
     setResidents((p) => p.map((r) => r.id === residentId ? { ...r, cohort: newCohortName } : r));
@@ -5511,7 +5533,7 @@ const AdminTrainees = ({ onNav }) => {
             </select>
           </FormField>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save}>Add Trainee</Btn></div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save} disabled={saving}>{saving ? "Inviting…" : "Add Trainee"}</Btn></div>
       </Modal>
       <PhotoCropModal
         open={photoCropOpen}
@@ -7713,7 +7735,7 @@ const App = () => {
 
       if (profile.role === "admin") {
         const [{ data: resProfiles }, { data: rSkills }, { data: tLogs }, { data: tComments }] = await Promise.all([
-          supabase.from("profiles").select("*").eq("role", "resident"),
+          supabase.from("profiles").select("*").eq("role", "resident").is("deleted_at", null),
           supabase.from("resident_skills").select("*"),
           supabase.from("timing_logs").select("*").order("created_at"),
           supabase.from("log_comments").select("*").order("created_at"),
