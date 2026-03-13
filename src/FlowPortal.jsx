@@ -4701,8 +4701,8 @@ const AdminMaster = () => {
         <div style={{ display: "flex", gap: 8 }}>
           {masterTab === "program" && <>
             {archived.length > 0 && (
-              <Btn variant="outline" onClick={() => setShowArchive(!showArchive)}>
-                <Icon name="back" size={14} color={T.textMuted} /> Archive ({archived.length})
+              <Btn variant={showArchive ? "gold" : "outline"} onClick={() => setShowArchive(!showArchive)}>
+                <Icon name="back" size={14} color={showArchive ? T.cream : T.textMuted} /> Archive ({archived.length})
               </Btn>
             )}
             <Btn variant="outline" onClick={handleCsvExport}><Icon name="download" size={14} color={T.textMuted} /> Export</Btn>
