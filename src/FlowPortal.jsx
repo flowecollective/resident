@@ -12,7 +12,12 @@ const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${Str
 const COHORT_RING_COLORS = CAT_COLORS;
 let _cohortColorMap = {};
 try { _cohortColorMap = JSON.parse(localStorage.getItem("cohort_colors") || "{}"); } catch {}
-const setCohortColorMap = (map) => { _cohortColorMap = map; localStorage.setItem("cohort_colors", JSON.stringify(map)); };
+const setCohortColorMap = (map) => {
+  _cohortColorMap = map;
+  localStorage.setItem("cohort_colors", JSON.stringify(map));
+  // Persist to Supabase settings table
+  supabase.from("settings").upsert({ key: "cohort_colors", value: map }, { onConflict: "key" });
+};
 const cohortColor = (cohort) => {
   if (!cohort) return undefined;
   if (_cohortColorMap[cohort]) return _cohortColorMap[cohort];
@@ -7617,6 +7622,13 @@ const App = () => {
         : supabase.from("documents").select("*").eq("uploaded_by", profile.id).order("created_at", { ascending: false });
       const { data: docsData } = await docsQuery;
       setDocs(docsData || []);
+
+      // Load cohort colors from Supabase (fall back to localStorage)
+      const { data: cohortSetting } = await supabase.from("settings").select("value").eq("key", "cohort_colors").single();
+      if (cohortSetting?.value) {
+        _cohortColorMap = cohortSetting.value;
+        localStorage.setItem("cohort_colors", JSON.stringify(cohortSetting.value));
+      }
 
       // Load master program from Supabase
       const [{ data: catsData }, { data: skillsData }] = await Promise.all([
