@@ -3755,7 +3755,7 @@ const AdminDash = ({ onNav }) => {
 const AdminSchedule = () => {
   const { schedule, setSchedule, gcalEvents, masterProgram, residents, showToast } = useData();
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ title: "", date: localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "", repeat: "none", repeatUntil: "" });
+  const [form, setForm] = useState({ title: "", date: localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "", repeat: "none", repeatUntil: "", repeatDays: [] });
   const [editId, setEditId] = useState(null);
   const cal = useCalendar(2026, 2);
 
@@ -3769,7 +3769,7 @@ const AdminSchedule = () => {
   const allSkills = masterProgram.flatMap((c) => c.skills.map((s) => ({ ...s, catName: c.name })));
 
   const openNew = (date) => {
-    setForm({ title: "", date: date || localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "", repeat: "none", repeatUntil: "" });
+    setForm({ title: "", date: date || localDate(), time: "9:00 AM", duration: "60", type: "skill", assignTo: "all", skillId: "", repeat: "none", repeatUntil: "", repeatDays: [] });
     setEditId(null);
     setModal(true);
   };
@@ -3816,17 +3816,26 @@ const AdminSchedule = () => {
       // Generate dates for recurring events
       const dates = [form.date];
       if (form.repeat !== "none" && form.repeatUntil) {
-        const intervalDays = form.repeat === "weekly" ? 7 : 14;
         const start = new Date(form.date + "T00:00:00");
         const end = new Date(form.repeatUntil + "T00:00:00");
-        let cursor = new Date(start);
-        cursor.setDate(cursor.getDate() + intervalDays);
-        while (cursor <= end) {
-          const y = cursor.getFullYear();
-          const m = String(cursor.getMonth() + 1).padStart(2, "0");
-          const d = String(cursor.getDate()).padStart(2, "0");
-          dates.push(`${y}-${m}-${d}`);
+        const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+        if (form.repeat === "custom" && form.repeatDays.length > 0) {
+          // Custom days of week: 0=Sun, 1=Mon, ..., 6=Sat
+          let cursor = new Date(start);
+          cursor.setDate(cursor.getDate() + 1);
+          while (cursor <= end) {
+            if (form.repeatDays.includes(cursor.getDay())) dates.push(fmtDate(cursor));
+            cursor.setDate(cursor.getDate() + 1);
+          }
+        } else {
+          const intervalDays = form.repeat === "daily" ? 1 : form.repeat === "weekly" ? 7 : 14;
+          let cursor = new Date(start);
           cursor.setDate(cursor.getDate() + intervalDays);
+          while (cursor <= end) {
+            dates.push(fmtDate(cursor));
+            cursor.setDate(cursor.getDate() + intervalDays);
+          }
         }
       }
 
@@ -3973,20 +3982,43 @@ const AdminSchedule = () => {
 
         {/* Repeat (new events only) */}
         {!editId && (
-          <div className="r-grid" style={{ display: "grid", gridTemplateColumns: form.repeat !== "none" ? "1fr 1fr" : "1fr", gap: 12 }}>
-            <FormField label="Repeat">
-              <select value={form.repeat} onChange={(e) => setForm((f) => ({ ...f, repeat: e.target.value }))} style={selSt}>
-                <option value="none">Does not repeat</option>
-                <option value="weekly">Weekly</option>
-                <option value="biweekly">Every 2 weeks</option>
-              </select>
-            </FormField>
-            {form.repeat !== "none" && (
-              <FormField label="Repeat until">
-                <input type="date" value={form.repeatUntil} onChange={(e) => setForm((f) => ({ ...f, repeatUntil: e.target.value }))} style={iSt} />
+          <>
+            <div className="r-grid" style={{ display: "grid", gridTemplateColumns: form.repeat !== "none" ? "1fr 1fr" : "1fr", gap: 12 }}>
+              <FormField label="Repeat">
+                <select value={form.repeat} onChange={(e) => setForm((f) => ({ ...f, repeat: e.target.value, repeatDays: [] }))} style={selSt}>
+                  <option value="none">Does not repeat</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="biweekly">Every 2 weeks</option>
+                  <option value="custom">Custom days...</option>
+                </select>
+              </FormField>
+              {form.repeat !== "none" && (
+                <FormField label="Repeat until">
+                  <input type="date" value={form.repeatUntil} onChange={(e) => setForm((f) => ({ ...f, repeatUntil: e.target.value }))} style={iSt} />
+                </FormField>
+              )}
+            </div>
+            {form.repeat === "custom" && (
+              <FormField label="Days of the week">
+                <div style={{ display: "flex", gap: 6 }}>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => {
+                    const active = form.repeatDays.includes(i);
+                    return (
+                      <button key={day} onClick={() => setForm((f) => ({ ...f, repeatDays: active ? f.repeatDays.filter((d) => d !== i) : [...f.repeatDays, i] }))} style={{
+                        width: 40, height: 36, borderRadius: T.radiusSm, fontSize: "11px", fontWeight: 600, cursor: "pointer",
+                        border: active ? `2px solid ${T.gold}` : `1px solid ${T.creamDark}`,
+                        background: active ? T.gold + "20" : T.cream,
+                        color: active ? T.charcoal : T.textMuted,
+                      }}>
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
               </FormField>
             )}
-          </div>
+          </>
         )}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
