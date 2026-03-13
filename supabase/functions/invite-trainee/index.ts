@@ -17,33 +17,36 @@ serve(async (req) => {
 
     // Verify caller is authenticated
     const authHeader = req.headers.get("authorization") || "";
-    const callerClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const token = authHeader.replace("Bearer ", "");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const { data: { user: caller }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized", detail: authErr?.message }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Verify caller is admin
-    const { data: callerProfile } = await supabase
+    const { data: callerProfile, error: profileErr } = await supabase
       .from("profiles")
       .select("role, tenant_id")
       .eq("id", caller.id)
       .single();
 
-    if (!callerProfile || callerProfile.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
+    if (profileErr || !callerProfile) {
+      return new Response(JSON.stringify({ error: `Profile lookup failed: ${profileErr?.message || "not found"}`, caller_id: caller.id }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (callerProfile.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Admin access required", role: callerProfile.role }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
