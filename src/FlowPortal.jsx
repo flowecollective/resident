@@ -27,6 +27,24 @@ const cohortColor = (cohort) => {
 };
 
 // ════════════════════════════════════════════
+//  TRAINEE LABEL (customizable display name)
+// ════════════════════════════════════════════
+let _traineeLabel = { singular: "Trainee", plural: "Trainees" };
+try { const saved = JSON.parse(localStorage.getItem("trainee_label") || "null"); if (saved) _traineeLabel = saved; } catch {}
+const TL = {
+  get s() { return _traineeLabel.singular; },            // "Trainee" / "Resident" / "Student"
+  get p() { return _traineeLabel.plural; },              // "Trainees" / "Residents" / "Students"
+  get sl() { return _traineeLabel.singular.toLowerCase(); },  // "trainee"
+  get pl() { return _traineeLabel.plural.toLowerCase(); },    // "trainees"
+  get pos() { return _traineeLabel.singular + "'s"; },        // "Trainee's"
+};
+const setTraineeLabel = (label) => {
+  _traineeLabel = label;
+  localStorage.setItem("trainee_label", JSON.stringify(label));
+  supabase.from("settings").upsert({ key: "trainee_label", value: label });
+};
+
+// ════════════════════════════════════════════
 //  PHOTO CROP MODAL
 //  Shows the full image scaled to fit a box.
 //  User drags to pan and uses a zoom slider.
@@ -520,7 +538,7 @@ const AuthScreen = ({ onLogin }) => {
             {mode === "login" ? "Welcome back" : "Create account"}
           </h3>
           <p style={{ color: T.textMuted, fontSize: "13px", textAlign: "center", marginBottom: 28 }}>
-            {mode === "login" ? "Sign in to continue" : "Set up your resident account"}
+            {mode === "login" ? "Sign in to continue" : `Set up your ${TL.sl} account`}
           </p>
           {error && (
             <div style={{ padding: "10px 14px", borderRadius: T.radiusSm, background: "#fee", border: "1px solid #fcc", marginBottom: 16 }}>
@@ -593,7 +611,7 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
         { id: "a-dash", label: "Dashboard", icon: "dashboard", badge: unreviewedCount },
         { id: "a-sched", label: "Schedule", icon: "calendar" },
         { id: "a-master", label: "Master Program", icon: "template" },
-        { id: "a-trainees", label: "Trainees", icon: "users" },
+        { id: "a-trainees", label: TL.p, icon: "users" },
         { id: "a-tuition", label: "Tuition", icon: "dollar" },
         { id: "a-docs", label: "Documents", icon: "file" },
         { id: "a-msg", label: "Messages", icon: "message" },
@@ -644,7 +662,7 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
               <span style={{ fontFamily: T.fontD, fontSize: "1.6rem", fontWeight: 500, letterSpacing: "0.15em", color: T.charcoal }}>FLOWE</span>
             </div>
             <p style={{ fontSize: "0.6rem", fontWeight: 500, letterSpacing: "0.25em", textTransform: "uppercase", color: isA ? T.educator : T.gold, marginTop: 4 }}>
-              {isA ? "Educator" : "Resident"} Portal
+              {isA ? "Educator" : TL.s} Portal
             </p>
           </div>
           {/* Mobile close button */}
@@ -2327,7 +2345,7 @@ const HANDBOOK_SECTIONS = [
     { type: "p", text: "Welcome to Flowe Collective. You have been selected to join our stylist training program — a comprehensive, hands-on experience designed to prepare you for a successful career behind the chair." },
     { type: "p", text: "This program is built on three pillars: technical mastery, timing proficiency, and professional development. Over the next 12 weeks, you will work through a customized training track tailored to your career goals." },
     { type: "h3", text: "What to Expect" },
-    { type: "li", items: ["A personalized skill track assigned by your educator", "Hands-on practice on mannequins and live models", "Regular coaching sessions and progress evaluations", "Access to your personal training portal", "A supportive community of fellow trainees and mentors"] },
+    { type: "li", items: ["A personalized skill track assigned by your educator", "Hands-on practice on mannequins and live models", "Regular coaching sessions and progress evaluations", "Access to your personal training portal", `A supportive community of fellow ${TL.pl} and mentors`] },
     { type: "h3", text: "Your Training Portal" },
     { type: "p", text: "Your portal is your home base throughout the program. Use it to view your schedule, track your skill progress, log your practice times, access documents, message your educator, and monitor your tuition status." },
   ]},
@@ -2339,7 +2357,7 @@ const HANDBOOK_SECTIONS = [
     { type: "li", items: ["Workshop — Group instruction on specific techniques", "Coaching — One-on-one time with your educator", "Ritual — Morning circles, reflections, community activities", "Assessment — Formal skill evaluations"] },
   ]},
   { id: "policies", num: "03", title: "Salon Policies & Standards", content: [
-    { type: "p", text: "As a trainee at Flowe Collective, you are a representative of our brand. The following policies apply to all trainees while on the salon floor." },
+    { type: "p", text: `As a ${TL.sl} at Flowe Collective, you are a representative of our brand. The following policies apply to all ${TL.pl} while on the salon floor.` },
     { type: "h3", text: "Workstation Standards" },
     { type: "li", items: ["Clean and sanitize your station before and after every session", "Disinfect all tools per state board requirements", "Store personal belongings in designated areas", "No food or open beverages at your workstation"] },
     { type: "h3", text: "Client-Facing Standards" },
@@ -2356,7 +2374,7 @@ const HANDBOOK_SECTIONS = [
     { type: "p", text: "Flowe Collective offers two payment options: Pay in Full at $4,500 (one-time) or a Monthly Plan at $1,650/month for 3 months ($4,950 total)." },
     { type: "p", text: "Your payment status is visible in the 'My Tuition' section of your portal. You can view your balance and payment history at any time." },
     { type: "h3", text: "Refund Policy" },
-    { type: "p", text: "Tuition is non-refundable after the first week. Trainees who withdraw within the first 5 business days may request a partial refund minus a $500 administrative fee." },
+    { type: "p", text: `Tuition is non-refundable after the first week. ${TL.p} who withdraw within the first 5 business days may request a partial refund minus a $500 administrative fee.` },
   ]},
   { id: "skills", num: "06", title: "Skill Progression Explained", content: [
     { type: "p", text: "Every service skill is evaluated on two dimensions: technique mastery and timing proficiency. Knowledge items are simply complete or not complete." },
@@ -2388,7 +2406,7 @@ const HANDBOOK_SECTIONS = [
     { type: "h3", text: "Attendance" },
     { type: "li", items: ["Attend all scheduled sessions on time", "Notify your educator at least 24 hours in advance for absences", "Two+ unexcused absences triggers a standing review", "Chronic tardiness (10+ min) counts as a partial absence"] },
     { type: "h3", text: "Professional Conduct" },
-    { type: "li", items: ["Treat all staff, trainees, and clients with respect", "Phones on silent and out of sight during sessions", "Social media use only for portfolio content, with client consent"] },
+    { type: "li", items: [`Treat all staff, ${TL.pl}, and clients with respect`, "Phones on silent and out of sight during sessions", "Social media use only for portfolio content, with client consent"] },
     { type: "h3", text: "Grounds for Dismissal" },
     { type: "p", text: "Theft, violence, showing up under the influence, harassment, intentional property damage, or repeated policy violations may result in immediate removal." },
   ]},
@@ -2766,7 +2784,7 @@ const MsgPage = ({ user }) => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub={isAdmin ? "Resident conversations" : `Conversation with ${partnerName}`}>
+      <SectionTitle sub={isAdmin ? {`${TL.s} conversations`} : `Conversation with ${partnerName}`}>
         Messages
       </SectionTitle>
 
@@ -3877,7 +3895,7 @@ const AdminSchedule = () => {
   const selectedEvents = cal.selectedDate ? schedule.filter((e) => e.date === cal.selectedDate) : [];
 
   const getAssignLabel = (ev) => {
-    if (ev.assignTo === "all") return "All trainees";
+    if (ev.assignTo === "all") return `All ${TL.pl}`;
     const r = residents.find((x) => x.id === ev.assignTo);
     return r ? r.name : ev.assignTo;
   };
@@ -3994,7 +4012,7 @@ const AdminSchedule = () => {
         {/* Assign to */}
         <FormField label="Assign To">
           <select value={form.assignTo} onChange={(e) => setForm((f) => ({ ...f, assignTo: e.target.value }))} style={selSt}>
-            <option value="all">All Trainees (Cohort-wide)</option>
+            <option value="all">All {TL.p} (Cohort-wide)</option>
             {residents.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </FormField>
@@ -5067,7 +5085,7 @@ const AdminMaster = () => {
           <div key={sec.key}>
             <p style={{ fontSize: "11px", color: T.textMuted, marginBottom: 8 }}>
               {sec.key === "steps" && "Ordered steps for performing this service. Use numbered list for best results."}
-              {sec.key === "mistakes" && "Common mistakes trainees make. Use bullet list."}
+              {sec.key === "mistakes" && {`Common mistakes ${TL.pl} make. Use bullet list.`}}
               {sec.key === "consultation" && "What to assess or ask the client before starting."}
               {sec.key === "tips" && "Your personal technique notes and insider knowledge."}
               {sec.key === "tools" && "Tools and products needed for this service."}
@@ -5364,7 +5382,7 @@ const AdminTrainees = ({ onNav }) => {
 
   const removeCohort = (name) => {
     const inUse = residents.some((r) => r.cohort === name);
-    if (inUse) { showToast("Remove all trainees from this cohort first"); return; }
+    if (inUse) { showToast(`Remove all ${TL.pl} from this cohort first`); return; }
     const updated = cohorts.filter((c) => c !== name);
     setCohorts(updated);
     persistCohorts(updated);
@@ -5390,7 +5408,7 @@ const AdminTrainees = ({ onNav }) => {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to invite trainee");
+      if (!res.ok) throw new Error(data.error || `Failed to invite ${TL.sl}`);
       const p = data.profile;
       // Save phone number to contacts if provided
       if (form.phone.trim()) {
@@ -5400,10 +5418,10 @@ const AdminTrainees = ({ onNav }) => {
         }
       }
       setResidents((prev) => [...prev, { id: p.id, name: p.name, email: p.email, cohort: p.cohort || "", photo: p.photo, skillIds: [], progress: {}, focusSkills: [], timingLogs: {} }]);
-      showToast("Trainee created — send them an invite when ready");
+      showToast(`${TL.s} created — send them an invite when ready`);
       setModal(false);
     } catch (err) {
-      showToast(err.message || "Failed to add trainee");
+      showToast(err.message || `Failed to add ${TL.sl}`);
     }
     setSaving(false);
   };
@@ -5427,7 +5445,7 @@ const AdminTrainees = ({ onNav }) => {
   const rem = async (id) => {
     await supabase.from("profiles").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     setResidents((p) => p.filter((r) => r.id !== id));
-    showToast("Trainee removed");
+    showToast(`${TL.s} removed`);
   };
 
   const changeCohort = async (residentId, newCohortName) => {
@@ -5440,7 +5458,7 @@ const AdminTrainees = ({ onNav }) => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub="Organize trainees by cohort" action={
+      <SectionTitle sub={`Organize ${TL.pl} by cohort`} action={
         <div style={{ display: "flex", gap: 8 }}>
           <Btn variant="outline" onClick={() => setCohortModal(true)}><Icon name="plus" size={16} color={T.charcoal} /> New Cohort</Btn>
           <Btn onClick={() => openNew("")}><Icon name="plus" size={16} color={T.cream} /> Add Trainee</Btn>
@@ -5478,7 +5496,7 @@ const AdminTrainees = ({ onNav }) => {
                     )}
                   </div>
                   <h3 style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 600 }}>{cohort}</h3>
-                  <span style={{ fontSize: "11px", color: T.textMuted, background: T.white, padding: "2px 8px", borderRadius: 10 }}>{members.length} trainee{members.length !== 1 ? "s" : ""}</span>
+                  <span style={{ fontSize: "11px", color: T.textMuted, background: T.white, padding: "2px 8px", borderRadius: 10 }}>{members.length} {members.length !== 1 ? TL.pl : TL.sl}</span>
                 </div>
                 {members.length === 0 && (
                   <button onClick={() => removeCohort(cohort)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
@@ -5488,7 +5506,7 @@ const AdminTrainees = ({ onNav }) => {
               </div>
               {members.length === 0 ? (
                 <div style={{ padding: "20px 22px", textAlign: "center" }}>
-                  <p style={{ fontSize: "12px", color: T.textMuted }}>No trainees in this cohort yet</p>
+                  <p style={{ fontSize: "12px", color: T.textMuted }}>No {TL.pl} in this cohort yet</p>
                 </div>
               ) : (
                 <div>
@@ -5599,7 +5617,7 @@ const AdminTrainees = ({ onNav }) => {
       </Modal>
 
       {/* Add Trainee Modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title="Add Trainee">
+      <Modal open={modal} onClose={() => setModal(false)} title={`Add ${TL.s}`}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
           <div style={{ cursor: "pointer" }} onClick={() => setPhotoCropOpen(true)}>
             {form.photo ? (
@@ -5646,7 +5664,7 @@ const AdminTrainees = ({ onNav }) => {
             ))}
           </div>
         </details>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save} disabled={saving}>{saving ? "Inviting…" : "Add Trainee"}</Btn></div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save} disabled={saving}>{saving ? "Inviting…" : `Add ${TL.s}`}</Btn></div>
       </Modal>
       <PhotoCropModal
         open={photoCropOpen}
@@ -5727,7 +5745,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
     return (
       <div>
         <Btn variant="outline" onClick={() => onNav("a-trainees")}><Icon name="back" size={16} /> Back</Btn>
-        <p style={{ marginTop: 16, color: T.textMuted }}>Trainee not found.</p>
+        <p style={{ marginTop: 16, color: T.textMuted }}>{TL.s} not found.</p>
       </div>
     );
   }
@@ -6184,8 +6202,8 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                 <button onClick={() => setEditLogType("model")} style={{ flex: 1, padding: "10px", borderRadius: T.radiusSm, border: "none", fontSize: "12px", fontWeight: 600, cursor: "pointer", background: editLogType === "model" ? "#8B6AAE15" : T.cream, color: editLogType === "model" ? "#8B6AAE" : T.textMuted }}>Live Model</button>
               </div>
             </FormField>
-            <FormField label="Trainee's Notes">
-              <input value={editLogNote} onChange={(e) => setEditLogNote(e.target.value)} placeholder="Trainee's note" style={{ ...iSt, background: T.cream }} disabled />
+            <FormField label={`${TL.pos} Notes`}>
+              <input value={editLogNote} onChange={(e) => setEditLogNote(e.target.value)} placeholder={`${TL.pos} note`} style={{ ...iSt, background: T.cream }} disabled />
             </FormField>
             <FormField label="Add Feedback (appends to conversation)">
               <textarea value={editLogCritique} onChange={(e) => setEditLogCritique(e.target.value)} placeholder="Add feedback, corrections, or observations..." rows={3} style={{ ...iSt, resize: "vertical", minHeight: 72, borderLeft: "3px solid " + T.educator }} />
@@ -6316,7 +6334,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
     return (
       <div>
         <Btn variant="outline" onClick={() => onNav("a-trainees")}><Icon name="back" size={16} /> Back</Btn>
-        <p style={{ marginTop: 16, color: T.textMuted }}>Trainee not found.</p>
+        <p style={{ marginTop: 16, color: T.textMuted }}>{TL.s} not found.</p>
       </div>
     );
   }
@@ -6668,7 +6686,7 @@ const AdminDocs = () => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub="Upload files or add links for your trainees" action={<Btn onClick={openModal}><Icon name="plus" size={16} color={T.cream} /> Upload Document</Btn>}>
+      <SectionTitle sub={`Upload files or add links for your ${TL.pl}`} action={<Btn onClick={openModal}><Icon name="plus" size={16} color={T.cream} /> Upload Document</Btn>}>
         Document Manager
       </SectionTitle>
       {docs.length === 0 ? (
@@ -6771,8 +6789,8 @@ const AdminDocs = () => {
         </FormField>
         <FormField label="Visible To">
           <select value={form.visibility} onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value }))} style={selSt}>
-            <option value="all">All Trainees</option>
-            <option value="specific">Specific Trainees</option>
+            <option value="all">All {TL.p}</option>
+            <option value="specific">Specific {TL.p}</option>
           </select>
         </FormField>
         {form.visibility === "specific" && (
@@ -6796,7 +6814,7 @@ const AdminDocs = () => {
                   {r.cohort && <span style={{ fontSize: "10px", color: T.textMuted }}>({r.cohort})</span>}
                 </label>
               ))}
-              {residents.length === 0 && <p style={{ fontSize: "12px", color: T.textMuted }}>No trainees yet</p>}
+              {residents.length === 0 && <p style={{ fontSize: "12px", color: T.textMuted }}>No {TL.pl} yet</p>}
             </div>
           </FormField>
         )}
@@ -7079,7 +7097,7 @@ const AdminTuition = ({ onNav }) => {
 
   return (
     <div className="fade-up">
-      <SectionTitle sub="Overview of all trainee payments">Tuition Manager</SectionTitle>
+      <SectionTitle sub={`Overview of all ${TL.sl} payments`}>Tuition Manager</SectionTitle>
 
       <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
         <Card style={{ padding: 22 }}>
@@ -7338,7 +7356,7 @@ const SettingsPage = () => {
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 4 }}>{user?.email}</p>
-            <Badge color={T.educator}>{user?.role === "admin" ? "Educator" : "Resident"}</Badge>
+            <Badge color={T.educator}>{user?.role === "admin" ? "Educator" : TL.s}</Badge>
           </div>
         </div>
         <FormField label="Display Name">
@@ -7402,6 +7420,33 @@ const SettingsPage = () => {
           <p style={{ fontSize: "12px", color: T.textMuted, textAlign: "center", padding: "8px 0" }}>No calendars connected</p>
         )}
       </Card>
+
+      {user?.role === "admin" && (
+        <Card style={{ padding: 24, marginTop: 20 }}>
+          <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Display Labels</h4>
+          <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 12 }}>Customize what trainees are called throughout the portal. This is purely visual.</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { singular: "Trainee", plural: "Trainees" },
+              { singular: "Resident", plural: "Residents" },
+              { singular: "Student", plural: "Students" },
+              { singular: "Apprentice", plural: "Apprentices" },
+            ].map((opt) => (
+              <button
+                key={opt.singular}
+                onClick={() => { setTraineeLabel(opt); showToast(`Label updated to "${opt.plural}" — reload to see changes`); }}
+                style={{
+                  padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 500,
+                  background: TL.s === opt.singular ? T.charcoal : T.cream,
+                  color: TL.s === opt.singular ? T.cream : T.textMuted,
+                }}
+              >
+                {opt.plural}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card style={{ padding: 24, marginTop: 20 }}>
         <h4 style={{ fontFamily: T.fontD, fontSize: "17px", fontWeight: 600, marginBottom: 12 }}>Portal Info</h4>
@@ -7869,6 +7914,13 @@ const App = () => {
       if (cohortSetting?.value) {
         _cohortColorMap = cohortSetting.value;
         localStorage.setItem("cohort_colors", JSON.stringify(cohortSetting.value));
+      }
+
+      // Load trainee label setting
+      const { data: labelSetting } = await supabase.from("settings").select("value").eq("key", "trainee_label").maybeSingle();
+      if (labelSetting?.value) {
+        _traineeLabel = labelSetting.value;
+        localStorage.setItem("trainee_label", JSON.stringify(labelSetting.value));
       }
 
       // Load master program from Supabase (exclude archived items)
