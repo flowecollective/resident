@@ -5299,17 +5299,31 @@ const AdminTrainees = ({ onNav }) => {
   const [, forceUpdate] = useState(0);
   const [cohorts, setCohorts] = useState([]);
 
-  // Derive cohorts from residents + any manually created empty ones
+  // Load cohorts from Supabase settings + derive from residents
+  useEffect(() => {
+    supabase.from("settings").select("value").eq("key", "cohorts").single().then(({ data }) => {
+      const saved = data?.value || [];
+      const fromResidents = [...new Set(residents.map((r) => r.cohort).filter(Boolean))];
+      setCohorts([...new Set([...saved, ...fromResidents])].sort());
+    });
+  }, []);
+  // Also merge in any new resident cohorts
   useEffect(() => {
     const fromResidents = [...new Set(residents.map((r) => r.cohort).filter(Boolean))];
     setCohorts((prev) => [...new Set([...prev, ...fromResidents])].sort());
   }, [residents]);
 
+  const persistCohorts = (list) => {
+    supabase.from("settings").upsert({ key: "cohorts", value: list }, { onConflict: "key" });
+  };
+
   const addCohort = () => {
     const name = newCohort.trim();
     if (!name || cohorts.includes(name)) return;
     if (newCohortColor) setCohortColorMap({ ..._cohortColorMap, [name]: newCohortColor });
-    setCohorts((p) => [...p, name].sort());
+    const updated = [...cohorts, name].sort();
+    setCohorts(updated);
+    persistCohorts(updated);
     setNewCohort("");
     setNewCohortColor(null);
     setCohortModal(false);
@@ -5319,7 +5333,9 @@ const AdminTrainees = ({ onNav }) => {
   const removeCohort = (name) => {
     const inUse = residents.some((r) => r.cohort === name);
     if (inUse) { showToast("Remove all trainees from this cohort first"); return; }
-    setCohorts((p) => p.filter((c) => c !== name));
+    const updated = cohorts.filter((c) => c !== name);
+    setCohorts(updated);
+    persistCohorts(updated);
     showToast("Cohort removed");
   };
 
