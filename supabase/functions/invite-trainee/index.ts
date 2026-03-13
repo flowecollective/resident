@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { name, email, cohort, photo } = await req.json();
+    const { name, email, cohort, photo, onboarding_steps } = await req.json();
 
     if (!name || !email) {
       return new Response(JSON.stringify({ error: "Name and email are required" }), {
@@ -71,11 +71,18 @@ serve(async (req) => {
       });
     }
 
-    // The trigger auto-creates the profile. Now update it with cohort/photo.
+    // The trigger auto-creates the profile. Now update it with cohort/photo/onboarding config.
     const userId = invite.user.id;
     const updates: Record<string, unknown> = {};
     if (cohort) updates.cohort = cohort;
     if (photo) updates.photo = photo;
+    if (onboarding_steps) updates.onboarding_steps = onboarding_steps;
+    // Auto-mark disabled onboarding steps as completed
+    const allSteps = ["agreement", "enrollment", "gusto"];
+    const enabled = onboarding_steps || allSteps;
+    if (!enabled.includes("agreement")) { updates.agreement_signed = true; updates.agreement_date = new Date().toISOString().split("T")[0]; }
+    if (!enabled.includes("enrollment")) { updates.enrollment_completed = true; updates.enrollment_date = new Date().toISOString().split("T")[0]; }
+    if (!enabled.includes("gusto")) { updates.gusto_completed = true; updates.gusto_date = new Date().toISOString().split("T")[0]; }
     if (Object.keys(updates).length > 0) {
       await supabase.from("profiles").update(updates).eq("id", userId);
     }

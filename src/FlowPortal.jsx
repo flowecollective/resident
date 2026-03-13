@@ -577,8 +577,14 @@ const Sidebar = ({ user, page, onNav, onLogout, mobileOpen, setMobileOpen }) => 
   const [onboardingDone, setOnboardingDone] = useState(true);
   useEffect(() => {
     if (isA || !user?.id) return;
-    supabase.from("profiles").select("agreement_signed, enrollment_completed, gusto_completed").eq("id", user.id).single().then(({ data }) => {
-      if (data) setOnboardingDone(!!data.agreement_signed && !!data.enrollment_completed && !!data.gusto_completed);
+    supabase.from("profiles").select("agreement_signed, enrollment_completed, gusto_completed, onboarding_steps").eq("id", user.id).single().then(({ data }) => {
+      if (data) {
+        const enabled = data.onboarding_steps || ["agreement", "enrollment", "gusto"];
+        const done = (!enabled.includes("agreement") || !!data.agreement_signed)
+          && (!enabled.includes("enrollment") || !!data.enrollment_completed)
+          && (!enabled.includes("gusto") || !!data.gusto_completed);
+        setOnboardingDone(done);
+      }
     });
   }, [isA, user?.id, page]);
 
@@ -841,12 +847,12 @@ const TraineeOnboarding = ({ user, onNav }) => {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("profiles")
-        .select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_invite_url")
+        .select("agreement_signed, agreement_date, agreement_url, agreement_countersigned, agreement_data, enrollment_completed, enrollment_date, enrollment_plan, gusto_completed, gusto_date, gusto_invite_url, onboarding_steps")
         .eq("id", user.id).single();
       if (data) {
         setOb(data);
       } else {
-        setOb({ agreement_signed: false, agreement_countersigned: false, agreement_data: {}, enrollment_completed: false, gusto_completed: false, gusto_invite_url: null });
+        setOb({ agreement_signed: false, agreement_countersigned: false, agreement_data: {}, enrollment_completed: false, gusto_completed: false, gusto_invite_url: null, onboarding_steps: ["agreement", "enrollment", "gusto"] });
       }
       setLoading(false);
     };
@@ -866,11 +872,12 @@ const TraineeOnboarding = ({ user, onNav }) => {
     </div>
   );
 
+  const enabled = ob.onboarding_steps || ["agreement", "enrollment", "gusto"];
   const steps = [
     { id: "agreement", label: "Sign Residency Agreement", icon: "shield", done: ob.agreement_signed },
     { id: "enrollment", label: "Enroll & Pay Tuition", icon: "dollar", done: ob.enrollment_completed },
     { id: "gusto", label: "Complete Payroll Setup", icon: "clipboard", done: ob.gusto_completed },
-  ];
+  ].filter((s) => enabled.includes(s.id));
 
   const completedCount = steps.filter((s) => s.done).length;
   const allDone = completedCount === steps.length;
@@ -5283,7 +5290,7 @@ const AdminMaster = () => {
 const AdminTrainees = ({ onNav }) => {
   const { residents, setResidents, masterProgram, showToast } = useData();
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", cohort: "", phone: "", photo: null });
+  const [form, setForm] = useState({ name: "", email: "", cohort: "", phone: "", photo: null, onboarding: { agreement: true, enrollment: true, gusto: true } });
   const [photoCropOpen, setPhotoCropOpen] = useState(false);
   const [cohortModal, setCohortModal] = useState(false);
   const [newCohort, setNewCohort] = useState("");
@@ -5317,7 +5324,7 @@ const AdminTrainees = ({ onNav }) => {
   };
 
   const [saving, setSaving] = useState(false);
-  const openNew = (cohort) => { setForm({ name: "", email: "", cohort: cohort || "", phone: "", photo: null }); setModal(true); };
+  const openNew = (cohort) => { setForm({ name: "", email: "", cohort: cohort || "", phone: "", photo: null, onboarding: { agreement: true, enrollment: true, gusto: true } }); setModal(true); };
   const save = async () => {
     if (!form.name.trim() || !form.email.trim()) return;
     setSaving(true);
@@ -5328,7 +5335,10 @@ const AdminTrainees = ({ onNav }) => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
         },
-        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), cohort: form.cohort, photo: form.photo }),
+        body: JSON.stringify({
+          name: form.name.trim(), email: form.email.trim(), cohort: form.cohort, photo: form.photo,
+          onboarding_steps: Object.entries(form.onboarding).filter(([, v]) => v).map(([k]) => k),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to invite trainee");
@@ -5541,6 +5551,19 @@ const AdminTrainees = ({ onNav }) => {
             {cohorts.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </FormField>
+        <div style={{ marginTop: 16 }}>
+          <p style={{ fontSize: "12px", fontWeight: 600, color: T.text, marginBottom: 8 }}>Onboarding Steps</p>
+          {[
+            { key: "agreement", label: "Residency Agreement" },
+            { key: "enrollment", label: "Tuition Enrollment" },
+            { key: "gusto", label: "Payroll Setup" },
+          ].map(({ key, label }) => (
+            <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: "13px", color: T.text }}>
+              <input type="checkbox" checked={form.onboarding[key]} onChange={() => setForm((f) => ({ ...f, onboarding: { ...f.onboarding, [key]: !f.onboarding[key] } }))} />
+              {label}
+            </label>
+          ))}
+        </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setModal(false)}>Cancel</Btn><Btn onClick={save} disabled={saving}>{saving ? "Inviting…" : "Add Trainee"}</Btn></div>
       </Modal>
       <PhotoCropModal
