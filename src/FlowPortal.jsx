@@ -4640,6 +4640,28 @@ const AdminMaster = () => {
     showToast("Video added");
     setVideoModal(false);
   };
+  const [editVideoId, setEditVideoId] = useState(null); // { catId, skillId, videoId }
+  const [editVideoTitle, setEditVideoTitle] = useState("");
+  const saveVideoTitle = async () => {
+    if (!editVideoId || !editVideoTitle.trim()) { setEditVideoId(null); return; }
+    const { catId, skillId, videoId } = editVideoId;
+    const updateVid = (v) => v.id === videoId ? { ...v, title: editVideoTitle.trim() } : v;
+    setMasterProgram((p) => p.map((c) => {
+      if (c.id !== catId) return c;
+      if (!skillId) return { ...c, videos: (c.videos || []).map(updateVid) };
+      return { ...c, skills: c.skills.map((s) => s.id === skillId ? { ...s, videos: (s.videos || []).map(updateVid) } : s) };
+    }));
+    if (!skillId) {
+      const cat = masterProgram.find((c) => c.id === catId);
+      await supabase.from("categories").update({ videos: (cat?.videos || []).map(updateVid) }).eq("id", catId);
+    } else {
+      const cat = masterProgram.find((c) => c.id === catId);
+      const sk = cat?.skills.find((s) => s.id === skillId);
+      await supabase.from("skills").update({ videos: (sk?.videos || []).map(updateVid) }).eq("id", skillId);
+    }
+    setEditVideoId(null);
+    showToast("Video renamed");
+  };
   const removeVideo = async (catId, skillId, videoId) => {
     setMasterProgram((p) => p.map((c) => {
       if (c.id !== catId) return c;
@@ -4922,8 +4944,12 @@ const AdminMaster = () => {
                     {cat.videos.map((v) => (
                       <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 20, background: "#8B6AAE10", fontSize: "11px" }}>
                         <Icon name="play" size={12} color="#8B6AAE" />
-                        <span style={{ color: "#8B6AAE", fontWeight: 500 }}>{v.title}</span>
-                        <span style={{ color: T.textMuted, fontSize: "10px" }}>{v.duration}</span>
+                        {editVideoId?.videoId === v.id ? (
+                          <input value={editVideoTitle} onChange={(e) => setEditVideoTitle(e.target.value)} onBlur={saveVideoTitle} onKeyDown={(e) => { if (e.key === "Enter") saveVideoTitle(); if (e.key === "Escape") setEditVideoId(null); }} autoFocus style={{ border: "none", outline: "none", background: "transparent", color: "#8B6AAE", fontWeight: 500, fontSize: "11px", width: Math.max(60, editVideoTitle.length * 7) }} />
+                        ) : (
+                          <span onClick={() => { setEditVideoId({ catId: cat.id, skillId: null, videoId: v.id }); setEditVideoTitle(v.title); }} style={{ color: "#8B6AAE", fontWeight: 500, cursor: "pointer" }} title="Click to rename">{v.title}</span>
+                        )}
+                        {v.duration && v.duration !== "—" && <span style={{ color: T.textMuted, fontSize: "10px" }}>{v.duration}</span>}
                         <button onClick={() => removeVideo(cat.id, null, v.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
                           <Icon name="x" size={10} color={T.textMuted} />
                         </button>
@@ -5196,8 +5222,12 @@ const AdminMaster = () => {
                   {vids.map((v) => (
                     <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 20, background: "#8B6AAE10", fontSize: "11px" }}>
                       <Icon name="play" size={12} color="#8B6AAE" />
-                      <span style={{ color: "#8B6AAE", fontWeight: 500 }}>{v.title}</span>
-                      <span style={{ color: T.textMuted, fontSize: "10px" }}>{v.duration}</span>
+                      {editVideoId?.videoId === v.id ? (
+                        <input value={editVideoTitle} onChange={(e) => setEditVideoTitle(e.target.value)} onBlur={saveVideoTitle} onKeyDown={(e) => { if (e.key === "Enter") saveVideoTitle(); if (e.key === "Escape") setEditVideoId(null); }} autoFocus style={{ border: "none", outline: "none", background: "transparent", color: "#8B6AAE", fontWeight: 500, fontSize: "11px", width: Math.max(60, editVideoTitle.length * 7) }} />
+                      ) : (
+                        <span onClick={() => { setEditVideoId({ catId: editSkillCatId, skillId: editSkillData.id, videoId: v.id }); setEditVideoTitle(v.title); }} style={{ color: "#8B6AAE", fontWeight: 500, cursor: "pointer" }} title="Click to rename">{v.title}</span>
+                      )}
+                      {v.duration && v.duration !== "—" && <span style={{ color: T.textMuted, fontSize: "10px" }}>{v.duration}</span>}
                       <button onClick={() => removeVideo(editSkillCatId, editSkillData.id, v.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
                         <Icon name="x" size={10} color={T.textMuted} />
                       </button>
