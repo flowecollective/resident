@@ -2336,11 +2336,11 @@ const TraineeSkills = ({ user }) => {
           <Modal open={!!playingVideo} onClose={() => setPlayingVideo(null)} title={playingVideo?.title || "Video"} width={700}>
             {playingVideo && (() => {
               const url = playingVideo.url;
-              const isDataUrl = url && (url.startsWith("data:") || url.startsWith("blob:"));
-              const embedUrl = !isDataUrl ? getEmbedUrl(url) : null;
+              const isDirectVideo = url && (url.startsWith("data:") || url.startsWith("blob:") || /supabase\.co\/storage/.test(url) || /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(url));
+              const embedUrl = !isDirectVideo ? getEmbedUrl(url) : null;
 
-              if (isDataUrl) {
-                // Direct upload — use HTML5 video player
+              if (isDirectVideo) {
+                // Direct upload or Supabase Storage — use HTML5 video player
                 return (
                   <div>
                     <video controls autoPlay style={{ width: "100%", maxHeight: "70vh", background: T.charcoal }} src={url} />
@@ -4750,12 +4750,15 @@ const AdminMaster = () => {
     let finalUrl = videoUrl;
     if (isUpload) {
       if (videoFile.size > 500 * 1024 * 1024) { showToast("File too large — 500MB max. Compress it at freeconvert.com/video-compressor"); return; }
-      const ext = videoFile.name.split(".").pop();
-      const path = `videos/${uid()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("media").upload(path, videoFile, { contentType: videoFile.type });
-      if (upErr) { showToast("Upload failed: " + upErr.message); return; }
-      const { data: pubData } = supabase.storage.from("media").getPublicUrl(path);
-      finalUrl = pubData.publicUrl;
+      setVideoUploading(true);
+      try {
+        const ext = videoFile.name.split(".").pop();
+        const path = `videos/${uid()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("media").upload(path, videoFile, { contentType: videoFile.type });
+        if (upErr) { showToast("Upload failed: " + upErr.message); setVideoUploading(false); return; }
+        const { data: pubData } = supabase.storage.from("media").getPublicUrl(path);
+        finalUrl = pubData.publicUrl;
+      } finally { setVideoUploading(false); }
     }
     const vid = {
       id: `v_${uid()}`,
@@ -5493,7 +5496,7 @@ const AdminMaster = () => {
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
           <Btn variant="outline" onClick={() => setVideoModal(false)}>Cancel</Btn>
           <Btn onClick={saveVideo} disabled={videoUploading}>
-            {videoUploading ? "Processing..." : "Add Video"}
+            {videoUploading ? "Uploading…" : "Add Video"}
           </Btn>
         </div>
       </Modal>
@@ -5625,9 +5628,9 @@ const AdminMaster = () => {
       <Modal open={!!playingVideo} onClose={() => setPlayingVideo(null)} title={playingVideo?.title || "Video"} width={700}>
         {playingVideo && (() => {
           const url = playingVideo.url;
-          const isDataUrl = url && (url.startsWith("data:") || url.startsWith("blob:"));
-          const embedUrl = !isDataUrl ? getEmbedUrl(url) : null;
-          if (isDataUrl) {
+          const isDirectVideo = url && (url.startsWith("data:") || url.startsWith("blob:") || /supabase\.co\/storage/.test(url) || /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(url));
+          const embedUrl = !isDirectVideo ? getEmbedUrl(url) : null;
+          if (isDirectVideo) {
             return (
               <div>
                 <video controls autoPlay style={{ width: "100%", maxHeight: "70vh", background: T.charcoal }} src={url} />
