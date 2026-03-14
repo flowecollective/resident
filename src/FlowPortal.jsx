@@ -6501,10 +6501,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                           fontSize: "10px", fontWeight: 600, cursor: "pointer",
                                           outline: isCurrent ? "2px solid " + TIMING_COLORS[si] : "none",
                                           outlineOffset: 1,
-                                        }}>
-                                          {stage}
-                                          {goal && <span style={{ display: "block", fontSize: "8px", fontWeight: 400, opacity: 0.8 }}>≤{goal}m</span>}
-                                        </button>
+                                        }}>{stage}{goal ? ` (${goal}m)` : ""}</button>
                                       );
                                     })}
                                   </div>
