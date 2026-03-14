@@ -1711,9 +1711,22 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <StagePill label="Tech" stage={p.technique} stages={techniqueStages} colors={TECHNIQUE_COLORS} />
           <StagePill label="Timing" stage={p.timing} stages={timingStages} colors={TIMING_COLORS} />
+          {hasStandard && p.timing > 0 && p.timing < timingStages.length - 1 && (() => {
+            const multipliers = [1.75, 1.5, 1.25, 1];
+            const currentGoal = Math.round(skill.targetMin * (multipliers[p.timing - 1] || 1));
+            const nextGoal = Math.round(skill.targetMin * (multipliers[p.timing] || 1));
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Goal</span>
+                <span style={{ fontSize: "10px", color: T.textMuted }}>
+                  Current: <b>≤{currentGoal}min</b> · Next ({timingStages[p.timing + 1]}): <b>≤{nextGoal}min</b>
+                </span>
+              </div>
+            );
+          })()}
           {hasStandard && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-              <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Goal</span>
+              <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Target</span>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 4, background: T.goldMuted }}>
                   <span style={{ fontSize: "10px", fontWeight: 600, color: T.gold }}>{skill.targetMin}min</span>
@@ -2168,11 +2181,21 @@ const TraineeSkills = ({ user }) => {
                                         </div>
                                       </div>
                                     </div>
-                                    {/* Target times */}
+                                    {/* Timing goals breakdown */}
                                     {sk.targetMin && (
-                                      <p style={{ fontSize: "11px", color: T.textMuted, marginBottom: 10 }}>
-                                        Goal: <strong>{sk.targetMin}min</strong> · Max: <strong>{sk.maxMin}min</strong>
-                                      </p>
+                                      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                                        {timingStages.slice(1).map((stage, i) => {
+                                          const multipliers = [1.75, 1.5, 1.25, 1];
+                                          const goal = Math.round(sk.targetMin * (multipliers[i] || 1));
+                                          const isCurrent = i + 1 === sp.timing;
+                                          return (
+                                            <div key={i} style={{ padding: "4px 8px", borderRadius: 4, background: isCurrent ? TIMING_COLORS[i + 1] + "15" : T.creamDark, border: isCurrent ? `1px solid ${TIMING_COLORS[i + 1]}40` : "1px solid transparent" }}>
+                                              <span style={{ fontSize: "9px", fontWeight: 600, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted }}>{stage}</span>
+                                              <span style={{ fontSize: "10px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.text, marginLeft: 4 }}>≤{goal}m</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     )}
                                     {/* Videos */}
                                     {sk.videos && sk.videos.length > 0 && (
@@ -6467,6 +6490,9 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                       const si = i + 1;
                                       const isActive = si <= p.timing;
                                       const isCurrent = si === p.timing;
+                                      const multipliers = [1.75, 1.5, 1.25, 1];
+                                      const mult = multipliers[i] || 1;
+                                      const goal = sk.targetMin ? Math.round(sk.targetMin * mult) : null;
                                       return (
                                         <button key={si} onClick={() => setStage(sk.id, "timing", isCurrent ? 0 : si)} style={{
                                           flex: 1, padding: "6px 2px", borderRadius: 4, border: "none",
@@ -6475,7 +6501,10 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                           fontSize: "10px", fontWeight: 600, cursor: "pointer",
                                           outline: isCurrent ? "2px solid " + TIMING_COLORS[si] : "none",
                                           outlineOffset: 1,
-                                        }}>{stage}</button>
+                                        }}>
+                                          {stage}
+                                          {goal && <span style={{ display: "block", fontSize: "8px", fontWeight: 400, opacity: 0.8 }}>≤{goal}m</span>}
+                                        </button>
                                       );
                                     })}
                                   </div>
