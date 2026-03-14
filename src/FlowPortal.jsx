@@ -4749,7 +4749,7 @@ const AdminMaster = () => {
     if (!isUpload && !videoUrl.trim()) return;
     let finalUrl = videoUrl;
     if (isUpload) {
-      if (videoFile.size > 500 * 1024 * 1024) { showToast("File too large — 500MB max"); return; }
+      if (videoFile.size > 500 * 1024 * 1024) { showToast("File too large — 500MB max. Compress it at freeconvert.com/video-compressor"); return; }
       const ext = videoFile.name.split(".").pop();
       const path = `videos/${uid()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("media").upload(path, videoFile, { contentType: videoFile.type });
