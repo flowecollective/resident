@@ -4292,6 +4292,7 @@ const AdminMaster = () => {
   const [editSkillModal, setEditSkillModal] = useState(false);
   const [editSkillCatId, setEditSkillCatId] = useState(null);
   const [editSkillData, setEditSkillData] = useState(null);
+  const [editSkillName, setEditSkillName] = useState("");
   const [editTarget, setEditTarget] = useState("");
   const [editMax, setEditMax] = useState("");
   const [renameModal, setRenameModal] = useState(false);
@@ -4651,6 +4652,7 @@ const AdminMaster = () => {
   const openEditSkill = (cid, sk) => {
     setEditSkillCatId(cid);
     setEditSkillData(sk);
+    setEditSkillName(sk.name);
     setEditTarget(sk.targetMin ? String(sk.targetMin) : "");
     setEditMax(sk.maxMin ? String(sk.maxMin) : "");
     setSopData({
@@ -4665,14 +4667,16 @@ const AdminMaster = () => {
   };
   const saveEditSkill = async () => {
     if (!editSkillData || !editSkillCatId) return;
+    if (!editSkillName.trim()) { showToast("Skill name is required"); return; }
     const t = parseInt(editTarget) || 0;
     const m = parseInt(editMax) || 0;
     if (m && t && m < t) { showToast("Max must be greater than target"); return; }
     const hasSop = Object.values(sopData).some((v) => v && v.trim());
-    const updates = { target_min: t, max_min: m };
+    const newName = editSkillName.trim();
+    const updates = { name: newName, target_min: t, max_min: m };
     if (hasSop) updates.sop = { ...sopData };
     setMasterProgram((p) => p.map((c) => c.id === editSkillCatId
-      ? { ...c, skills: c.skills.map((s) => s.id === editSkillData.id ? { ...s, targetMin: t, maxMin: m, sop: hasSop ? { ...sopData } : s.sop } : s) }
+      ? { ...c, skills: c.skills.map((s) => s.id === editSkillData.id ? { ...s, name: newName, targetMin: t, maxMin: m, sop: hasSop ? { ...sopData } : s.sop } : s) }
       : c
     ));
     const { error: skUpdErr } = await supabase.from("skills").update(updates).eq("id", editSkillData.id);
@@ -5152,11 +5156,8 @@ const AdminMaster = () => {
                         onDragEnd={handleSkDragEnd}
                         style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: sk.type === "service" ? T.goldMuted : T.charcoalMuted, fontSize: "12px", cursor: "grab", opacity: dragSkId === sk.id ? 0.4 : 1, outline: dragOverSkId === sk.id ? `2px dashed ${T.gold}` : "none", transition: "opacity .15s" }}>
                         <Icon name="grip" size={10} color={T.textMuted} />
-                        <button onClick={() => openRenameSk(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "12px", color: T.text, fontWeight: 500 }} title="Click to rename">
+                        <button onClick={() => openEditSkill(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "12px", color: T.text, fontWeight: 500 }} title="Edit skill">
                           {sk.name}
-                        </button>
-                        <button onClick={() => openEditSkill(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }} title="Edit skill">
-                          <Icon name="edit" size={10} color={T.textMuted} />
                         </button>
                         {sk.type === "service" && sk.targetMin ? (
                           <span style={{ fontSize: "10px", color: T.textMuted }}>{fmtMin(sk.targetMin)}–{fmtMin(sk.maxMin)}</span>
@@ -5364,7 +5365,10 @@ const AdminMaster = () => {
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setSkModal(false)}>Cancel</Btn><Btn onClick={addSk}>Add Skill</Btn></div>
       </Modal>
-      <Modal open={editSkillModal} onClose={() => setEditSkillModal(false)} title={editSkillData?.name || "Edit Skill"} width={680}>
+      <Modal open={editSkillModal} onClose={() => setEditSkillModal(false)} title="Edit Skill" width={680}>
+        <FormField label="Skill Name">
+          <input value={editSkillName} onChange={(e) => setEditSkillName(e.target.value)} style={iSt} />
+        </FormField>
         {editSkillData && editSkillData.type === "service" && (
           <div style={{ padding: 16, borderRadius: T.radiusSm, background: T.cream, marginBottom: 16 }}>
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
