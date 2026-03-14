@@ -1,5 +1,3 @@
-import { createGlobalStyle } from "styled-components";
-
 export const T = {
   cream: "#FAF8F5",
   creamDark: "#EDE8E0",
