@@ -5164,7 +5164,7 @@ const AdminMaster = () => {
                         {(hasSop || hasVids) && (
                           <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             {hasSop && <button onClick={() => setSopViewSkill(sk)} style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.success + "15", fontSize: "9px", fontWeight: 600, color: T.success, border: "none", cursor: "pointer" }} title="View curriculum"><Icon name="file" size={9} color={T.success} />SOP</button>}
-                            {hasVids && <button onClick={() => setPlayingVideo(sk.videos[0])} style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: "#8B6AAE15", fontSize: "9px", fontWeight: 600, color: "#8B6AAE", border: "none", cursor: "pointer" }} title="Play video"><Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}</button>}
+                            {hasVids && <button onClick={() => setSopViewSkill(sk)} style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: "#8B6AAE15", fontSize: "9px", fontWeight: 600, color: "#8B6AAE", border: "none", cursor: "pointer" }} title="View learning"><Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}</button>}
                           </span>
                         )}
                         <button onClick={() => confirmDeleteSk(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
@@ -5558,9 +5558,44 @@ const AdminMaster = () => {
         </div>
       </Modal>
 
-      {/* SOP View Modal */}
-      <Modal open={!!sopViewSkill} onClose={() => setSopViewSkill(null)} title={sopViewSkill?.name ? `${sopViewSkill.name} — Curriculum` : "Curriculum"} width={600}>
-        {sopViewSkill?.sop && <SOPViewer sop={sopViewSkill.sop} />}
+      {/* Learning View Modal */}
+      <Modal open={!!sopViewSkill} onClose={() => setSopViewSkill(null)} title={sopViewSkill?.name || "Curriculum"} width={680}>
+        {sopViewSkill && (() => {
+          const vids = sopViewSkill.videos || [];
+          const hasSop = sopHasContent(sopViewSkill.sop);
+          return (
+            <div>
+              {vids.length > 0 && (() => {
+                const v = vids[0];
+                const url = v.url;
+                const isDirectVideo = url && (url.startsWith("data:") || url.startsWith("blob:") || /supabase\.co\/storage/.test(url) || /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(url));
+                const embedUrl = !isDirectVideo ? getEmbedUrl(url) : null;
+                return (
+                  <div style={{ marginBottom: 16 }}>
+                    {isDirectVideo && <video controls style={{ width: "100%", maxHeight: "50vh", background: T.charcoal, borderRadius: T.radiusSm }} src={url} />}
+                    {embedUrl && <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: T.radiusSm, overflow: "hidden" }}><iframe src={embedUrl} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen /></div>}
+                    {!isDirectVideo && !embedUrl && <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", background: "#8B6AAE10", borderRadius: T.radiusSm, color: "#8B6AAE", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}><Icon name="play" size={14} color="#8B6AAE" /> {v.title}</a>}
+                    {vids.length > 1 && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                        {vids.slice(1).map((vid) => {
+                          const vidEmbed = getEmbedUrl(vid.url);
+                          const vidDirect = vid.url && (/supabase\.co\/storage/.test(vid.url) || /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(vid.url));
+                          return (
+                            <button key={vid.id} onClick={() => { if (vidDirect) { setPlayingVideo(vid); } else if (vidEmbed) { setPlayingVideo(vid); } else { window.open(vid.url, "_blank"); } }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 16, background: "#8B6AAE10", border: "none", cursor: "pointer", fontSize: "11px", color: "#8B6AAE", fontWeight: 500 }}>
+                              <Icon name="play" size={10} color="#8B6AAE" /> {vid.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              {hasSop && <SOPViewer sop={sopViewSkill.sop} />}
+              {!hasSop && vids.length === 0 && <p style={{ fontSize: "13px", color: T.textMuted, textAlign: "center", padding: 32 }}>No curriculum or videos added yet.</p>}
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* CSV Import Modal */}
