@@ -3512,62 +3512,76 @@ const AdminDash = ({ onNav }) => {
                       const logs = (r.timingLogs || {})[sid] || [];
                       const totalMin = logs.reduce((a, l) => a + (l.minutes || 0), 0);
                       return (
-                        <div key={sid} style={{ padding: 12, borderRadius: T.radiusSm, background: T.cream, borderLeft: `4px solid ${cc}` }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                            <div>
-                              <p style={{ fontSize: "13px", fontWeight: 600 }}>{sk.name}</p>
-                              <p style={{ fontSize: "10px", color: cc, marginTop: 2 }}>{cat.name}</p>
+                        <details key={sid} style={{ borderRadius: T.radiusSm, background: T.cream, borderLeft: `4px solid ${cc}`, overflow: "hidden" }}>
+                          <summary style={{ padding: 12, cursor: "pointer", listStyle: "none" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <p style={{ fontSize: "13px", fontWeight: 600 }}>{sk.name}</p>
+                                <span style={{ fontSize: "10px", color: cc }}>{cat.name}</span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontFamily: T.fontD, fontSize: "16px", fontWeight: 700, color: cc }}>{skPct}%</span>
+                                <button onClick={(e) => { e.stopPropagation(); openNote(r.id, sid); }} title="Add feedback" style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                                  <Icon name="message" size={12} color={T.gold} />
+                                </button>
+                              </div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 700, color: cc }}>{skPct}%</span>
-                              <button onClick={() => openNote(r.id, sid)} title="Add feedback" style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
-                                <Icon name="message" size={12} color={T.gold} />
-                              </button>
-                            </div>
-                          </div>
-                          <ProgressBar value={skPct} color={cc} />
-                          {sk.type === "service" && (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
-                              {[
-                                { label: "Technique", stage: sp.technique, stages: techniqueStages, colors: TECHNIQUE_COLORS },
-                                { label: "Timing", stage: sp.timing, stages: timingStages, colors: TIMING_COLORS },
-                              ].map((track) => (
-                                <div key={track.label} style={{ padding: "6px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                                    <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted }}>{track.label}</span>
-                                    <span style={{ fontSize: "11px", fontWeight: 700, color: track.stage > 0 ? track.colors[track.stage] : T.textMuted }}>{track.stage === 0 ? "Not Started" : track.stages[track.stage]}</span>
-                                  </div>
-                                  <div style={{ display: "flex", gap: 3 }}>
-                                    {track.stages.slice(1).map((_, i) => (
-                                      <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= track.stage ? track.colors[track.stage] : T.lightLine }} />
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                              {sk.targetMin && (
-                                <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
-                                  {timingStages.slice(1).map((stage, i) => {
-                                    const multipliers = [1.75, 1.5, 1.25, 1];
-                                    const goal = Math.round(sk.targetMin * (multipliers[i] || 1));
-                                    const isCurrent = i + 1 === sp.timing;
-                                    return (
-                                      <div key={i} style={{ flex: 1, textAlign: "center", padding: "3px 2px", borderRadius: 3, background: isCurrent ? TIMING_COLORS[i + 1] + "15" : "transparent" }}>
-                                        <span style={{ fontSize: "8px", fontWeight: 600, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted }}>{stage}</span>
-                                        <span style={{ fontSize: "9px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted, marginLeft: 3 }}>≤{goal}m</span>
+                            <ProgressBar value={skPct} color={cc} />
+                            {sk.type === "service" && (
+                              <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: "10px", color: T.textMuted }}>
+                                <span>Tech: <b style={{ color: sp.technique > 0 ? TECHNIQUE_COLORS[sp.technique] : T.textMuted }}>{sp.technique === 0 ? "Not Started" : techniqueStages[sp.technique]}</b></span>
+                                <span>·</span>
+                                <span>Timing: <b style={{ color: sp.timing > 0 ? TIMING_COLORS[sp.timing] : T.textMuted }}>{sp.timing === 0 ? "Not Started" : timingStages[sp.timing]}</b></span>
+                                {logs.length > 0 && <><span>·</span><span>{logs.length} sessions</span></>}
+                              </div>
+                            )}
+                          </summary>
+                          {/* Expanded — matches trainee dashboard focus view */}
+                          <div style={{ padding: "0 12px 12px", borderTop: `1px solid ${T.lightLine}` }}>
+                            {sk.type === "service" && (
+                              <>
+                                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                                  {[
+                                    { label: "Technique", stage: sp.technique, stages: techniqueStages, colors: TECHNIQUE_COLORS },
+                                    { label: "Timing", stage: sp.timing, stages: timingStages, colors: TIMING_COLORS },
+                                  ].map((track) => (
+                                    <div key={track.label} style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                        <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted }}>{track.label}</span>
+                                        <span style={{ fontSize: "11px", fontWeight: 700, color: track.stage > 0 ? track.colors[track.stage] : T.textMuted }}>{track.stage === 0 ? "Not Started" : track.stages[track.stage]}</span>
                                       </div>
-                                    );
-                                  })}
+                                      <div style={{ display: "flex", gap: 3 }}>
+                                        {track.stages.slice(1).map((_, i) => (
+                                          <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= track.stage ? track.colors[track.stage] : T.lightLine }} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              )}
-                            </div>
-                          )}
-                          {logs.length > 0 && (
-                            <div style={{ display: "flex", gap: 10, marginTop: 6, fontSize: "10px", color: T.textMuted }}>
-                              <span>{logs.length} sessions</span>
-                              <span>{totalMin} min total</span>
-                            </div>
-                          )}
-                        </div>
+                                {sk.targetMin && (
+                                  <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                                    {timingStages.slice(1).map((stage, i) => {
+                                      const multipliers = [1.75, 1.5, 1.25, 1];
+                                      const goal = Math.round(sk.targetMin * (multipliers[i] || 1));
+                                      const isCurrent = i + 1 === sp.timing;
+                                      return (
+                                        <div key={i} style={{ padding: "4px 8px", borderRadius: 4, background: isCurrent ? TIMING_COLORS[i + 1] + "15" : T.white, border: isCurrent ? `1px solid ${TIMING_COLORS[i + 1]}40` : `1px solid ${T.lightLine}` }}>
+                                          <span style={{ fontSize: "9px", fontWeight: 600, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted }}>{stage}</span>
+                                          <span style={{ fontSize: "10px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.text, marginLeft: 4 }}>≤{goal}m</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {logs.length > 0 && (
+                                  <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: "10px", color: T.textMuted }}>
+                                    <span>{logs.length} sessions · {totalMin} min total</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </details>
                       );
                     })}
                   </div>
