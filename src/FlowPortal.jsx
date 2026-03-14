@@ -2293,7 +2293,7 @@ const TraineeSkills = ({ user }) => {
               </div>
             )}
             <FormField label="Time">
-              <input value={logMinutes} onChange={(e) => setLogMinutes(e.target.value)} onBlur={() => { const v = parseTime(logMinutes); setLogMinutes(v ? String(v) : ""); }} placeholder="min or hours e.g. 45, 1.5h" style={iSt} autoFocus />
+              <input value={logMinutes} onChange={(e) => setLogMinutes(e.target.value)} onBlur={() => { const v = parseTime(logMinutes); setLogMinutes(v ? String(v) : ""); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} autoFocus />
             </FormField>
             <FormField label="Practice Type">
               <div style={{ display: "flex", gap: 8 }}>
@@ -5287,10 +5287,10 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="min or hours e.g. 45, 1.5h" style={iSt} />
+                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} />
               </FormField>
               <FormField label={parseInt(editTarget) ? `Max Acceptable · suggested ${fmtMin(Math.round(parseInt(editTarget) * 1.25))}` : "Max Acceptable"}>
-                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "min or hours e.g. 56, 1.5h"} style={iSt} />
+                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : ""} style={iSt} />
               </FormField>
             </div>
           </div>
@@ -5333,10 +5333,10 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="min or hours e.g. 45, 1.5h" style={iSt} />
+                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} />
               </FormField>
               <FormField label={parseInt(editTarget) ? `Max Acceptable · suggested ${fmtMin(Math.round(parseInt(editTarget) * 1.25))}` : "Max Acceptable"}>
-                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "min or hours e.g. 56, 1.5h"} style={iSt} />
+                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : ""} style={iSt} />
               </FormField>
             </div>
           </div>
