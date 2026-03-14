@@ -4295,6 +4295,7 @@ const AdminMaster = () => {
   const [editTarget, setEditTarget] = useState("");
   const [editMax, setEditMax] = useState("");
   const [renameModal, setRenameModal] = useState(false);
+  const [sopViewSkill, setSopViewSkill] = useState(null);
   const [renameType, setRenameType] = useState(null); // "cat" or "skill"
   const [renameCatId, setRenameCatId] = useState(null);
   const [renameSkillId, setRenameSkillId] = useState(null);
@@ -5151,16 +5152,19 @@ const AdminMaster = () => {
                         onDragEnd={handleSkDragEnd}
                         style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: sk.type === "service" ? T.goldMuted : T.charcoalMuted, fontSize: "12px", cursor: "grab", opacity: dragSkId === sk.id ? 0.4 : 1, outline: dragOverSkId === sk.id ? `2px dashed ${T.gold}` : "none", transition: "opacity .15s" }}>
                         <Icon name="grip" size={10} color={T.textMuted} />
-                        <button onClick={() => openEditSkill(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "12px", color: T.text, fontWeight: 500 }} title="Edit skill">
+                        <button onClick={() => openRenameSk(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "12px", color: T.text, fontWeight: 500 }} title="Click to rename">
                           {sk.name}
                         </button>
+                        <button onClick={() => openEditSkill(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }} title="Edit skill">
+                          <Icon name="edit" size={10} color={T.textMuted} />
+                        </button>
                         {sk.type === "service" && sk.targetMin ? (
-                          <span style={{ fontSize: "10px", color: T.textMuted }}>{sk.targetMin}–{sk.maxMin}m</span>
+                          <span style={{ fontSize: "10px", color: T.textMuted }}>{fmtMin(sk.targetMin)}–{fmtMin(sk.maxMin)}</span>
                         ) : null}
                         {(hasSop || hasVids) && (
                           <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            {hasSop && <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.success + "15", fontSize: "9px", fontWeight: 600, color: T.success }}><Icon name="file" size={9} color={T.success} />SOP</span>}
-                            {hasVids && <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: "#8B6AAE15", fontSize: "9px", fontWeight: 600, color: "#8B6AAE" }}><Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}</span>}
+                            {hasSop && <button onClick={() => setSopViewSkill(sk)} style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.success + "15", fontSize: "9px", fontWeight: 600, color: T.success, border: "none", cursor: "pointer" }} title="View curriculum"><Icon name="file" size={9} color={T.success} />SOP</button>}
+                            {hasVids && <button onClick={() => setPlayingVideo(sk.videos[0])} style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: "#8B6AAE15", fontSize: "9px", fontWeight: 600, color: "#8B6AAE", border: "none", cursor: "pointer" }} title="Play video"><Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}</button>}
                           </span>
                         )}
                         <button onClick={() => confirmDeleteSk(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
@@ -5552,6 +5556,11 @@ const AdminMaster = () => {
           <Btn variant="outline" onClick={() => setRenameModal(false)}>Cancel</Btn>
           <Btn onClick={saveRename}>Save</Btn>
         </div>
+      </Modal>
+
+      {/* SOP View Modal */}
+      <Modal open={!!sopViewSkill} onClose={() => setSopViewSkill(null)} title={sopViewSkill?.name ? `${sopViewSkill.name} — Curriculum` : "Curriculum"} width={600}>
+        {sopViewSkill?.sop && <SOPViewer sop={sopViewSkill.sop} />}
       </Modal>
 
       {/* CSV Import Modal */}
