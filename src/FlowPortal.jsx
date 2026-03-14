@@ -5143,8 +5143,8 @@ const AdminMaster = () => {
                   onDragOver={(e) => { if (dragSkId) { e.preventDefault(); e.stopPropagation(); setDragOverDropCatId(cat.id); } }}
                   onDragLeave={() => setDragOverDropCatId(null)}
                   onDrop={(e) => { if (dragSkId) handleSkDropOnCat(e, cat.id); }}
-                  style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 32, padding: dragOverDropCatId === cat.id && dragSkCatId !== cat.id ? 8 : 0, border: dragOverDropCatId === cat.id && dragSkCatId !== cat.id ? `2px dashed ${T.gold}` : "2px dashed transparent", borderRadius: 8, transition: "all .15s" }}>
-                  {cat.skills.map((sk) => {
+                  style={{ display: "flex", flexDirection: "column", gap: 1, minHeight: 32, padding: dragOverDropCatId === cat.id && dragSkCatId !== cat.id ? 8 : 0, border: dragOverDropCatId === cat.id && dragSkCatId !== cat.id ? `2px dashed ${T.gold}` : "2px dashed transparent", borderRadius: 8, transition: "all .15s" }}>
+                  {cat.skills.map((sk, skIdx) => {
                     const hasSop = sopHasContent(sk.sop);
                     const hasVids = (sk.videos || []).length > 0;
                     return (
@@ -5154,22 +5154,20 @@ const AdminMaster = () => {
                         onDragLeave={handleSkDragLeave}
                         onDrop={(e) => handleSkDrop(e, cat.id, sk.id)}
                         onDragEnd={handleSkDragEnd}
-                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: sk.type === "service" ? T.goldMuted : T.charcoalMuted, fontSize: "12px", cursor: "grab", opacity: dragSkId === sk.id ? 0.4 : 1, outline: dragOverSkId === sk.id ? `2px dashed ${T.gold}` : "none", transition: "opacity .15s" }}>
-                        <Icon name="grip" size={10} color={T.textMuted} />
-                        <button onClick={() => openEditSkill(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "12px", color: T.text, fontWeight: 500 }} title="Edit skill">
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: skIdx % 2 === 0 ? T.white : T.cream, cursor: "grab", opacity: dragSkId === sk.id ? 0.4 : 1, outline: dragOverSkId === sk.id ? `2px dashed ${T.gold}` : "none", transition: "opacity .15s", borderBottom: `1px solid ${T.lightLine}20` }}>
+                        <Icon name="grip" size={10} color={T.textMuted} style={{ flexShrink: 0 }} />
+                        <button onClick={() => openEditSkill(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "13px", color: T.text, fontWeight: 500, textAlign: "left", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title="Edit skill">
                           {sk.name}
                         </button>
                         {sk.type === "service" && sk.targetMin ? (
-                          <span style={{ fontSize: "10px", color: T.textMuted }}>{fmtMin(sk.targetMin)}–{fmtMin(sk.maxMin)}</span>
+                          <span style={{ fontSize: "11px", color: T.textMuted, flexShrink: 0 }}>{fmtMin(sk.targetMin)}–{fmtMin(sk.maxMin)}</span>
+                        ) : sk.type === "knowledge" ? (
+                          <span style={{ fontSize: "10px", color: T.textMuted, flexShrink: 0 }}>Knowledge</span>
                         ) : null}
-                        {(hasSop || hasVids) && (
-                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            {hasSop && <button onClick={() => setSopViewSkill(sk)} style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.success + "15", fontSize: "9px", fontWeight: 600, color: T.success, border: "none", cursor: "pointer" }} title="View curriculum"><Icon name="file" size={9} color={T.success} />SOP</button>}
-                            {hasVids && <button onClick={() => setSopViewSkill(sk)} style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: "#8B6AAE15", fontSize: "9px", fontWeight: 600, color: "#8B6AAE", border: "none", cursor: "pointer" }} title="View learning"><Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}</button>}
-                          </span>
-                        )}
-                        <button onClick={() => confirmDeleteSk(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
-                          <Icon name="x" size={11} color={T.textMuted} />
+                        {hasSop && <button onClick={() => setSopViewSkill(sk)} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: 4, background: T.success + "12", fontSize: "10px", fontWeight: 600, color: T.success, border: "none", cursor: "pointer", flexShrink: 0 }} title="View curriculum"><Icon name="file" size={10} color={T.success} />SOP</button>}
+                        {hasVids && <button onClick={() => setSopViewSkill(sk)} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: 4, background: "#8B6AAE12", fontSize: "10px", fontWeight: 600, color: "#8B6AAE", border: "none", cursor: "pointer", flexShrink: 0 }} title="View learning"><Icon name="play" size={10} color="#8B6AAE" />{sk.videos.length}</button>}
+                        <button onClick={() => confirmDeleteSk(cat.id, sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", flexShrink: 0 }}>
+                          <Icon name="x" size={12} color={T.textMuted} />
                         </button>
                       </div>
                     );
