@@ -228,7 +228,7 @@ const useData = () => useContext(Ctx);
 
 // ── Helpers ──
 const fmtMin = (m) => { if (!m) return "—"; const h = Math.floor(m / 60); const r = m % 60; if (h && r) return `${h}h ${r}m`; if (h) return `${h}h`; return `${r}min`; };
-const parseTime = (s) => { if (!s) return 0; s = s.toString().trim(); const dec = s.match(/^(\d+\.?\d*)\s*h$/i); if (dec) return Math.round(parseFloat(dec[1]) * 60); const hm = s.match(/^(\d+)\s*[:h]\s*(\d+)\s*m?$/i); if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]); const mOnly = s.match(/^(\d+)\s*m$/i); if (mOnly) return parseInt(mOnly[1]); const n = parseFloat(s); return isNaN(n) ? 0 : Math.round(n); };
+const parseTime = (s) => { if (!s) return 0; s = s.toString().trim(); const dec = s.match(/^(\d*\.?\d+)\s*h$/i); if (dec) return Math.round(parseFloat(dec[1]) * 60); const hm = s.match(/^(\d+)\s*[:h]\s*(\d+)\s*m?$/i); if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]); const mOnly = s.match(/^(\d+)\s*m$/i); if (mOnly) return parseInt(mOnly[1]); const n = parseFloat(s); return isNaN(n) ? 0 : Math.round(n); };
 // Lookup skill type from master program (falls back to knowledge)
 const findSkill = (masterProgram, sid) => {
   for (const cat of masterProgram) {
