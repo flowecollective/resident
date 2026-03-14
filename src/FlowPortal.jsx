@@ -3474,88 +3474,94 @@ const AdminDash = ({ onNav }) => {
         </Card>
       )}
 
-      {/* Current Focus — all trainees (full width) */}
-      <Card style={{ padding: 22, marginBottom: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+      {/* Active Focus — per resident */}
+      {(() => {
+        const focusResidents = residents.filter((r) => (r.focusSkills || []).length > 0);
+        return focusResidents.length === 0 ? (
+          <Card style={{ padding: 22, marginBottom: 24 }}>
+            <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <Icon name="target" size={18} color={T.gold} /> Active Focus
             </h3>
-            <Badge color={T.gold}>{allFocus.length} skills</Badge>
-          </div>
-          {allFocus.length === 0 ? (
-            <p style={{ fontSize: "12px", color: T.textMuted, padding: "16px 0" }}>No focus skills pinned for any trainee. Pin them from trainee profiles.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {residents.filter((r) => (r.focusSkills || []).length > 0).map((r) => {
-                const fs = r.focusSkills || [];
-                return (
-                  <div key={r.id}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                      <Avatar name={r.name} size={24} photo={r.photo} ringColor={cohortColor(r.cohort)} />
-                      <span style={{ fontSize: "13px", fontWeight: 600 }}>{r.name}</span>
-                      <span style={{ fontSize: "10px", color: T.textMuted }}>{r.cohort}</span>
+            <p style={{ fontSize: "12px", color: T.textMuted }}>No focus skills pinned for any trainee. Pin them from trainee profiles.</p>
+          </Card>
+        ) : (
+          <div className="r-grid" style={{ display: "grid", gridTemplateColumns: focusResidents.length > 1 ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 24 }}>
+            {focusResidents.map((r) => {
+              const fs = r.focusSkills || [];
+              const { pct } = getProgress(r, masterProgram, maxTech, maxTime);
+              return (
+                <Card key={r.id} style={{ padding: 0, overflow: "hidden" }}>
+                  <div style={{ padding: "14px 18px", background: T.cream, display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${T.lightLine}` }}>
+                    <Avatar name={r.name} size={28} photo={r.photo} ringColor={cohortColor(r.cohort)} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: "13px", fontWeight: 600 }}>{r.name}</p>
+                      <p style={{ fontSize: "10px", color: T.textMuted }}>{r.cohort} · {pct}% overall</p>
                     </div>
-                    <div className="r-grid" style={{ display: "grid", gridTemplateColumns: fs.length > 1 ? "1fr 1fr" : "1fr", gap: 12, marginLeft: 32 }}>
-                      {fs.map((sid) => {
-                        const cat = masterProgram.find((c) => c.skills.some((s) => s.id === sid));
-                        const sk = cat ? cat.skills.find((s) => s.id === sid) : null;
-                        if (!sk) return null;
-                        const cc = cat.color || T.gold;
-                        const sp = getSkillProgress(r, sid);
-                        const skPct = getSkillPct(r, sid, masterProgram, maxTech, maxTime);
-                        const logs = (r.timingLogs || {})[sid] || [];
-                        const totalMin = logs.reduce((a, l) => a + (l.minutes || 0), 0);
-                        return (
-                          <div key={sid} style={{ padding: 14, borderRadius: T.radiusSm, background: T.cream, borderLeft: `4px solid ${cc}` }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                              <div>
-                                <p style={{ fontSize: "13px", fontWeight: 600 }}>{sk.name}</p>
-                                <p style={{ fontSize: "10px", color: cc, marginTop: 2 }}>{cat.name}</p>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 700, color: cc }}>{skPct}%</span>
-                                <button onClick={() => openNote(r.id, sid)} title="Add feedback" style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
-                                  <Icon name="message" size={12} color={T.gold} />
-                                </button>
-                              </div>
-                            </div>
-                            <ProgressBar value={skPct} color={cc} />
-                            {sk.type === "service" && (
-                              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                                {[
-                                  { label: "Technique", stage: sp.technique, stages: techniqueStages, colors: TECHNIQUE_COLORS },
-                                  { label: "Timing", stage: sp.timing, stages: timingStages, colors: TIMING_COLORS },
-                                ].map((track) => (
-                                  <div key={track.label} style={{ flex: 1, padding: "8px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                                      <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted }}>{track.label}</span>
-                                      <span style={{ fontSize: "11px", fontWeight: 700, color: track.stage > 0 ? track.colors[track.stage] : T.textMuted }}>{track.stage === 0 ? "Not Started" : track.stages[track.stage]}</span>
-                                    </div>
-                                    <div style={{ display: "flex", gap: 3 }}>
-                                      {track.stages.slice(1).map((_, i) => (
-                                        <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= track.stage ? track.colors[track.stage] : T.lightLine }} />
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {logs.length > 0 && (
-                              <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: "10px", color: T.textMuted }}>
-                                <span>{logs.length} sessions</span>
-                                <span>{totalMin} min total</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <button onClick={() => onNav("trainee:" + r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                      <Icon name="eye" size={14} color={T.textMuted} />
+                    </button>
                   </div>
-                );
-              })}
-            </div>
-          )}
-      </Card>
+                  <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                    {fs.map((sid) => {
+                      const cat = masterProgram.find((c) => c.skills.some((s) => s.id === sid));
+                      const sk = cat ? cat.skills.find((s) => s.id === sid) : null;
+                      if (!sk) return null;
+                      const cc = cat.color || T.gold;
+                      const sp = getSkillProgress(r, sid);
+                      const skPct = getSkillPct(r, sid, masterProgram, maxTech, maxTime);
+                      const logs = (r.timingLogs || {})[sid] || [];
+                      const totalMin = logs.reduce((a, l) => a + (l.minutes || 0), 0);
+                      return (
+                        <div key={sid} style={{ padding: 12, borderRadius: T.radiusSm, background: T.cream, borderLeft: `4px solid ${cc}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                            <div>
+                              <p style={{ fontSize: "13px", fontWeight: 600 }}>{sk.name}</p>
+                              <p style={{ fontSize: "10px", color: cc, marginTop: 2 }}>{cat.name}</p>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 700, color: cc }}>{skPct}%</span>
+                              <button onClick={() => openNote(r.id, sid)} title="Add feedback" style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                                <Icon name="message" size={12} color={T.gold} />
+                              </button>
+                            </div>
+                          </div>
+                          <ProgressBar value={skPct} color={cc} />
+                          {sk.type === "service" && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+                              {[
+                                { label: "Technique", stage: sp.technique, stages: techniqueStages, colors: TECHNIQUE_COLORS },
+                                { label: "Timing", stage: sp.timing, stages: timingStages, colors: TIMING_COLORS },
+                              ].map((track) => (
+                                <div key={track.label} style={{ padding: "6px 10px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                    <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: T.textMuted }}>{track.label}</span>
+                                    <span style={{ fontSize: "11px", fontWeight: 700, color: track.stage > 0 ? track.colors[track.stage] : T.textMuted }}>{track.stage === 0 ? "Not Started" : track.stages[track.stage]}</span>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 3 }}>
+                                    {track.stages.slice(1).map((_, i) => (
+                                      <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= track.stage ? track.colors[track.stage] : T.lightLine }} />
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {logs.length > 0 && (
+                            <div style={{ display: "flex", gap: 10, marginTop: 6, fontSize: "10px", color: T.textMuted }}>
+                              <span>{logs.length} sessions</span>
+                              <span>{totalMin} min total</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Schedule + Reviews side by side */}
       <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start" }}>
