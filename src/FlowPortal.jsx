@@ -5066,7 +5066,7 @@ const AdminMaster = () => {
         </Card>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {activeProgram.map((cat) => {
           const isDragging = dragCatId === cat.id;
           const isDragOver = dragOverCatId === cat.id;
