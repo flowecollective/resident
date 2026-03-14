@@ -5183,18 +5183,18 @@ const AdminMaster = () => {
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
                 <div style={{ position: "relative" }}>
-                  <input type="number" value={editTarget} onChange={(e) => { setEditTarget(e.target.value); const v = parseInt(e.target.value); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
+                  <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseInt(editTarget); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
                   <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
                 </div>
               </FormField>
               <FormField label="Max Acceptable">
                 <div style={{ position: "relative" }}>
-                  <input type="number" value={editMax} onChange={(e) => setEditMax(e.target.value)} placeholder="e.g. 75" style={iSt} />
+                  <input type="number" value={editMax} onChange={(e) => setEditMax(e.target.value)} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 75"} style={iSt} />
                   <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
                 </div>
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = speed they should hit. Max = slowest you'll accept on the floor.</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable.{editTarget && !editMax ? ` Suggested max: ${Math.round(parseInt(editTarget) * 1.25)}min (1.25× target)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
@@ -5236,18 +5236,18 @@ const AdminMaster = () => {
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
                 <div style={{ position: "relative" }}>
-                  <input type="number" value={editTarget} onChange={(e) => { setEditTarget(e.target.value); const v = parseInt(e.target.value); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
+                  <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseInt(editTarget); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
                   <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
                 </div>
               </FormField>
               <FormField label="Max Acceptable">
                 <div style={{ position: "relative" }}>
-                  <input type="number" value={editMax} onChange={(e) => setEditMax(e.target.value)} placeholder="e.g. 75" style={iSt} />
+                  <input type="number" value={editMax} onChange={(e) => setEditMax(e.target.value)} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 75"} style={iSt} />
                   <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
                 </div>
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = speed they should hit. Max = slowest you'll accept on the floor.</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable.{editTarget && !editMax ? ` Suggested max: ${Math.round(parseInt(editTarget) * 1.25)}min (1.25× target)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
