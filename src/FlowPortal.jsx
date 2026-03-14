@@ -441,8 +441,8 @@ const RichEditor = ({ value, onChange }) => {
 };
 
 // ── SOP Viewer (read-only, collapsible) ──
-const SOPViewer = ({ sop }) => {
-  const [activeTab, setActiveTab] = useState(null);
+const SOPViewer = ({ sop, defaultTab = null }) => {
+  const [activeTab, setActiveTab] = useState(defaultTab);
   if (!sop) return null;
   const sections = SOP_SECTIONS.filter((s) => sop[s.key] && sop[s.key].replace(/<[^>]*>/g, "").trim());
   if (sections.length === 0) return null;
@@ -5591,7 +5591,7 @@ const AdminMaster = () => {
                   </div>
                 );
               })()}
-              {hasSop && <SOPViewer sop={sopViewSkill.sop} />}
+              {hasSop && <SOPViewer sop={sopViewSkill.sop} defaultTab="steps" />}
               {!hasSop && vids.length === 0 && <p style={{ fontSize: "13px", color: T.textMuted, textAlign: "center", padding: 32 }}>No curriculum or videos added yet.</p>}
             </div>
           );
