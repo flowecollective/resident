@@ -227,6 +227,7 @@ const Ctx = createContext(null);
 const useData = () => useContext(Ctx);
 
 // ── Helpers ──
+const fmtMin = (m) => { if (!m) return "—"; const h = Math.floor(m / 60); const r = m % 60; if (h && r) return `${h}hr ${r}min`; if (h) return `${h}hr`; return `${r}min`; };
 // Lookup skill type from master program (falls back to knowledge)
 const findSkill = (masterProgram, sid) => {
   for (const cat of masterProgram) {
@@ -1177,7 +1178,7 @@ const TraineeDash = ({ user }) => {
                       {logs.length > 0 && (
                         <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: "11px", color: T.textMuted }}>
                           <span>{logs.length} sessions logged</span>
-                          <span>{totalMin} min total</span>
+                          <span>{fmtMin(totalMin)} total</span>
                         </div>
                       )}
                     </div>
@@ -1260,7 +1261,7 @@ const TraineeDash = ({ user }) => {
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <div style={{ width: 8, height: 8, borderRadius: "50%", background: cc }} />
                             <span style={{ fontSize: "12px", fontWeight: 600, color: cc }}>{fb.skill.name}</span>
-                            <span style={{ fontSize: "10px", color: T.textMuted }}>{fb.log.minutes}min {fb.log.type} · {fb.log.date}</span>
+                            <span style={{ fontSize: "10px", color: T.textMuted }}>{fmtMin(fb.log.minutes)} {fb.log.type} · {fb.log.date}</span>
                           </div>
                           {needsReply && <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 8px", borderRadius: 8, background: `${T.gold}20`, color: T.gold }}>REPLY</span>}
                         </div>
@@ -1730,12 +1731,12 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
                 <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Time</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                   <span style={{ fontSize: "10px", color: T.textMuted }}>
-                    Floor ready: <b style={{ color: T.gold }}>{skill.targetMin}min</b>
-                    {skill.maxMin ? <> · Max: <b>{skill.maxMin}min</b></> : null}
+                    Floor ready: <b style={{ color: T.gold }}>{fmtMin(skill.targetMin)}</b>
+                    {skill.maxMin ? <> · Max: <b>{fmtMin(skill.maxMin)}</b></> : null}
                   </span>
                   {currentBench && currentBench !== skill.targetMin && (
                     <span style={{ fontSize: "10px", color: TIMING_COLORS[p.timing] || T.textMuted }}>
-                      Current: <b>≤{currentBench}min</b>
+                      Current: <b>≤{fmtMin(currentBench)}</b>
                     </span>
                   )}
                 </div>
@@ -1759,7 +1760,7 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
               {/* Averages — spelled out */}
               {mannequinAvg && (
                 <span style={{ fontSize: "10px", color: T.textMuted }}>
-                  Mannequin avg <b style={{ color: T.charcoal }}>{mannequinAvg} min</b>
+                  Mannequin avg <b style={{ color: T.charcoal }}>{fmtMin(mannequinAvg)}</b>
                 </span>
               )}
               {modelAvg && (
@@ -1767,7 +1768,7 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
                   fontSize: "10px",
                   color: hasStandard && modelAvg <= skill.targetMin ? T.success : hasStandard && modelAvg <= skill.maxMin ? T.warn : T.textMuted,
                 }}>
-                  Model avg <b>{modelAvg} min</b>
+                  Model avg <b>{fmtMin(modelAvg)}</b>
                 </span>
               )}
               <span style={{ flex: 1 }} />
@@ -2077,7 +2078,7 @@ const TraineeSkills = ({ user }) => {
 
                         {/* Quick stats + action */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                          <span style={{ fontSize: "11px", color: T.textMuted }}>{logs.length > 0 ? `${logs.length} sessions · ${totalMin} min` : ""}</span>
+                          <span style={{ fontSize: "11px", color: T.textMuted }}>{logs.length > 0 ? `${logs.length} sessions · ${fmtMin(totalMin)}` : ""}</span>
                           <button onClick={() => openAddLog(sk)} style={{
                             display: "flex", alignItems: "center", gap: 4,
                             padding: "6px 14px", fontSize: "12px", fontWeight: 600,
@@ -2154,9 +2155,11 @@ const TraineeSkills = ({ user }) => {
                                 {/* Right side */}
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                                   {(sk.videos || []).length > 0 && (
-                                    <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPlayingVideo(sk.videos[0]); }} title={`${sk.videos.length} video${sk.videos.length > 1 ? "s" : ""}`} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 4, background: "#8B6AAE12", border: "none", cursor: "pointer", fontSize: "9px", fontWeight: 600, color: "#8B6AAE" }}>
-                                      <Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}
-                                    </button>
+                                    <span onClick={(e) => { e.stopPropagation(); e.preventDefault(); }} style={{ display: "inline-flex" }}>
+                                      <button onClick={(e) => { e.stopPropagation(); setPlayingVideo(sk.videos[0]); }} title={`${sk.videos.length} video${sk.videos.length > 1 ? "s" : ""}`} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 4, background: "#8B6AAE12", border: "none", cursor: "pointer", fontSize: "9px", fontWeight: 600, color: "#8B6AAE" }}>
+                                        <Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}
+                                      </button>
+                                    </span>
                                   )}
                                   {hasComments && <Icon name="message" size={12} color={T.gold} />}
                                   {logs.length > 0 && <span style={{ fontSize: "10px", color: T.textMuted }}>{logs.length} logs</span>}
@@ -2202,7 +2205,7 @@ const TraineeSkills = ({ user }) => {
                                           return (
                                             <div key={i} style={{ padding: "4px 8px", borderRadius: 4, background: isCurrent ? TIMING_COLORS[i + 1] + "15" : T.creamDark, border: isCurrent ? `1px solid ${TIMING_COLORS[i + 1]}40` : "1px solid transparent" }}>
                                               <span style={{ fontSize: "9px", fontWeight: 600, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted }}>{stage}</span>
-                                              <span style={{ fontSize: "10px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.text, marginLeft: 4 }}>≤{goal}m</span>
+                                              <span style={{ fontSize: "10px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.text, marginLeft: 4 }}>≤{fmtMin(goal)}</span>
                                             </div>
                                           );
                                         })}
@@ -2232,7 +2235,7 @@ const TraineeSkills = ({ user }) => {
                                           return (
                                             <div key={idx} style={{ padding: "8px 10px", background: T.white, borderRadius: T.radiusSm, border: `1px solid ${T.lightLine}` }}>
                                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: log.note || comments.length > 0 ? 6 : 0 }}>
-                                                <span style={{ fontSize: "13px", fontWeight: 600 }}>{log.minutes}min</span>
+                                                <span style={{ fontSize: "13px", fontWeight: 600 }}>{fmtMin(log.minutes)}</span>
                                                 <Badge color={log.type === "model" ? T.success : "#8B6AAE"}>{log.type}</Badge>
                                                 <span style={{ fontSize: "11px", color: T.textMuted, marginLeft: "auto" }}>{log.date}</span>
                                               </div>
@@ -2284,21 +2287,20 @@ const TraineeSkills = ({ user }) => {
               <div style={{ padding: 12, borderRadius: T.radiusSm, background: T.goldMuted, marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
                 <Icon name="zap" size={16} color={T.gold} />
                 <span style={{ fontSize: "12px", color: T.gold }}>
-                  Floor ready: <b>{logSkill.targetMin}min</b> · Max: <b>{logSkill.maxMin}min</b>
+                  Floor ready: <b>{fmtMin(logSkill.targetMin)}</b> · Max: <b>{fmtMin(logSkill.maxMin)}</b>
                 </span>
               </div>
             )}
-            <FormField label="Time (minutes)">
-              <div style={{ position: "relative" }}>
-                <input
-                  type="number"
-                  value={logMinutes}
-                  onChange={(e) => setLogMinutes(e.target.value)}
-                  placeholder="e.g. 55"
-                  style={iSt}
-                  autoFocus
-                />
-                <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+            <FormField label="Time">
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input type="number" min="0" value={Math.floor((parseInt(logMinutes) || 0) / 60) || ""} onChange={(e) => { const h = parseInt(e.target.value) || 0; const m = (parseInt(logMinutes) || 0) % 60; setLogMinutes(String(h * 60 + m)); }} placeholder="0" style={iSt} autoFocus />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>hr</span>
+                </div>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input type="number" min="0" max="59" value={(parseInt(logMinutes) || 0) % 60 || ""} onChange={(e) => { const m = Math.min(59, parseInt(e.target.value) || 0); const h = Math.floor((parseInt(logMinutes) || 0) / 60); setLogMinutes(String(h * 60 + m)); }} placeholder="0" style={iSt} />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                </div>
               </div>
             </FormField>
             <FormField label="Practice Type">
@@ -3395,7 +3397,7 @@ const AdminDash = ({ onNav }) => {
                               <Icon name="message" size={10} color={hasReview ? T.success : T.warn} />
                             </div>
                           </div>
-                          <span style={{ color: T.textMuted }}>{entry.log.minutes}min · {entry.log.type}</span>
+                          <span style={{ color: T.textMuted }}>{fmtMin(entry.log.minutes)} · {entry.log.type}</span>
                           {hasReview && <span style={{ color: T.success, marginLeft: 6 }}>reviewed</span>}
                           {!hasReview && <span style={{ color: T.warn, marginLeft: 6 }}>give feedback</span>}
                         </div>
@@ -3572,7 +3574,7 @@ const AdminDash = ({ onNav }) => {
                                       return (
                                         <div key={i} style={{ padding: "4px 8px", borderRadius: 4, background: isCurrent ? TIMING_COLORS[i + 1] + "15" : T.white, border: isCurrent ? `1px solid ${TIMING_COLORS[i + 1]}40` : `1px solid ${T.lightLine}` }}>
                                           <span style={{ fontSize: "9px", fontWeight: 600, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted }}>{stage}</span>
-                                          <span style={{ fontSize: "10px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.text, marginLeft: 4 }}>≤{goal}m</span>
+                                          <span style={{ fontSize: "10px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.text, marginLeft: 4 }}>≤{fmtMin(goal)}</span>
                                         </div>
                                       );
                                     })}
@@ -3580,7 +3582,7 @@ const AdminDash = ({ onNav }) => {
                                 )}
                                 {logs.length > 0 && (
                                   <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: "10px", color: T.textMuted }}>
-                                    <span>{logs.length} sessions · {totalMin} min total</span>
+                                    <span>{logs.length} sessions · {fmtMin(totalMin)} total</span>
                                   </div>
                                 )}
                               </>
@@ -3672,7 +3674,7 @@ const AdminDash = ({ onNav }) => {
                       {sk && <span style={{ color: cc }}> — {sk.name}</span>}
                     </p>
                     <p style={{ fontSize: "10px", color: T.textMuted }}>
-                      {logEntry ? `${logEntry.minutes}min ${logEntry.type}` : ""}
+                      {logEntry ? `${fmtMin(logEntry.minutes)} ${logEntry.type}` : ""}
                       {logEntry?.note ? ` · "${logEntry.note}"` : ""}
                       {" · "}{new Date(notif.ts).toLocaleDateString()}
                     </p>
@@ -3732,7 +3734,7 @@ const AdminDash = ({ onNav }) => {
                           <Avatar name={t.resident.name} size={22} photo={t.resident.photo} ringColor={cohortColor(t.resident.cohort)} />
                           <span style={{ fontSize: "12px", fontWeight: 600 }}>{t.resident.name.split(" ")[0]}</span>
                           <span style={{ fontSize: "11px", color: cc, fontWeight: 500 }}>{t.skill.name}</span>
-                          <span style={{ fontSize: "10px", color: T.textMuted }}>{t.log.minutes}min {t.log.type} · {t.log.date}</span>
+                          <span style={{ fontSize: "10px", color: T.textMuted }}>{fmtMin(t.log.minutes)} {t.log.type} · {t.log.date}</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           {t.needsEducator && <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 8px", borderRadius: 8, background: `${T.warn}20`, color: T.warn }}>NEEDS RESPONSE</span>}
@@ -3836,7 +3838,7 @@ const AdminDash = ({ onNav }) => {
                             onMouseLeave={(e) => e.currentTarget.style.background = T.cream}
                           >
                             <span style={{ fontWeight: 500, color: cc }}>{entry.skill.name}</span>
-                            <span style={{ color: T.textMuted }}>{entry.log.minutes}min · {entry.log.type}</span>
+                            <span style={{ color: T.textMuted }}>{fmtMin(entry.log.minutes)} · {entry.log.type}</span>
                             <span style={{ color: T.textMuted, marginLeft: "auto" }}>{entry.log.date?.slice(5)}</span>
                             <Icon name="message" size={10} color={hasReview ? T.success : T.warn} />
                             <span style={{ fontSize: "9px", color: hasReview ? T.success : T.warn }}>{hasReview ? "reviewed" : "feedback"}</span>
@@ -4619,6 +4621,7 @@ const AdminMaster = () => {
     showToast("Restored");
   };
   const permanentDelete = async (item, idx) => {
+    if (!window.confirm(`Permanently delete "${item.name}"? This cannot be undone.`)) return;
     if (item.archiveType === "category") {
       await supabase.from("skills").delete().eq("category_id", item.id);
       await supabase.from("categories").delete().eq("id", item.id);
@@ -4824,6 +4827,7 @@ const AdminMaster = () => {
     showToast("Video renamed");
   };
   const removeVideo = async (catId, skillId, videoId) => {
+    if (!window.confirm("Remove this video?")) return;
     // Compute filtered videos BEFORE state update
     let filteredVids;
     if (!skillId) {
@@ -4976,6 +4980,7 @@ const AdminMaster = () => {
     setPresetModal(false);
   };
   const removePreset = async (id) => {
+    if (!window.confirm("Delete this preset?")) return;
     await supabase.from("presets").delete().eq("id", id);
     setPresets((p) => p.filter((pr) => pr.id !== id));
     showToast("Preset removed");
@@ -5288,19 +5293,31 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <div style={{ position: "relative" }}>
-                  <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseInt(editTarget); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
-                  <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" value={Math.floor((parseInt(editTarget) || 0) / 60) || ""} onChange={(e) => { const h = parseInt(e.target.value) || 0; const m = (parseInt(editTarget) || 0) % 60; setEditTarget(String(h * 60 + m)); }} placeholder="0" style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>hr</span>
+                  </div>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" max="59" value={(parseInt(editTarget) || 0) % 60 || ""} onChange={(e) => { const m = Math.min(59, parseInt(e.target.value) || 0); const h = Math.floor((parseInt(editTarget) || 0) / 60); setEditTarget(String(h * 60 + m)); }} onBlur={() => { const v = parseInt(editTarget); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="0" style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                  </div>
                 </div>
               </FormField>
               <FormField label="Max Acceptable">
-                <div style={{ position: "relative" }}>
-                  <input type="number" value={editMax} onChange={(e) => setEditMax(e.target.value)} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 75"} style={iSt} />
-                  <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" value={Math.floor((parseInt(editMax) || 0) / 60) || ""} onChange={(e) => { const h = parseInt(e.target.value) || 0; const m = (parseInt(editMax) || 0) % 60; setEditMax(String(h * 60 + m)); }} placeholder={editTarget ? String(Math.floor(Math.round(parseInt(editTarget) * 1.25) / 60)) : "0"} style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>hr</span>
+                  </div>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" max="59" value={(parseInt(editMax) || 0) % 60 || ""} onChange={(e) => { const m = Math.min(59, parseInt(e.target.value) || 0); const h = Math.floor((parseInt(editMax) || 0) / 60); setEditMax(String(h * 60 + m)); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25) % 60) : "0"} style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                  </div>
                 </div>
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable.{editTarget && !editMax ? ` Suggested max: ${Math.round(parseInt(editTarget) * 1.25)}min (1.25× target)` : ""}</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable.{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25× target)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
@@ -5341,19 +5358,31 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <div style={{ position: "relative" }}>
-                  <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseInt(editTarget); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
-                  <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" value={Math.floor((parseInt(editTarget) || 0) / 60) || ""} onChange={(e) => { const h = parseInt(e.target.value) || 0; const m = (parseInt(editTarget) || 0) % 60; setEditTarget(String(h * 60 + m)); }} placeholder="0" style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>hr</span>
+                  </div>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" max="59" value={(parseInt(editTarget) || 0) % 60 || ""} onChange={(e) => { const m = Math.min(59, parseInt(e.target.value) || 0); const h = Math.floor((parseInt(editTarget) || 0) / 60); setEditTarget(String(h * 60 + m)); }} onBlur={() => { const v = parseInt(editTarget); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="0" style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                  </div>
                 </div>
               </FormField>
               <FormField label="Max Acceptable">
-                <div style={{ position: "relative" }}>
-                  <input type="number" value={editMax} onChange={(e) => setEditMax(e.target.value)} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 75"} style={iSt} />
-                  <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" value={Math.floor((parseInt(editMax) || 0) / 60) || ""} onChange={(e) => { const h = parseInt(e.target.value) || 0; const m = (parseInt(editMax) || 0) % 60; setEditMax(String(h * 60 + m)); }} placeholder={editTarget ? String(Math.floor(Math.round(parseInt(editTarget) * 1.25) / 60)) : "0"} style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>hr</span>
+                  </div>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input type="number" min="0" max="59" value={(parseInt(editMax) || 0) % 60 || ""} onChange={(e) => { const m = Math.min(59, parseInt(e.target.value) || 0); const h = Math.floor((parseInt(editMax) || 0) / 60); setEditMax(String(h * 60 + m)); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25) % 60) : "0"} style={iSt} />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
+                  </div>
                 </div>
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable.{editTarget && !editMax ? ` Suggested max: ${Math.round(parseInt(editTarget) * 1.25)}min (1.25× target)` : ""}</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable.{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25× target)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
@@ -6518,7 +6547,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                 background: isActive ? TIMING_COLORS[si] : T.creamDark, color: isActive ? T.white : T.textMuted,
                                 fontSize: "10px", fontWeight: 600, cursor: "pointer",
                                 outline: isCurr ? "2px solid " + TIMING_COLORS[si] : "none", outlineOffset: 1,
-                              }}>{stage}{goal ? ` (${goal}m)` : ""}</button>);
+                              }}>{stage}{goal ? ` (${fmtMin(goal)})` : ""}</button>);
                             })}
                           </div>
                         </div>
@@ -6763,6 +6792,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
   const toggleSkill = async (sid) => {
     const sids = new Set(r.skillIds || []);
     const removing = sids.has(sid);
+    if (removing && !window.confirm("Remove this skill from the trainee's track?")) return;
     if (removing) { sids.delete(sid); } else { sids.add(sid); }
     const newIds = [...sids];
     // Optimistic update
@@ -6795,6 +6825,7 @@ const TrackBuilder = ({ traineeId, onNav, embedded = false }) => {
   };
 
   const clearAll = async () => {
+    if (!window.confirm("Clear ALL skills from this trainee's track? This cannot be undone.")) return;
     setResidents((p) => p.map((x) => (x.id === traineeId ? { ...x, skillIds: [], progress: {} } : x)));
     showToast("Track cleared");
     await supabase.from("resident_skills").delete().eq("user_id", traineeId);
@@ -7762,6 +7793,7 @@ const SettingsPage = () => {
   };
 
   const removeCalSource = async (id) => {
+    if (!window.confirm("Remove this calendar source?")) return;
     const updated = calSources.filter((s) => s.id !== id);
     // Also clean up google token if removing a google source
     const removing = calSources.find((s) => s.id === id);
