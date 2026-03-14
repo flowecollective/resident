@@ -6345,15 +6345,6 @@ const TraineeProfile = ({ traineeId, onNav }) => {
           </div>
 
           {/* Skill Progress — full interactive controls */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: T.white, fontSize: "11px", color: T.textMuted }}>
-              <span style={{ fontWeight: 600 }}>Technique:</span> {techniqueStages.join(" → ")}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: T.white, fontSize: "11px", color: T.textMuted }}>
-              <span style={{ fontWeight: 600 }}>Timing:</span> {timingStages.join(" → ")}
-            </div>
-          </div>
-
           {cats.length === 0 ? (
             <Card style={{ padding: 48, textAlign: "center" }}>
               <p style={{ color: T.textMuted }}>No skills assigned yet. Switch to "Edit Track" to build their program.</p>
