@@ -5296,7 +5296,7 @@ const AdminMaster = () => {
         )}
         {/* Curriculum / SOP */}
         <div style={{ padding: 16, borderRadius: T.radiusSm, background: T.cream, marginBottom: 14 }}>
-          <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Curriculum (optional — can add later)</p>
+          <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Curriculum <span style={{ fontWeight: 400, fontStyle: "italic", color: T.textMuted }}>optional, can add later</span></p>
           <div style={{ display: "flex", gap: 2, marginBottom: 10, flexWrap: "wrap" }}>
             {SOP_SECTIONS.map((sec) => (
               <button key={sec.key} onClick={() => setNewSkSopTab(sec.key)} style={{
