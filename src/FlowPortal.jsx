@@ -2086,8 +2086,11 @@ const TraineeSkills = ({ user }) => {
 
           {/* All Categories */}
           <p style={{ fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.25em", textTransform: "uppercase", color: T.textMuted, marginBottom: 12 }}>All Categories</p>
+          {(() => { const focusIds = new Set(focusSkills.map((s) => s.id)); return (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {cats.map((cat) => {
+              const remainingSkills = cat.skills.filter((s) => !focusIds.has(s.id));
+              if (remainingSkills.length === 0) return null;
               const catDone = cat.skills.filter((s) => isSkillComplete(me, s.id, masterProgram, maxTech, maxTime)).length;
               const catPct = Math.round(cat.skills.reduce((a, s) => a + getSkillPct(me, s.id, masterProgram, maxTech, maxTime), 0) / cat.skills.length);
               const cc = cat.color || T.gold;
@@ -2106,7 +2109,7 @@ const TraineeSkills = ({ user }) => {
                     </summary>
                     <div style={{ padding: "0 16px 16px" }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {cat.skills.map((sk) => {
+                        {remainingSkills.map((sk) => {
                           const sp = getSkillProgress(me, sk.id);
                           const skPct = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime);
                           const isService = sk.type === "service";
@@ -2257,6 +2260,7 @@ const TraineeSkills = ({ user }) => {
               );
             })}
           </div>
+          ); })()}
 
           {/* Log Time Modal */}
           <Modal open={logModal} onClose={() => setLogModal(false)} title={"Log Practice — " + (logSkill?.name || "")} width={420}>
