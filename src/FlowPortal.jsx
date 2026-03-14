@@ -5291,7 +5291,7 @@ const AdminMaster = () => {
                 <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 56, 1.5h"} style={iSt} />
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter minutes or hours (1.5h = 90min).{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25×)` : ""}</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter minutes or hours (1.5h = 90min).{parseInt(editTarget) ? ` Auto-suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25× target)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
@@ -5338,7 +5338,7 @@ const AdminMaster = () => {
                 <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 56, 1.5h"} style={iSt} />
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter minutes or hours (1.5h = 90min).{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25×)` : ""}</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter minutes or hours (1.5h = 90min).{parseInt(editTarget) ? ` Auto-suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25× target)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
