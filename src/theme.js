@@ -56,9 +56,9 @@ export const CAT_COLORS = [
   "#8C7A55", // neutral / warm brown
 ];
 
-export const TECHNIQUE_STAGES = ["Not Started", "Learning", "Mannequin", "Model", "Competent", "Floor Ready"];
+export const TECHNIQUE_STAGES = ["Not Started", "Learning", "Mannequin", "Model", "Floor Ready"];
 export const TIMING_STAGES = ["Not Started", "Building", "On Pace", "Competent", "Floor Ready"];
-export const TECHNIQUE_COLORS = [T.creamDark, "#D4C5A9", "#B8A47E", "#A08C6A", "#7A6B4A", "#8C7A55"];
+export const TECHNIQUE_COLORS = [T.creamDark, "#D4C5A9", "#B8A47E", "#A08C6A", "#8C7A55"];
 export const TIMING_COLORS = [T.creamDark, "#C9B8DC", "#9B7EC0", "#7B5EA6", "#6B4D94"];
 
 export const iSt = {
