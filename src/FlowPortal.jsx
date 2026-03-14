@@ -3544,6 +3544,21 @@ const AdminDash = ({ onNav }) => {
                                   </div>
                                 </div>
                               ))}
+                              {sk.targetMin && (
+                                <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
+                                  {timingStages.slice(1).map((stage, i) => {
+                                    const multipliers = [1.75, 1.5, 1.25, 1];
+                                    const goal = Math.round(sk.targetMin * (multipliers[i] || 1));
+                                    const isCurrent = i + 1 === sp.timing;
+                                    return (
+                                      <div key={i} style={{ flex: 1, textAlign: "center", padding: "3px 2px", borderRadius: 3, background: isCurrent ? TIMING_COLORS[i + 1] + "15" : "transparent" }}>
+                                        <span style={{ fontSize: "8px", fontWeight: 600, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted }}>{stage}</span>
+                                        <span style={{ fontSize: "9px", fontWeight: 700, color: isCurrent ? TIMING_COLORS[i + 1] : T.textMuted, marginLeft: 3 }}>≤{goal}m</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
                           )}
                           {logs.length > 0 && (
