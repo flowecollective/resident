@@ -3472,10 +3472,8 @@ const AdminDash = ({ onNav }) => {
         </Card>
       )}
 
-      {/* Main grid: Focus + Schedule side by side */}
-      <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start" }}>
-        {/* Current Focus — all trainees */}
-        <Card style={{ padding: 22 }}>
+      {/* Current Focus — all trainees (full width) */}
+      <Card style={{ padding: 22, marginBottom: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="target" size={18} color={T.gold} /> Active Focus
@@ -3518,8 +3516,10 @@ const AdminDash = ({ onNav }) => {
               })}
             </div>
           )}
-        </Card>
+      </Card>
 
+      {/* Schedule + Reviews side by side */}
+      <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start" }}>
         {/* Today's Schedule */}
         <Card style={{ padding: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -3562,11 +3562,10 @@ const AdminDash = ({ onNav }) => {
             </>
           )}
         </Card>
-      </div>
 
-      {/* Pending Reviews */}
-      {pendingReviews.length > 0 && (
-        <Card style={{ padding: 22, marginBottom: 24, borderLeft: `3px solid ${T.danger}` }}>
+        {/* Pending Reviews */}
+        {pendingReviews.length > 0 && (
+          <Card style={{ padding: 22, borderLeft: `3px solid ${T.danger}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="alert" size={18} color={T.danger} /> Pending Reviews
@@ -3605,8 +3604,9 @@ const AdminDash = ({ onNav }) => {
               );
             })}
           </div>
-        </Card>
-      )}
+          </Card>
+        )}
+      </div>
 
       {/* Recent Feedback — across all trainees */}
       {(() => {
