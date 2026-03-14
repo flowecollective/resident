@@ -2153,6 +2153,11 @@ const TraineeSkills = ({ user }) => {
                                 </div>
                                 {/* Right side */}
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                  {(sk.videos || []).length > 0 && (
+                                    <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPlayingVideo(sk.videos[0]); }} title={`${sk.videos.length} video${sk.videos.length > 1 ? "s" : ""}`} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 4, background: "#8B6AAE12", border: "none", cursor: "pointer", fontSize: "9px", fontWeight: 600, color: "#8B6AAE" }}>
+                                      <Icon name="play" size={9} color="#8B6AAE" />{sk.videos.length}
+                                    </button>
+                                  )}
                                   {hasComments && <Icon name="message" size={12} color={T.gold} />}
                                   {logs.length > 0 && <span style={{ fontSize: "10px", color: T.textMuted }}>{logs.length} logs</span>}
                                   {!complete && skPct > 0 && <span style={{ fontSize: "13px", fontWeight: 700, color: cc }}>{skPct}%</span>}
@@ -4739,12 +4744,22 @@ const AdminMaster = () => {
     reader.readAsDataURL(file);
   };
   const saveVideo = async () => {
-    if (!videoTitle.trim() || !videoUrl.trim() || !videoTarget) return;
+    if (!videoTitle.trim() || !videoTarget) return;
     const isUpload = videoMode === "upload" && videoFile;
+    if (!isUpload && !videoUrl.trim()) return;
+    let finalUrl = videoUrl;
+    if (isUpload) {
+      const ext = videoFile.name.split(".").pop();
+      const path = `videos/${uid()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("media").upload(path, videoFile, { contentType: videoFile.type });
+      if (upErr) { showToast("Upload failed: " + upErr.message); return; }
+      const { data: pubData } = supabase.storage.from("media").getPublicUrl(path);
+      finalUrl = pubData.publicUrl;
+    }
     const vid = {
       id: `v_${uid()}`,
       title: videoTitle.trim(),
-      url: videoUrl,
+      url: finalUrl,
       duration: videoDuration.trim() || "—",
       source: isUpload ? "upload" : "link",
       fileName: isUpload ? videoFile.name : null,
