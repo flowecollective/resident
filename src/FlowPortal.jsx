@@ -227,8 +227,8 @@ const Ctx = createContext(null);
 const useData = () => useContext(Ctx);
 
 // ── Helpers ──
-const fmtMin = (m) => { if (!m) return "—"; const h = Math.floor(m / 60); const r = m % 60; if (h && r) return `${h}h ${r}m`; if (h) return `${h}h`; return `${r}m`; };
-const parseTime = (s) => { if (!s) return 0; s = s.toString().trim(); const hm = s.match(/^(\d+)\s*[:h]\s*(\d+)\s*m?$/i); if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]); const hOnly = s.match(/^(\d+)\s*h$/i); if (hOnly) return parseInt(hOnly[1]) * 60; const mOnly = s.match(/^(\d+)\s*m$/i); if (mOnly) return parseInt(mOnly[1]); const n = parseInt(s); return isNaN(n) ? 0 : n; };
+const fmtMin = (m) => { if (!m) return "—"; const h = Math.floor(m / 60); const r = m % 60; if (h && r) return `${h}h ${r}m`; if (h) return `${h}h`; return `${r}min`; };
+const parseTime = (s) => { if (!s) return 0; s = s.toString().trim(); const dec = s.match(/^(\d+\.?\d*)\s*h$/i); if (dec) return Math.round(parseFloat(dec[1]) * 60); const hm = s.match(/^(\d+)\s*[:h]\s*(\d+)\s*m?$/i); if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]); const mOnly = s.match(/^(\d+)\s*m$/i); if (mOnly) return parseInt(mOnly[1]); const n = parseFloat(s); return isNaN(n) ? 0 : Math.round(n); };
 // Lookup skill type from master program (falls back to knowledge)
 const findSkill = (masterProgram, sid) => {
   for (const cat of masterProgram) {
@@ -2293,7 +2293,7 @@ const TraineeSkills = ({ user }) => {
               </div>
             )}
             <FormField label="Time">
-              <input value={parseInt(logMinutes) ? fmtMin(parseInt(logMinutes)) : logMinutes} onChange={(e) => setLogMinutes(e.target.value)} onBlur={() => { const v = parseTime(logMinutes); setLogMinutes(v ? String(v) : ""); }} placeholder="e.g. 55m, 1h30m, 1:30" style={iSt} autoFocus />
+              <input value={logMinutes} onChange={(e) => setLogMinutes(e.target.value)} onBlur={() => { const v = parseTime(logMinutes); setLogMinutes(v ? String(v) : ""); }} placeholder="e.g. 55, 1.5h, 2h" style={iSt} autoFocus />
             </FormField>
             <FormField label="Practice Type">
               <div style={{ display: "flex", gap: 8 }}>
@@ -5285,13 +5285,13 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <input value={parseInt(editTarget) ? fmtMin(parseInt(editTarget)) : editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45m, 1h30m, 1:30" style={iSt} />
+                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45, 1.5h, 2h" style={iSt} />
               </FormField>
               <FormField label="Max Acceptable">
-                <input value={parseInt(editMax) ? fmtMin(parseInt(editMax)) : editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? fmtMin(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 1h, 90m"} style={iSt} />
+                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 56, 1.5h"} style={iSt} />
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter as minutes (45), hours (1h), or both (1h30m).{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25×)` : ""}</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter minutes or hours (1.5h = 90min).{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25×)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
@@ -5332,13 +5332,13 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <input value={parseInt(editTarget) ? fmtMin(parseInt(editTarget)) : editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45m, 1h30m, 1:30" style={iSt} />
+                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45, 1.5h, 2h" style={iSt} />
               </FormField>
               <FormField label="Max Acceptable">
-                <input value={parseInt(editMax) ? fmtMin(parseInt(editMax)) : editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? fmtMin(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 1h, 90m"} style={iSt} />
+                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : "e.g. 56, 1.5h"} style={iSt} />
               </FormField>
             </div>
-            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter as minutes (45), hours (1h), or both (1h30m).{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25×)` : ""}</p>
+            <p style={{ fontSize: "10px", color: T.textMuted, marginTop: 4 }}>Target = floor-ready speed. Max = slowest acceptable. Enter minutes or hours (1.5h = 90min).{editTarget && !editMax ? ` Suggested max: ${fmtMin(Math.round(parseInt(editTarget) * 1.25))} (1.25×)` : ""}</p>
           </div>
         )}
         {/* Curriculum / SOP */}
