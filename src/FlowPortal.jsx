@@ -1118,62 +1118,71 @@ const TraineeDash = ({ user }) => {
 
       {/* Current Focus */}
       {(() => {
-        const allSkills = cats.flatMap((c) => c.skills);
-        const focus = allSkills
-          .filter((sk) => { const p = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime); return p > 0 && p < 100; })
-          .sort((a, b) => getSkillPct(me, b.id, masterProgram, maxTech, maxTime) - getSkillPct(me, a.id, masterProgram, maxTech, maxTime))
-          .slice(0, 2);
-        if (focus.length === 0) return null;
+        const allSkills = cats.flatMap((c) => c.skills.map((s) => ({ ...s, catName: c.name, catColor: c.color || T.gold })));
+        const adminFocus = (me.focusSkills || []).length > 0;
+        const focus = adminFocus
+          ? (me.focusSkills || []).map((fid) => allSkills.find((s) => s.id === fid)).filter(Boolean)
+          : allSkills
+            .filter((sk) => { const p = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime); return p > 0 && p < 100; })
+            .sort((a, b) => getSkillPct(me, b.id, masterProgram, maxTech, maxTime) - getSkillPct(me, a.id, masterProgram, maxTech, maxTime))
+            .slice(0, 3);
         return (
           <Card style={{ padding: 22, marginBottom: 16 }}>
-            <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, marginBottom: 14 }}>Current Focus</h3>
-            <div className="r-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${focus.length}, 1fr)`, gap: 14 }}>
-              {focus.map((sk) => {
-                const skPct = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime);
-                const sp = getSkillProgress(me, sk.id);
-                const cat = cats.find((c) => c.skills.some((s) => s.id === sk.id));
-                const cc = cat?.color || T.gold;
-                const logs = me.timingLogs?.[sk.id] || [];
-                const totalMin = logs.reduce((a, l) => a + (l.minutes || 0), 0);
-                return (
-                  <div key={sk.id} style={{ padding: 16, borderRadius: T.radiusSm, background: T.cream, borderLeft: `4px solid ${cc}` }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                      <div>
-                        <p style={{ fontSize: "15px", fontWeight: 600 }}>{sk.name}</p>
-                        {cat && <p style={{ fontSize: "11px", color: cc, marginTop: 2 }}>{cat.name}</p>}
-                      </div>
-                      <span style={{ fontFamily: T.fontD, fontSize: "20px", fontWeight: 700, color: cc }}>{skPct}%</span>
-                    </div>
-                    <ProgressBar value={skPct} color={cc} />
-                    {sk.type === "service" && (
-                      <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
-                        {[
-                          { label: "Technique", stage: sp.technique, stages: techniqueStages, colors: TECHNIQUE_COLORS },
-                          { label: "Timing", stage: sp.timing, stages: timingStages, colors: TIMING_COLORS },
-                        ].map((track) => (
-                          <div key={track.label} style={{ flex: 1, padding: "10px 12px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                              <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted }}>{track.label}</span>
-                              <span style={{ fontSize: "12px", fontWeight: 700, color: track.stage > 0 ? track.colors[track.stage] : T.textMuted }}>{track.stage === 0 ? "Not Started" : track.stages[track.stage]}</span>
-                            </div>
-                            {/* Step dots */}
-                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                              {track.stages.slice(1).map((_, i) => (
-                                <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= track.stage ? track.colors[track.stage] : T.lightLine, transition: "background .2s" }} />
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: "11px", color: T.textMuted }}>
-                      <span>{logs.length} sessions logged</span>
-                      <span>{totalMin} min total</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: focus.length > 0 ? 14 : 0 }}>
+              <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name="target" size={16} color={T.gold} /> Current Focus
+              </h3>
+              {adminFocus && <span style={{ fontSize: "10px", color: T.textMuted }}>{focus.length} assigned</span>}
             </div>
+            {focus.length === 0 ? (
+              <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 8 }}>No focus skills yet. Your educator will assign them, or start working on a skill.</p>
+            ) : (
+              <div className="r-grid" style={{ display: "grid", gridTemplateColumns: focus.length > 1 ? "1fr 1fr" : "1fr", gap: 14 }}>
+                {focus.map((sk) => {
+                  const skPct = getSkillPct(me, sk.id, masterProgram, maxTech, maxTime);
+                  const sp = getSkillProgress(me, sk.id);
+                  const cc = sk.catColor || T.gold;
+                  const logs = me.timingLogs?.[sk.id] || [];
+                  const totalMin = logs.reduce((a, l) => a + (l.minutes || 0), 0);
+                  return (
+                    <div key={sk.id} style={{ padding: 16, borderRadius: T.radiusSm, background: T.cream, borderLeft: `4px solid ${cc}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                        <div>
+                          <p style={{ fontSize: "15px", fontWeight: 600 }}>{sk.name}</p>
+                          <p style={{ fontSize: "11px", color: cc, marginTop: 2 }}>{sk.catName}</p>
+                        </div>
+                        <span style={{ fontFamily: T.fontD, fontSize: "20px", fontWeight: 700, color: cc }}>{skPct}%</span>
+                      </div>
+                      <ProgressBar value={skPct} color={cc} />
+                      {sk.type === "service" && (
+                        <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
+                          {[
+                            { label: "Technique", stage: sp.technique, stages: techniqueStages, colors: TECHNIQUE_COLORS },
+                            { label: "Timing", stage: sp.timing, stages: timingStages, colors: TIMING_COLORS },
+                          ].map((track) => (
+                            <div key={track.label} style={{ flex: 1, padding: "10px 12px", borderRadius: T.radiusSm, background: T.white, border: `1px solid ${T.lightLine}` }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: T.textMuted }}>{track.label}</span>
+                                <span style={{ fontSize: "12px", fontWeight: 700, color: track.stage > 0 ? track.colors[track.stage] : T.textMuted }}>{track.stage === 0 ? "Not Started" : track.stages[track.stage]}</span>
+                              </div>
+                              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                                {track.stages.slice(1).map((_, i) => (
+                                  <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i + 1 <= track.stage ? track.colors[track.stage] : T.lightLine, transition: "background .2s" }} />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: "11px", color: T.textMuted }}>
+                        <span>{logs.length} sessions logged</span>
+                        <span>{totalMin} min total</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         );
       })()}
