@@ -228,7 +228,7 @@ const useData = () => useContext(Ctx);
 
 // ── Helpers ──
 const fmtMin = (m) => { if (!m) return "—"; const h = Math.floor(m / 60); const r = m % 60; if (h && r) return `${h}h ${r}m`; if (h) return `${h}h`; return `${r}min`; };
-const parseTime = (s) => { if (!s) return 0; s = s.toString().trim(); const dec = s.match(/^(\d*\.?\d+)\s*h$/i); if (dec) return Math.round(parseFloat(dec[1]) * 60); const hm = s.match(/^(\d+)\s*[:h]\s*(\d+)\s*m?$/i); if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]); const mOnly = s.match(/^(\d+)\s*m$/i); if (mOnly) return parseInt(mOnly[1]); const n = parseFloat(s); return isNaN(n) ? 0 : Math.round(n); };
+const parseTime = (s) => { if (!s) return 0; s = s.toString().trim(); const dec = s.match(/^(\d*\.?\d+)\s*h$/i); if (dec) return Math.round(parseFloat(dec[1]) * 60); const hm = s.match(/^(\d+)\s*[:h]\s*(\d+)\s*m?$/i); if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]); const mOnly = s.match(/^(\d+)\s*m(?:in)?$/i); if (mOnly) return parseInt(mOnly[1]); const n = parseFloat(s); return isNaN(n) ? 0 : Math.round(n); };
 // Lookup skill type from master program (falls back to knowledge)
 const findSkill = (masterProgram, sid) => {
   for (const cat of masterProgram) {
@@ -2293,7 +2293,7 @@ const TraineeSkills = ({ user }) => {
               </div>
             )}
             <FormField label="Time">
-              <input value={logMinutes} onChange={(e) => setLogMinutes(e.target.value)} onBlur={() => { const v = parseTime(logMinutes); setLogMinutes(v ? String(v) : ""); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} autoFocus />
+              <input value={logMinutes} onChange={(e) => setLogMinutes(e.target.value)} onFocus={(e) => { const v = parseTime(e.target.value); if (v) setLogMinutes(String(v)); }} onBlur={() => { const v = parseTime(logMinutes); setLogMinutes(v ? v + "min" : ""); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} autoFocus />
             </FormField>
             <FormField label="Practice Type">
               <div style={{ display: "flex", gap: 8 }}>
@@ -5287,10 +5287,10 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} />
+                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onFocus={(e) => { const v = parseTime(e.target.value); if (v) setEditTarget(String(v)); }} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? v + "min" : ""); if (v && !parseTime(editMax)) setEditMax(Math.round(v * 1.25) + "min"); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} />
               </FormField>
-              <FormField label={parseInt(editTarget) ? `Max Acceptable · suggested ${fmtMin(Math.round(parseInt(editTarget) * 1.25))}` : "Max Acceptable"}>
-                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : ""} style={iSt} />
+              <FormField label={parseTime(editTarget) ? `Max Acceptable · suggested ${fmtMin(Math.round(parseTime(editTarget) * 1.25))}` : "Max Acceptable"}>
+                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onFocus={(e) => { const v = parseTime(e.target.value); if (v) setEditMax(String(v)); }} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? v + "min" : ""); }} placeholder={parseTime(editTarget) ? Math.round(parseTime(editTarget) * 1.25) + "min" : ""} style={iSt} />
               </FormField>
             </div>
           </div>
@@ -5333,10 +5333,10 @@ const AdminMaster = () => {
             <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal, marginBottom: 10 }}>Timing Standard</p>
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
-                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? String(v) : ""); if (v && !parseInt(editMax)) setEditMax(String(Math.round(v * 1.25))); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} />
+                <input value={editTarget} onChange={(e) => setEditTarget(e.target.value)} onFocus={(e) => { const v = parseTime(e.target.value); if (v) setEditTarget(String(v)); }} onBlur={() => { const v = parseTime(editTarget); setEditTarget(v ? v + "min" : ""); if (v && !parseTime(editMax)) setEditMax(Math.round(v * 1.25) + "min"); }} placeholder="min or hrs (1.5h = 90min)" style={iSt} />
               </FormField>
-              <FormField label={parseInt(editTarget) ? `Max Acceptable · suggested ${fmtMin(Math.round(parseInt(editTarget) * 1.25))}` : "Max Acceptable"}>
-                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? String(v) : ""); }} placeholder={editTarget ? String(Math.round(parseInt(editTarget) * 1.25)) : ""} style={iSt} />
+              <FormField label={parseTime(editTarget) ? `Max Acceptable · suggested ${fmtMin(Math.round(parseTime(editTarget) * 1.25))}` : "Max Acceptable"}>
+                <input value={editMax} onChange={(e) => setEditMax(e.target.value)} onFocus={(e) => { const v = parseTime(e.target.value); if (v) setEditMax(String(v)); }} onBlur={() => { const v = parseTime(editMax); setEditMax(v ? v + "min" : ""); }} placeholder={parseTime(editTarget) ? Math.round(parseTime(editTarget) * 1.25) + "min" : ""} style={iSt} />
               </FormField>
             </div>
           </div>
