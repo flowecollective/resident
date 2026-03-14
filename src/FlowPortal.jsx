@@ -2264,7 +2264,7 @@ const TraineeSkills = ({ user }) => {
               <div style={{ padding: 12, borderRadius: T.radiusSm, background: T.goldMuted, marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
                 <Icon name="zap" size={16} color={T.gold} />
                 <span style={{ fontSize: "12px", color: T.gold }}>
-                  Target: <b>{logSkill.targetMin}min</b> · Max: <b>{logSkill.maxMin}min</b>
+                  Floor ready: <b>{logSkill.targetMin}min</b> · Max: <b>{logSkill.maxMin}min</b>
                 </span>
               </div>
             )}
@@ -6499,7 +6499,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                   </div>
                                 </div>
                                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                                  {sk.targetMin && <span style={{ fontSize: "10px", color: T.textMuted }}>Goal: <b style={{ color: T.gold }}>{sk.targetMin}m</b> target · <b>{sk.maxMin}m</b> max</span>}
+                                  {sk.targetMin && <span style={{ fontSize: "10px", color: T.textMuted }}>Floor ready: <b style={{ color: T.gold }}>{sk.targetMin}m</b> · Max: <b>{sk.maxMin}m</b></span>}
                                   {manAvg && <span style={{ fontSize: "10px", color: T.textMuted }}>Mann: <b>{manAvg}m</b></span>}
                                   {mdlAvg && <span style={{ fontSize: "10px", color: sk.targetMin && mdlAvg <= sk.targetMin ? T.success : sk.targetMin && mdlAvg <= sk.maxMin ? T.warn : T.textMuted }}>Model: <b>{mdlAvg}m</b></span>}
                                   {skLogs.length > 0 && <span style={{ fontSize: "10px", color: T.textMuted }}>({skLogs.length} logs)</span>}
