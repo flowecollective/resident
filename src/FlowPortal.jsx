@@ -5183,7 +5183,7 @@ const AdminMaster = () => {
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
                 <div style={{ position: "relative" }}>
-                  <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="e.g. 45" style={iSt} />
+                  <input type="number" value={editTarget} onChange={(e) => { setEditTarget(e.target.value); const v = parseInt(e.target.value); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
                   <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
                 </div>
               </FormField>
@@ -5236,7 +5236,7 @@ const AdminMaster = () => {
             <div className="r-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <FormField label="Target (Floor Ready)">
                 <div style={{ position: "relative" }}>
-                  <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="e.g. 45" style={iSt} />
+                  <input type="number" value={editTarget} onChange={(e) => { setEditTarget(e.target.value); const v = parseInt(e.target.value); if (v && !editMax) setEditMax(String(Math.round(v * 1.25))); }} placeholder="e.g. 45" style={iSt} />
                   <span style={{ position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: T.textMuted, pointerEvents: "none" }}>min</span>
                 </div>
               </FormField>
