@@ -1711,34 +1711,26 @@ const SkillCard = ({ skill, trainee, masterProgram, onAddLog, onDeleteLog, onEdi
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <StagePill label="Tech" stage={p.technique} stages={techniqueStages} colors={TECHNIQUE_COLORS} />
           <StagePill label="Timing" stage={p.timing} stages={timingStages} colors={TIMING_COLORS} />
-          {hasStandard && p.timing > 0 && p.timing < timingStages.length - 1 && (() => {
+          {hasStandard && (() => {
             const multipliers = [1.75, 1.5, 1.25, 1];
-            const currentGoal = Math.round(skill.targetMin * (multipliers[p.timing - 1] || 1));
-            const nextGoal = Math.round(skill.targetMin * (multipliers[p.timing] || 1));
+            const currentBench = p.timing > 0 ? Math.round(skill.targetMin * (multipliers[p.timing - 1] || 1)) : null;
             return (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Goal</span>
-                <span style={{ fontSize: "10px", color: T.textMuted }}>
-                  Current: <b>≤{currentGoal}min</b> · Next ({timingStages[p.timing + 1]}): <b>≤{nextGoal}min</b>
-                </span>
+                <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Time</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                  <span style={{ fontSize: "10px", color: T.textMuted }}>
+                    Floor ready: <b style={{ color: T.gold }}>{skill.targetMin}min</b>
+                    {skill.maxMin ? <> · Max: <b>{skill.maxMin}min</b></> : null}
+                  </span>
+                  {currentBench && currentBench !== skill.targetMin && (
+                    <span style={{ fontSize: "10px", color: TIMING_COLORS[p.timing] || T.textMuted }}>
+                      Current: <b>≤{currentBench}min</b>
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })()}
-          {hasStandard && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-              <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", width: 52, flexShrink: 0 }}>Target</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 4, background: T.goldMuted }}>
-                  <span style={{ fontSize: "10px", fontWeight: 600, color: T.gold }}>{skill.targetMin}min</span>
-                  <span style={{ fontSize: "9px", color: T.textMuted }}>target</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 4, background: T.charcoalMuted }}>
-                  <span style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted }}>{skill.maxMin}min</span>
-                  <span style={{ fontSize: "9px", color: T.textMuted }}>max</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Practice Log */}
           <div style={{ marginTop: 6, borderTop: "1px solid " + (complete ? T.success + "20" : T.lightLine), paddingTop: 6 }}>
