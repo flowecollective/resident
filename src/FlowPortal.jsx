@@ -5559,44 +5559,45 @@ const AdminMaster = () => {
       </Modal>
 
       {/* Learning View Modal */}
-      <Modal open={!!sopViewSkill} onClose={() => setSopViewSkill(null)} title={sopViewSkill?.name || "Curriculum"} width={680}>
-        {sopViewSkill && (() => {
-          const vids = sopViewSkill.videos || [];
-          const hasSop = sopHasContent(sopViewSkill.sop);
-          return (
-            <div>
-              {vids.length > 0 && (() => {
-                const v = vids[0];
-                const url = v.url;
-                const isDirectVideo = url && (url.startsWith("data:") || url.startsWith("blob:") || /supabase\.co\/storage/.test(url) || /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(url));
-                const embedUrl = !isDirectVideo ? getEmbedUrl(url) : null;
-                return (
-                  <div style={{ marginBottom: 16 }}>
-                    {isDirectVideo && <video controls style={{ width: "100%", maxHeight: "50vh", background: T.charcoal, borderRadius: T.radiusSm }} src={url} />}
-                    {embedUrl && <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: T.radiusSm, overflow: "hidden" }}><iframe src={embedUrl} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen /></div>}
-                    {!isDirectVideo && !embedUrl && <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", background: "#8B6AAE10", borderRadius: T.radiusSm, color: "#8B6AAE", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}><Icon name="play" size={14} color="#8B6AAE" /> {v.title}</a>}
-                    {vids.length > 1 && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                        {vids.slice(1).map((vid) => {
-                          const vidEmbed = getEmbedUrl(vid.url);
-                          const vidDirect = vid.url && (/supabase\.co\/storage/.test(vid.url) || /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(vid.url));
-                          return (
-                            <button key={vid.id} onClick={() => { if (vidDirect) { setPlayingVideo(vid); } else if (vidEmbed) { setPlayingVideo(vid); } else { window.open(vid.url, "_blank"); } }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 16, background: "#8B6AAE10", border: "none", cursor: "pointer", fontSize: "11px", color: "#8B6AAE", fontWeight: 500 }}>
-                              <Icon name="play" size={10} color="#8B6AAE" /> {vid.title}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+      {(() => {
+        const activeVidIdx = sopViewSkill?._vidIdx || 0;
+        const setActiveVidIdx = (i) => setSopViewSkill((s) => s ? { ...s, _vidIdx: i } : s);
+        const vids = sopViewSkill?.videos || [];
+        const v = vids[activeVidIdx] || vids[0];
+        const hasSop = sopViewSkill ? sopHasContent(sopViewSkill.sop) : false;
+        return (
+          <Modal open={!!sopViewSkill} onClose={() => setSopViewSkill(null)} title={sopViewSkill?.name || "Curriculum"} width={680}>
+            {sopViewSkill && (
+              <div>
+                {v && (() => {
+                  const url = v.url;
+                  const isDirectVideo = url && (url.startsWith("data:") || url.startsWith("blob:") || /supabase\.co\/storage/.test(url) || /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(url));
+                  const embedUrl = !isDirectVideo ? getEmbedUrl(url) : null;
+                  const embedNoAutoplay = embedUrl ? embedUrl.replace("autoplay=1", "autoplay=0") : null;
+                  return (
+                    <div style={{ marginBottom: 16 }}>
+                      {isDirectVideo && <video key={v.id} controls style={{ width: "100%", maxHeight: "50vh", background: T.charcoal, borderRadius: T.radiusSm }} src={url} />}
+                      {embedNoAutoplay && <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: T.radiusSm, overflow: "hidden" }}><iframe src={embedNoAutoplay} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }} allow="fullscreen; picture-in-picture" allowFullScreen /></div>}
+                      {!isDirectVideo && !embedUrl && <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", background: "#8B6AAE10", borderRadius: T.radiusSm, color: "#8B6AAE", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}><Icon name="play" size={14} color="#8B6AAE" /> {v.title}</a>}
+                    </div>
+                  );
+                })()}
+                {vids.length > 1 && (
+                  <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+                    {vids.map((vid, i) => (
+                      <button key={vid.id} onClick={() => setActiveVidIdx(i)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 16, background: i === activeVidIdx ? "#8B6AAE20" : "#8B6AAE08", border: i === activeVidIdx ? "1.5px solid #8B6AAE" : "1.5px solid transparent", cursor: "pointer", fontSize: "11px", color: "#8B6AAE", fontWeight: i === activeVidIdx ? 700 : 500 }}>
+                        <Icon name="play" size={10} color="#8B6AAE" /> {vid.title}
+                      </button>
+                    ))}
                   </div>
-                );
-              })()}
-              {hasSop && <SOPViewer sop={sopViewSkill.sop} defaultTab="steps" />}
-              {!hasSop && vids.length === 0 && <p style={{ fontSize: "13px", color: T.textMuted, textAlign: "center", padding: 32 }}>No curriculum or videos added yet.</p>}
-            </div>
-          );
-        })()}
-      </Modal>
+                )}
+                {hasSop && <SOPViewer sop={sopViewSkill.sop} defaultTab="steps" />}
+                {!hasSop && vids.length === 0 && <p style={{ fontSize: "13px", color: T.textMuted, textAlign: "center", padding: 32 }}>No curriculum or videos added yet.</p>}
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
 
       {/* CSV Import Modal */}
       <Modal open={csvImportModal} onClose={() => setCsvImportModal(false)} title="Import CSV" width={640}>
