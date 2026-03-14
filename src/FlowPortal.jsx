@@ -4283,6 +4283,7 @@ const AdminMaster = () => {
   const [newCatColor, setNewCatColor] = useState(null);
   const [newSk, setNewSk] = useState("");
   const [newSkType, setNewSkType] = useState("service");
+  const [newSkVideos, setNewSkVideos] = useState([]);
   const [newSkSop, setNewSkSop] = useState({ steps: "", mistakes: "", consultation: "", tips: "", tools: "" });
   const [newSkSopTab, setNewSkSopTab] = useState("steps");
   const [targetCat, setTargetCat] = useState(null);
@@ -4624,13 +4625,13 @@ const AdminMaster = () => {
     showToast("Permanently deleted");
   };
 
-  const openAddSk = (cid) => { setTargetCat(cid); setNewSk(""); setNewSkType("service"); setEditTarget(""); setEditMax(""); setNewSkSop({ steps: "", mistakes: "", consultation: "", tips: "", tools: "" }); setNewSkSopTab("steps"); setSkModal(true); };
+  const openAddSk = (cid) => { setTargetCat(cid); setNewSk(""); setNewSkType("service"); setEditTarget(""); setEditMax(""); setNewSkSop({ steps: "", mistakes: "", consultation: "", tips: "", tools: "" }); setNewSkSopTab("steps"); setNewSkVideos([]); setSkModal(true); };
   const addSk = async () => {
     if (!newSk.trim() || !targetCat) return;
     if (newSkType === "service" && parseInt(editMax) && parseInt(editTarget) && parseInt(editMax) < parseInt(editTarget)) { showToast("Max must be greater than target"); return; }
     const targetCatObj = masterProgram.find((c) => c.id === targetCat);
     const row = {
-      name: newSk.trim(), type: newSkType, videos: [],
+      name: newSk.trim(), type: newSkType, videos: newSkVideos.length > 0 ? newSkVideos : [],
       target_min: newSkType === "service" ? (parseInt(editTarget) || 0) : 0,
       max_min: newSkType === "service" ? (parseInt(editMax) || 0) : 0,
       category_id: targetCat,
@@ -4641,7 +4642,7 @@ const AdminMaster = () => {
     const { data, error: skInsErr } = await supabase.from("skills").insert(row).select().single();
     if (skInsErr) { showToast("Failed to save skill: " + skInsErr.message); return; }
     if (data) {
-      const skill = { id: data.id, name: data.name, type: data.type, targetMin: data.target_min, maxMin: data.max_min, videos: data.videos || [], sop: data.sop };
+      const skill = { id: data.id, name: data.name, type: data.type, targetMin: data.target_min, maxMin: data.max_min, videos: newSkVideos.length > 0 ? newSkVideos : (data.videos || []), sop: data.sop };
       setMasterProgram((p) => p.map((c) => c.id === targetCat ? { ...c, skills: [...c.skills, skill] } : c));
     }
     setNewSk(""); setSkModal(false); showToast("Skill added");
@@ -4765,6 +4766,13 @@ const AdminMaster = () => {
       source: isUpload ? "upload" : "link",
       fileName: isUpload ? videoFile.name : null,
     };
+    // New skill (not yet saved) — just collect locally
+    if (videoTarget.type === "newskill") {
+      setNewSkVideos((prev) => [...prev, vid]);
+      showToast("Video added");
+      setVideoModal(false);
+      return;
+    }
     // Compute new videos array BEFORE state update (React state is async)
     let newVids;
     if (videoTarget.type === "cat") {
@@ -5324,6 +5332,31 @@ const AdminMaster = () => {
               <RichEditor value={newSkSop[sec.key]} onChange={(html) => setNewSkSop((d) => ({ ...d, [sec.key]: html }))} />
             </div>
           ))}
+        </div>
+        {/* Videos */}
+        <div style={{ marginTop: 4, marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <p style={{ fontSize: "12px", fontWeight: 600, color: T.charcoal }}>Videos <span style={{ fontWeight: 400, fontStyle: "italic", color: T.textMuted }}>(optional)</span></p>
+            <button onClick={() => { setVideoTarget({ type: "newskill" }); setVideoTitle(""); setVideoUrl(""); setVideoDuration(""); setVideoFile(null); setVideoMode("upload"); setVideoUploading(false); setVideoModal(true); }} style={{ background: "#8B6AAE15", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: "#8B6AAE", display: "flex", alignItems: "center", gap: 4 }}>
+              <Icon name="plus" size={10} color="#8B6AAE" /> Add Video
+            </button>
+          </div>
+          {newSkVideos.length > 0 ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {newSkVideos.map((v) => (
+                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 20, background: "#8B6AAE10", fontSize: "11px" }}>
+                  <Icon name="play" size={12} color="#8B6AAE" />
+                  <span style={{ color: "#8B6AAE", fontWeight: 500 }}>{v.title}</span>
+                  {v.duration && v.duration !== "—" && <span style={{ color: T.textMuted, fontSize: "10px" }}>{v.duration}</span>}
+                  <button onClick={() => setNewSkVideos((prev) => prev.filter((x) => x.id !== v.id))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
+                    <Icon name="x" size={10} color={T.textMuted} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: "11px", color: T.textMuted }}>No videos yet.</p>
+          )}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}><Btn variant="outline" onClick={() => setSkModal(false)}>Cancel</Btn><Btn onClick={addSk}>Add Skill</Btn></div>
       </Modal>
