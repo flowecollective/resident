@@ -6438,7 +6438,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                               <>
                                 <div style={{ marginBottom: 6 }}>
                                   <p style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 4 }}>
-                                    Technique {p.technique === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>— not started</span>}
+                                    Technique {p.technique === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>: not started</span>}
                                   </p>
                                   <div style={{ display: "flex", gap: 3 }}>
                                     {techniqueStages.slice(1).map((stage, i) => {
@@ -6460,7 +6460,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                 </div>
                                 <div style={{ marginBottom: 6 }}>
                                   <p style={{ fontSize: "10px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 4 }}>
-                                    Timing {p.timing === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>— not started</span>}
+                                    Timing {p.timing === 0 && <span style={{ fontWeight: 400, textTransform: "none" }}>: not started</span>}
                                   </p>
                                   <div style={{ display: "flex", gap: 3 }}>
                                     {timingStages.slice(1).map((stage, i) => {
