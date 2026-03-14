@@ -1174,10 +1174,12 @@ const TraineeDash = ({ user }) => {
                           ))}
                         </div>
                       )}
-                      <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: "11px", color: T.textMuted }}>
-                        <span>{logs.length} sessions logged</span>
-                        <span>{totalMin} min total</span>
-                      </div>
+                      {logs.length > 0 && (
+                        <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: "11px", color: T.textMuted }}>
+                          <span>{logs.length} sessions logged</span>
+                          <span>{totalMin} min total</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2075,7 +2077,7 @@ const TraineeSkills = ({ user }) => {
 
                         {/* Quick stats + action */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                          <span style={{ fontSize: "11px", color: T.textMuted }}>{logs.length} sessions · {totalMin} min</span>
+                          <span style={{ fontSize: "11px", color: T.textMuted }}>{logs.length > 0 ? `${logs.length} sessions · ${totalMin} min` : ""}</span>
                           <button onClick={() => openAddLog(sk)} style={{
                             display: "flex", alignItems: "center", gap: 4,
                             padding: "6px 14px", fontSize: "12px", fontWeight: 600,
@@ -3538,10 +3540,12 @@ const AdminDash = ({ onNav }) => {
                                 ))}
                               </div>
                             )}
-                            <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: "10px", color: T.textMuted }}>
-                              <span>{logs.length} sessions</span>
-                              <span>{totalMin} min total</span>
-                            </div>
+                            {logs.length > 0 && (
+                              <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: "10px", color: T.textMuted }}>
+                                <span>{logs.length} sessions</span>
+                                <span>{totalMin} min total</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
