@@ -6451,21 +6451,23 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                 );
               };
             return (<>
-            {focusSkillsList.length > 0 && (
-              <Card style={{ padding: 0, overflow: "hidden", borderLeft: `5px solid ${T.gold}`, marginBottom: 16 }}>
-                <div style={{ padding: 22, background: `linear-gradient(135deg, ${T.gold}08, ${T.gold}03)` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-                      <Icon name="target" size={16} color={T.gold} /> Current Focus
-                    </h3>
-                    <span style={{ fontSize: "10px", color: T.textMuted }}>{focusSkillsList.length}/3 pinned</span>
-                  </div>
+            <Card style={{ padding: 0, overflow: "hidden", borderLeft: `5px solid ${T.gold}`, marginBottom: 16 }}>
+              <div style={{ padding: 22, background: `linear-gradient(135deg, ${T.gold}08, ${T.gold}03)` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: focusSkillsList.length > 0 ? 12 : 0 }}>
+                  <h3 style={{ fontFamily: T.fontD, fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon name="target" size={16} color={T.gold} /> Current Focus
+                  </h3>
+                  <span style={{ fontSize: "10px", color: T.textMuted }}>{focusSkillsList.length}/3 pinned</span>
+                </div>
+                {focusSkillsList.length > 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {focusSkillsList.map((sk) => <div key={sk.id}>{renderSkillCard(sk, sk.catColor)}</div>)}
                   </div>
-                </div>
-              </Card>
-            )}
+                ) : (
+                  <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 8 }}>No focus skills pinned. Use the <Icon name="target" size={11} color={T.textMuted} /> icon on skills below to pin up to 3.</p>
+                )}
+              </div>
+            </Card>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {cats.map((cat) => {
                 const cc = cat.color || T.gold;
