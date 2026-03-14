@@ -4627,6 +4627,7 @@ const AdminMaster = () => {
   const openAddSk = (cid) => { setTargetCat(cid); setNewSk(""); setNewSkType("service"); setEditTarget(""); setEditMax(""); setNewSkSop({ steps: "", mistakes: "", consultation: "", tips: "", tools: "" }); setNewSkSopTab("steps"); setSkModal(true); };
   const addSk = async () => {
     if (!newSk.trim() || !targetCat) return;
+    if (newSkType === "service" && parseInt(editMax) && parseInt(editTarget) && parseInt(editMax) < parseInt(editTarget)) { showToast("Max must be greater than target"); return; }
     const targetCatObj = masterProgram.find((c) => c.id === targetCat);
     const row = {
       name: newSk.trim(), type: newSkType, videos: [],
@@ -4664,6 +4665,7 @@ const AdminMaster = () => {
     if (!editSkillData || !editSkillCatId) return;
     const t = parseInt(editTarget) || 0;
     const m = parseInt(editMax) || 0;
+    if (m && t && m < t) { showToast("Max must be greater than target"); return; }
     const hasSop = Object.values(sopData).some((v) => v && v.trim());
     const updates = { target_min: t, max_min: m };
     if (hasSop) updates.sop = { ...sopData };
