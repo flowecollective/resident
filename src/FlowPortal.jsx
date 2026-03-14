@@ -6499,7 +6499,7 @@ const TraineeProfile = ({ traineeId, onNav }) => {
                                   </div>
                                 </div>
                                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                                  {sk.targetMin && <span style={{ fontSize: "10px", color: T.textMuted }}>Floor ready: <b style={{ color: T.gold }}>{sk.targetMin}m</b> · Max: <b>{sk.maxMin}m</b></span>}
+                                  {sk.targetMin && sk.maxMin && <span style={{ fontSize: "10px", color: T.textMuted }}>Max: <b>{sk.maxMin}m</b></span>}
                                   {manAvg && <span style={{ fontSize: "10px", color: T.textMuted }}>Mann: <b>{manAvg}m</b></span>}
                                   {mdlAvg && <span style={{ fontSize: "10px", color: sk.targetMin && mdlAvg <= sk.targetMin ? T.success : sk.targetMin && mdlAvg <= sk.maxMin ? T.warn : T.textMuted }}>Model: <b>{mdlAvg}m</b></span>}
                                   {skLogs.length > 0 && <span style={{ fontSize: "10px", color: T.textMuted }}>({skLogs.length} logs)</span>}
